@@ -308,7 +308,7 @@ export default function App() {
               🧠
             </div>
             <div className="leading-tight">
-              <div className="text-sm font-bold text-slate-900">Språkmodell-trener</div>
+              <div className="text-sm font-bold text-slate-900">{s.header.title}</div>
               <div className="text-[11px] text-slate-500">{s.header.subtitle}</div>
             </div>
             <div className="ml-3 inline-flex overflow-hidden rounded-lg border border-slate-300 text-xs font-semibold">
@@ -445,7 +445,7 @@ export default function App() {
                 {vocabList.map((c, i) => (
                   <span
                     key={i}
-                    title={`teikn #${i}`}
+                    title={s.data.charTooltip(i)}
                     className="inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-1.5 font-mono text-sm text-slate-600"
                   >
                     {charLabel(c)}
@@ -578,7 +578,7 @@ export default function App() {
             {/* tap-graf */}
             <div>
               <h3 className="mb-2 font-semibold text-slate-900">{s.train.lossHeading}</h3>
-              <LossChart data={losses} label={s.lossLast} />
+              <LossChart data={losses} loss={s.loss} />
               <p className="mt-2 text-xs text-slate-500">
                 {s.train.lossHelp}
               </p>

@@ -1,10 +1,12 @@
+import type { Strings } from "@/lib/i18n";
+
 interface Props {
   data: number[];
-  label?: string;
+  loss: Strings["loss"];
 }
 
 // Enkel, sjølv-teikna SVG-graf over tapet (loss) under trening.
-export default function LossChart({ data, label = "Siste tap:" }: Props) {
+export default function LossChart({ data, loss }: Props) {
   const W = 640;
   const H = 220;
   const padL = 40;
@@ -15,7 +17,7 @@ export default function LossChart({ data, label = "Siste tap:" }: Props) {
   if (data.length < 2) {
     return (
       <div className="flex h-[220px] w-full items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-400">
-        Start treninga for å sjå tapet gå ned her.
+        {loss.empty}
       </div>
     );
   }
@@ -62,15 +64,15 @@ export default function LossChart({ data, label = "Siste tap:" }: Props) {
         <path d={area} fill="url(#lossFill)" />
         <path d={line} fill="none" stroke="#4f46e5" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         <text x={W - padR} y={H - 8} fontSize={10} fill="#94a3b8" textAnchor="end">
-          steg →
+          {loss.axisStep}
         </text>
         <text x={padL} y={H - 8} fontSize={10} fill="#94a3b8">
-          tap
+          {loss.axisLoss}
         </text>
       </svg>
       <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
-        <span>{label} <span className="font-semibold text-indigo-600">{last.toFixed(4)}</span></span>
-        <span>{data.length} måling(ar)</span>
+        <span>{loss.last} <span className="font-semibold text-indigo-600">{last.toFixed(4)}</span></span>
+        <span>{loss.count(data.length)}</span>
       </div>
     </div>
   );

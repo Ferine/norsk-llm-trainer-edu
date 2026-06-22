@@ -29,6 +29,7 @@ export interface Strings {
     howHeading: string;
     howPara: (sample: string) => string;
     vocabHeading: (n: number) => string;
+    charTooltip: (i: number) => string;
   };
   arch: {
     title: string;
@@ -110,7 +111,13 @@ export interface Strings {
     charsNote: (n: number) => string;
     rebuild: string;
   };
-  lossLast: string;
+  loss: {
+    last: string;
+    empty: string;
+    axisStep: string;
+    axisLoss: string;
+    count: (n: number) => string;
+  };
   footer: { line1: string; line2: string };
   docTitle: string;
 }
@@ -153,6 +160,7 @@ const bm: Strings = {
     howHeading: "Slik blir teksten til tall",
     howPara: (sample) => `Vi deler opp setningen «${sample}» tegn for tegn. Hvert tegn får sin egen ID:`,
     vocabHeading: (n) => `Hele tegnsettet (${n} token = vokabularet)`,
+    charTooltip: (i) => `tegn #${i}`,
   },
   arch: {
     title: "Modellarkitekturen",
@@ -254,7 +262,13 @@ const bm: Strings = {
     charsNote: (n) => `Tatt med i tillegg til ${n} faste tegn.`,
     rebuild: "Bygg modell på nytt",
   },
-  lossLast: "Siste tap:",
+  loss: {
+    last: "Siste tap:",
+    empty: "Start treningen for å se tapet gå ned her.",
+    axisStep: "steg →",
+    axisLoss: "tap",
+    count: (n) => `${n} måling(er)`,
+  },
   footer: {
     line1:
       "Bygd med egen skrevet maskinlæringsmotor – transformator, autograd og Adam – helt i JavaScript.",
@@ -301,6 +315,7 @@ const nn: Strings = {
     howHeading: "Slik blir teksten til tal",
     howPara: (sample) => `Vi delar opp setninga «${sample}» teikn for teikn. Kvart teikn får sin eigen ID:`,
     vocabHeading: (n) => `Heile teiknsettet (${n} token = vokabularet)`,
+    charTooltip: (i) => `teikn #${i}`,
   },
   arch: {
     title: "Modellarkitekturen",
@@ -402,7 +417,13 @@ const nn: Strings = {
     charsNote: (n) => `Teken med i tillegg til ${n} faste teikn.`,
     rebuild: "Bygg modell på nytt",
   },
-  lossLast: "Siste tap:",
+  loss: {
+    last: "Siste tap:",
+    empty: "Start treninga for å sjå tapet gå ned her.",
+    axisStep: "steg →",
+    axisLoss: "tap",
+    count: (n) => `${n} måling(ar)`,
+  },
   footer: {
     line1:
       "Bygt med eigen skreve maskinlæringsmotor – transformator, autograd og Adam – heilt i JavaScript.",

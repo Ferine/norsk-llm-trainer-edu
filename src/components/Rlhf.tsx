@@ -157,7 +157,7 @@ export default function Rlhf({ rlhf, examples, s }: { rlhf: RlhfApi; examples: s
 
       <div>
         <h3 className="mb-2 font-semibold text-slate-900">{s.rlhf.dpoLossHeading}</h3>
-        <LossChart data={rlhf.losses} label={s.lossLast} />
+        <LossChart data={rlhf.losses} loss={s.loss} />
         <p className="mt-2 text-xs text-slate-500">
           {s.rlhf.dpoHelp}
         </p>
