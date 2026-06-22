@@ -7,7 +7,8 @@ import {
   mulberry32,
   trainStep,
 } from "@/lib/ml";
-import { buildTokenizer, corpus } from "@/lib/corpus";
+import { buildTokenizer, corpora } from "@/lib/corpus";
+import { STRINGS, SEEDS, LANGS, type Lang } from "@/lib/i18n";
 import LossChart from "@/components/LossChart";
 import Architecture from "@/components/Architecture";
 import { Section, Card } from "@/components/ui";
@@ -41,7 +42,32 @@ function charLabel(c: string): string {
   return c;
 }
 
+const LANG_KEY = "trainer-lang";
+function readStoredLang(): Lang {
+  try {
+    const v = localStorage.getItem(LANG_KEY);
+    if (v === "bm" || v === "nn") return v;
+  } catch {
+    /* localStorage unavailable */
+  }
+  return "bm";
+}
+function writeStoredLang(l: Lang) {
+  try {
+    localStorage.setItem(LANG_KEY, l);
+  } catch {
+    /* ignore */
+  }
+}
+
 export default function App() {
+  // ---- language ----
+  const [lang, setLang] = useState<Lang>(() => readStoredLang());
+  const s = STRINGS[lang];
+  const seed = SEEDS[lang];
+  const activeCorpus = corpora[lang];
+  const activeLocale = LANGS.find((l) => l.id === lang)!.locale;
+
   // ---- konfigurasjon ----
   const [preset, setPreset] = useState<PresetKey>("liten");
   const [batch, setBatch] = useState(4);
@@ -80,7 +106,7 @@ export default function App() {
 
   const buildEngine = useCallback((customText = activeExtraTextRef.current) => {
     activeExtraTextRef.current = customText;
-    const fullText = corpus + "\n" + customText;
+    const fullText = activeCorpus + "\n" + customText;
     const tokenizer = buildTokenizer(fullText);
     const data = tokenizer.encode(fullText);
     const arch = PRESETS[preset];
@@ -100,7 +126,7 @@ export default function App() {
     setParamCount(model.paramCount());
     rlhf.reset();
     // berre arkitektur (preset) tvingar fram ein ny modell – ikkje lr/batch
-  }, [preset, rlhf.reset]);
+  }, [preset, rlhf.reset, activeCorpus]);
 
   useEffect(() => {
     if (!runningRef.current) buildEngine();
@@ -134,7 +160,7 @@ export default function App() {
         eng.model,
         eng.tokenizer.decode,
         eng.tokenizer.encode,
-        "Det var ein gong",
+        seed.trainSeed,
         { temperature: 0.8, topK: 8, length: 90 },
         sampleRngRef.current
       );
@@ -147,7 +173,7 @@ export default function App() {
     }
     timerRef.current = window.setTimeout(loop, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg.batch]);
+  }, [cfg.batch, seed.trainSeed]);
 
   const start = useCallback(() => {
     rlhf.reset();
@@ -186,7 +212,7 @@ export default function App() {
   );
 
   // ---- generering / "chat" ----
-  const [chatPrompt, setChatPrompt] = useState("Det var ein gong");
+  const [chatPrompt, setChatPrompt] = useState(seed.chatPrompt);
   const [chatFull, setChatFull] = useState("");
   const [chatShown, setChatShown] = useState("");
   const [genTemp, setGenTemp] = useState(0.7);
@@ -237,11 +263,11 @@ export default function App() {
   }, [genTick, chatFull]);
 
   // ---- tokeniserings-framsyning ----
-  const displayTok = useMemo(() => buildTokenizer(corpus), []);
-  const sampleSentence = "Noreg er eit land";
+  const displayTok = useMemo(() => buildTokenizer(activeCorpus), [activeCorpus]);
+  const sampleSentence = seed.sampleSentence;
   const sampleTokens = useMemo(
     () => Array.from(sampleSentence).map((c) => ({ c, id: displayTok.stoi[c] })),
-    [displayTok]
+    [displayTok, sampleSentence]
   );
   const vocabList = useMemo(() => displayTok.itos, [displayTok]);
 
@@ -250,12 +276,27 @@ export default function App() {
     return {
       params: paramCount,
       vocab: eng?.tokenizer.vocab ?? displayTok.vocab,
-      chars: eng?.data.length ?? corpus.length,
+      chars: eng?.data.length ?? activeCorpus.length,
       last: losses.length ? losses[losses.length - 1] : 0,
     };
-  }, [paramCount, losses, displayTok]);
+  }, [paramCount, losses, displayTok, activeCorpus]);
 
-  const examples = ["Det var ein gong", "Noreg er", "Eg heiter", "Vatn er"];
+  const examples = seed.examples;
+
+  // Persist + reflect language on <html> and title.
+  useEffect(() => {
+    writeStoredLang(lang);
+    const meta = LANGS.find((l) => l.id === lang)!;
+    document.documentElement.lang = meta.htmlLang;
+    document.title = s.docTitle;
+  }, [lang, s.docTitle]);
+
+  // On language change, repopulate the editable prompts with the new seed.
+  useEffect(() => {
+    setChatPrompt(seed.chatPrompt);
+    rlhf.setPrompt(seed.chatPrompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/40 text-slate-800">
@@ -268,14 +309,29 @@ export default function App() {
             </div>
             <div className="leading-tight">
               <div className="text-sm font-bold text-slate-900">Språkmodell-trener</div>
-              <div className="text-[11px] text-slate-500">Lær AI på nynorsk – i nettlesaren</div>
+              <div className="text-[11px] text-slate-500">{s.header.subtitle}</div>
+            </div>
+            <div className="ml-3 inline-flex overflow-hidden rounded-lg border border-slate-300 text-xs font-semibold">
+              {LANGS.map((l) => (
+                <button
+                  key={l.id}
+                  onClick={() => setLang(l.id)}
+                  disabled={running || rlhf.dpoRunning}
+                  className={cn(
+                    "px-2.5 py-1 transition disabled:opacity-50",
+                    lang === l.id ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                  )}
+                >
+                  {l.label}
+                </button>
+              ))}
             </div>
           </div>
           <a
             href="#trening"
             className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700"
           >
-            Hopp til trening →
+            {s.header.jump}
           </a>
         </div>
       </header>
@@ -289,36 +345,30 @@ export default function App() {
         <div className="relative mx-auto max-w-5xl px-4 py-14 sm:py-20">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
             <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-500" />
-            Ekte trening frå null – ingen ferdig modell
+            {s.hero.badge}
           </div>
           <h1 className="max-w-3xl text-4xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl">
-            Bygg din eigen språkmodell på{" "}
+            {s.hero.h1Pre}{" "}
             <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
-              nynorsk
+              {s.hero.h1Lang}
             </span>
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-slate-600">
-            Her trenar du ein ekte <b>transformator</b> (samme type som ChatGPT) heilt frå bunnen
-            av – med ekte baklengs propagasjon og Adam-optimering. Alt skjer lokalt i maskina di.
-            Følg med steg for steg, og sjå korleis tilfeldige tal blir til nynorsk tekst.
+            {s.hero.para}
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <a href="#trening" className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-500">
-              Start treninga
+              {s.hero.ctaStart}
             </a>
             <a href="#forsta" className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-              Forstå korleis det fungerer
+              {s.hero.ctaUnderstand}
             </a>
           </div>
           <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 text-center">
-            {[
-              { k: "teikn-nivå", v: "tokenisering" },
-              { k: "100%", v: "i nettlesaren" },
-              { k: "frå null", v: "ekte vektar" },
-            ].map((s) => (
-              <div key={s.v} className="rounded-xl border border-slate-200 bg-white/70 px-3 py-3">
-                <div className="text-lg font-bold text-indigo-600">{s.k}</div>
-                <div className="text-xs text-slate-500">{s.v}</div>
+            {s.hero.stats.map((st) => (
+              <div key={st.v} className="rounded-xl border border-slate-200 bg-white/70 px-3 py-3">
+                <div className="text-lg font-bold text-indigo-600">{st.k}</div>
+                <div className="text-xs text-slate-500">{st.v}</div>
               </div>
             ))}
           </div>
@@ -330,22 +380,18 @@ export default function App() {
         <Section
           id="forsta"
           step={0}
-          title="Kva er ei språkmodell?"
-          intro="Ei språkmodell lærer éin enkel ting: å gjetta kva teikn som kjem neste. Gjer vi det om og om igjen, kan ho skriva heile setningar."
+          title={s.understand.title}
+          intro={s.understand.intro}
         >
           <div className="grid gap-4 sm:grid-cols-3">
-            {[
-              { n: "1", t: "Gjet neste teikn", d: "Modellen les teksten så langt og gjet kva bokstav som bør koma neste.", i: "🔮" },
-              { n: "2", t: "Mål feilen", d: "Vi samanliknar gjettinga med den ekte teksten og rekna ut tapet (loss).", i: "📏" },
-              { n: "3", t: "Juster vektane", d: "Backpropagation flyttar alle vektane litt mot ei betre gjetting.", i: "🔧" },
-            ].map((s) => (
-              <Card key={s.n} className="text-center">
+            {s.understand.cards.map((c, i) => (
+              <Card key={i} className="text-center">
                 <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-2xl">
-                  {s.i}
+                  {c.i}
                 </div>
-                <div className="text-xs font-bold uppercase tracking-wide text-indigo-500">Steg {s.n}</div>
-                <div className="mt-1 font-semibold text-slate-900">{s.t}</div>
-                <p className="mt-1 text-sm text-slate-600">{s.d}</p>
+                <div className="text-xs font-bold uppercase tracking-wide text-indigo-500">Steg {i + 1}</div>
+                <div className="mt-1 font-semibold text-slate-900">{c.t}</div>
+                <p className="mt-1 text-sm text-slate-600">{c.d}</p>
               </Card>
             ))}
           </div>
@@ -355,26 +401,26 @@ export default function App() {
         <Section
           id="data"
           step={1}
-          title="Råtekst og tokenisering"
-          intro="Først treng vi tekst. Her bruker vi norsk nynorsk. Datamaskina forstår ikkje bokstavar, så vi deler teksten opp i små einingar – token – og gir kvar av dei eit tal."
+          title={s.data.title}
+          intro={s.data.intro}
         >
           <Card className="space-y-5">
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="font-semibold text-slate-900">Utsnitt av treningsdataa (nynorsk)</h3>
+                <h3 className="font-semibold text-slate-900">{s.data.snippetHeading}</h3>
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-                  {stats.chars} teikn totalt
+                  {s.data.charsTotal(stats.chars)}
                 </span>
               </div>
               <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-xl bg-slate-900 p-4 text-sm leading-relaxed text-slate-100">
-{corpus.slice(0, 420)}…
+{activeCorpus.slice(0, 420)}…
               </pre>
             </div>
 
             <div>
-              <h3 className="mb-2 font-semibold text-slate-900">Slik blir teksten til tal</h3>
+              <h3 className="mb-2 font-semibold text-slate-900">{s.data.howHeading}</h3>
               <p className="mb-3 text-sm text-slate-600">
-                Vi delar opp setninga «{sampleSentence}» teikn for teikn. Kvart teikn får sin eigen ID:
+                {s.data.howPara(sampleSentence)}
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {sampleTokens.map((t, i) => (
@@ -393,7 +439,7 @@ export default function App() {
 
             <div>
               <h3 className="mb-2 font-semibold text-slate-900">
-                Heile teiknsettet ({vocabList.length} token = vokabularet)
+                {s.data.vocabHeading(vocabList.length)}
               </h3>
               <div className="flex flex-wrap gap-1">
                 {vocabList.map((c, i) => (
@@ -414,19 +460,17 @@ export default function App() {
         <Section
           id="arkitektur"
           step={2}
-          title="Modellarkitekturen"
-          intro="Vi nyttar ein transformator – algoritmen bak moderne språkmodellar. Dataen renn oppover gjennom blokkane, og kvar blokk lærer noko nytt om samanhengen i teksten."
+          title={s.arch.title}
+          intro={s.arch.intro}
         >
           <Card>
-            <Architecture layers={cfg.nLayer} heads={cfg.nHead} dim={cfg.dim} />
+            <Architecture layers={cfg.nLayer} heads={cfg.nHead} dim={cfg.dim} s={s} />
             <div className="mt-5 grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
               <div className="rounded-xl bg-slate-50 p-3">
-                <b className="text-slate-800">Kausal maskering:</b> når modellen gjet posisjon i, får ho
-                berre sjå det som kom <i>før</i>. Slik lærer ho å skriva framover, ikkje å juksa.
+                <b className="text-slate-800">{s.arch.causalTitle}</b> {s.arch.causalBody}
               </div>
               <div className="rounded-xl bg-slate-50 p-3">
-                <b className="text-slate-800">Fleire "hovud":</b> multi-head oppmerksomheit let
-                modellen sjå på fleire ulike ting samtidig – t.d. både bokstav, ordlyd og tyding.
+                <b className="text-slate-800">{s.arch.headsTitle}</b> {s.arch.headsBody}
               </div>
             </div>
           </Card>
@@ -436,15 +480,15 @@ export default function App() {
         <Section
           id="trening"
           step={3}
-          title="Trening – sjå modellen læra"
-          intro="No set vi i gong. For kvart steg gjet modellen, måler tapet, og flyttar vektane med Adam-optimering. Sjå om tapet går ned – då skjer læringa!"
+          title={s.train.title}
+          intro={s.train.intro}
         >
           <Card className="space-y-5">
             {/* kontrollar */}
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Modellstørrelse
+                  {s.train.modelSize}
                 </label>
                 <select
                   value={preset}
@@ -461,7 +505,7 @@ export default function App() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Minibatch: {cfg.batch}
+                  {s.train.minibatch(cfg.batch)}
                 </label>
                 <input
                   type="range"
@@ -475,7 +519,7 @@ export default function App() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Læringsrate: {lr.toFixed(4)}
+                  {s.train.learningRate(lr.toFixed(4))}
                 </label>
                 <input
                   type="range"
@@ -498,14 +542,14 @@ export default function App() {
                   disabled={rlhf.dpoRunning}
                   className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-500 disabled:opacity-50"
                 >
-                  ▶ Start trening
+                  {s.train.start}
                 </button>
               ) : (
                 <button
                   onClick={stop}
                   className="rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-rose-200 transition hover:bg-rose-500"
                 >
-                  ⏸ Stopp
+                  {s.train.stop}
                 </button>
               )}
               <button
@@ -513,13 +557,13 @@ export default function App() {
                 disabled={running}
                 className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
               >
-                ↺ Nullstill
+                {s.train.reset}
               </button>
               <div className="ml-auto text-right text-sm">
                 <div className="font-semibold text-slate-900">
-                  Steg {step} / {MAX_STEPS}
+                  {s.train.step(step, MAX_STEPS)}
                 </div>
-                <div className="text-xs text-slate-500">{stats.params.toLocaleString("nn")} parametrar</div>
+                <div className="text-xs text-slate-500">{stats.params.toLocaleString(activeLocale)} {s.train.params}</div>
               </div>
             </div>
 
@@ -533,11 +577,10 @@ export default function App() {
 
             {/* tap-graf */}
             <div>
-              <h3 className="mb-2 font-semibold text-slate-900">Tap (loss) over tid</h3>
-              <LossChart data={losses} />
+              <h3 className="mb-2 font-semibold text-slate-900">{s.train.lossHeading}</h3>
+              <LossChart data={losses} label={s.lossLast} />
               <p className="mt-2 text-xs text-slate-500">
-                Lågare tap = betre. Ein perfekt modell ville hatt tap rundt 0. Jo raskare kurva
-                søkjer nedover, jo fortare lærer modellen.
+                {s.train.lossHelp}
               </p>
             </div>
 
@@ -545,10 +588,10 @@ export default function App() {
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <span className={cn("h-2 w-2 rounded-full", running ? "animate-pulse bg-emerald-500" : "bg-slate-300")} />
-                Dette skriv modellen no
+                {s.train.liveLabel}
               </div>
               <p className="min-h-6 whitespace-pre-wrap font-mono text-sm text-slate-700">
-                {currentSample || <span className="text-slate-400">Trykk «Start trening» for å sjå døme undervegs…</span>}
+                {currentSample || <span className="text-slate-400">{s.train.livePlaceholder}</span>}
               </p>
             </div>
           </Card>
@@ -558,20 +601,20 @@ export default function App() {
         <Section
           id="chat"
           step={4}
-          title="Prøv modellen"
-          intro="Skriv ein starttekst, og lat modellen halda fram. Ho gjet eitt teikn om gongen. Små modellar gir ikkje perfekte svar – men sjå kor mykje betre det blir etter kvart som ho trenar!"
+          title={s.chat.title}
+          intro={s.chat.intro}
         >
           <Card className="space-y-5">
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Din starttekst (nynorsk)
+                {s.chat.promptLabel}
               </label>
               <textarea
                 value={chatPrompt}
                 onChange={(e) => setChatPrompt(e.target.value)}
                 rows={2}
                 className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                placeholder="t.d. «Det var ein gong»"
+                placeholder={s.chat.promptPlaceholder}
               />
               <div className="mt-2 flex flex-wrap gap-2">
                 {examples.map((ex) => (
@@ -589,7 +632,7 @@ export default function App() {
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Temperatur: {genTemp.toFixed(2)}
+                  {s.chat.temp(genTemp.toFixed(2))}
                 </label>
                 <input
                   type="range"
@@ -600,11 +643,11 @@ export default function App() {
                   onChange={(e) => setGenTemp(Number(e.target.value))}
                   className="w-full accent-indigo-600"
                 />
-                <p className="text-[11px] text-slate-400">0 = trygg, høg = kreativ</p>
+                <p className="text-[11px] text-slate-400">{s.chat.tempHelp}</p>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Top-k: {genTopK}
+                  {s.chat.topK(genTopK)}
                 </label>
                 <input
                   type="range"
@@ -614,11 +657,11 @@ export default function App() {
                   onChange={(e) => setGenTopK(Number(e.target.value))}
                   className="w-full accent-indigo-600"
                 />
-                <p className="text-[11px] text-slate-400">berre dei k beste vala</p>
+                <p className="text-[11px] text-slate-400">{s.chat.topKHelp}</p>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Lengd: {genLen} teikn
+                  {s.chat.length(genLen)}
                 </label>
                 <input
                   type="range"
@@ -629,7 +672,7 @@ export default function App() {
                   onChange={(e) => setGenLen(Number(e.target.value))}
                   className="w-full accent-indigo-600"
                 />
-                <p className="text-[11px] text-slate-400">kor mange nye teikn</p>
+                <p className="text-[11px] text-slate-400">{s.chat.lengthHelp}</p>
               </div>
             </div>
 
@@ -638,12 +681,12 @@ export default function App() {
               disabled={genLoading}
               className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-violet-200 transition hover:bg-violet-500 disabled:opacity-60"
             >
-              {genLoading ? "Tenkjer…" : "✨ Generer tekst"}
+              {genLoading ? s.chat.thinking : s.chat.generate}
             </button>
 
             <div className="rounded-xl border border-slate-200 bg-slate-900 p-4">
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Svar frå modellen
+                {s.chat.answerLabel}
               </div>
               <p className="min-h-8 whitespace-pre-wrap font-mono text-sm leading-relaxed text-emerald-100">
                 {chatShown}
@@ -657,27 +700,23 @@ export default function App() {
         <Section
           id="rlhf"
           step={5}
-          title="RLHF – lær modellen kva vi føretrekkjer"
-          intro="Etter grunntreninga kan vi finjustere modellen med menneskeleg tilbakemelding. Du vel kva for eit av to framhald som er best, og modellen blir dytta mot valet ditt med DPO – forankra til ein frosen kopi av modellen."
+          title={s.rlhf.sectionTitle}
+          intro={s.rlhf.sectionIntro}
         >
-          <Rlhf rlhf={rlhf} examples={examples} />
+          <Rlhf rlhf={rlhf} examples={examples} s={s} />
         </Section>
 
         {/* Ærlig note */}
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
-          <b>Åtvaring – ærlig om kva dette er:</b> Dette er ein <i>svært liten</i> modell som blir
-          trent i nettlesaren din på nokre få setningar. Ho kan ikkje måla seg med store modellar
-          som ChatGPT, som er titusenvis av gonger større og trenar i veker på enorme mengder data.
-          Men prinsippet er <b>nøyaktig det same</b>: ekte transformator, ekte backpropagation, ekte
-          læring. Meir tekst og fleire steg gir betre resultat – prøv å lime inn eigen tekst i feltet under!
+          <b>{s.warning.lead}</b>{s.warning.body}
         </section>
 
-        {/* Egen tekst */}
+        {/* Eigen tekst */}
         <Section
           id="eigentekst"
           step={6}
-          title="Legg til eigen tekst"
-          intro="Meir og variert tekst gjer modellen betre. Lim inn nynorsk tekst her (t.d. frå ei bok eller noko du har skrive). Modellen blir bygd på nytt med den nye dataa."
+          title={s.extra.title}
+          intro={s.extra.intro}
         >
           <Card>
             <textarea
@@ -685,17 +724,17 @@ export default function App() {
               onChange={(e) => setExtraText(e.target.value)}
               rows={5}
               disabled={running}
-              placeholder="Lim inn nynorsk tekst her… (gjerne fleire avsnitt)"
+              placeholder={s.extra.placeholder}
               className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:opacity-50"
             />
             <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-              <span>Teken med i tillegg til {corpus.length} faste teikn.</span>
+              <span>{s.extra.charsNote(activeCorpus.length)}</span>
               <button
                 onClick={rebuildWithExtraText}
                 disabled={running}
                 className="rounded-lg bg-slate-900 px-3 py-1.5 font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
               >
-                Bygg modell på nytt
+                {s.extra.rebuild}
               </button>
             </div>
           </Card>
@@ -704,9 +743,9 @@ export default function App() {
 
       <footer className="border-t border-slate-200 bg-white py-8">
         <div className="mx-auto max-w-5xl px-4 text-center text-sm text-slate-500">
-          Bygt med eigen skreve maskinlæringsmotor – transformator, autograd og Adam – heilt i JavaScript.
+          {s.footer.line1}
           <br />
-          All kode og all læring skjer lokalt i din eigen nettlesar. 🇳🇴
+          {s.footer.line2}
         </div>
       </footer>
     </div>

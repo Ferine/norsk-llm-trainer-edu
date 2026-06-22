@@ -1,7 +1,10 @@
+import type { Strings } from "@/lib/i18n";
+
 interface Props {
   layers: number;
   heads: number;
   dim: number;
+  s: Strings;
 }
 
 function Box({
@@ -42,44 +45,47 @@ function Arrow() {
 }
 
 // Skjematisk teikning av transformator-arkitekturen (GPT-stil).
-export default function Architecture({ layers, heads, dim }: Props) {
+export default function Architecture({ layers, heads, dim, s }: Props) {
   return (
     <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr]">
       {/* Hovudstraum (venstre/sentralt) */}
       <div className="space-y-0 md:order-2">
-        <Box title="Inndata" sub="tekst → teikn (token-id-ar)" tone="slate" />
+        <Box title={s.arch.boxInput.title} sub={s.arch.boxInput.sub} tone="slate" />
         <Arrow />
-        <Box title="Innbygging (embedding)" sub={`teikn + posisjon → ${dim} tal`} tone="indigo" />
+        <Box title={s.arch.boxEmbedding.title} sub={s.arch.boxEmbedding.sub(dim)} tone="indigo" />
         <Arrow />
         {Array.from({ length: layers }).map((_, i) => (
           <div key={i}>
-            <Box title={`Transformer-blokk ${i + 1}`} sub="sjølvoppmerksomhet + feed-forward" tone="violet">
+            <Box title={s.arch.boxBlock.title(i + 1)} sub={s.arch.boxBlock.sub} tone="violet">
               <div className="mt-2 space-y-1">
-                <Box title="LayerNorm → Multi-head oppmerksomheit" sub={`${heads} hovud`} tone="violet" />
-                <Box title="LayerNorm → Feed-forward (GELU)" sub="ikkje-lineær tenking" tone="violet" />
-                <div className="text-[10px] opacity-70">+ residual-vegar (sprang over ledd)</div>
+                <Box title={s.arch.boxAttn.title} sub={s.arch.boxAttn.sub(heads)} tone="violet" />
+                <Box title={s.arch.boxFfn.title} sub={s.arch.boxFfn.sub} tone="violet" />
+                <div className="text-[10px] opacity-70">{s.arch.residualNote}</div>
               </div>
             </Box>
             <Arrow />
           </div>
         ))}
-        <Box title="Slutt-normalisering" sub="LayerNorm" tone="emerald" />
+        <Box title={s.arch.boxFinalNorm.title} sub={s.arch.boxFinalNorm.sub} tone="emerald" />
         <Arrow />
-        <Box title="Utgangshovud" sub="→ poengsum (logits) for kvart teikn" tone="amber" />
+        <Box title={s.arch.boxOutHead.title} sub={s.arch.boxOutHead.sub} tone="amber" />
         <Arrow />
-        <Box title="Softmax" sub="→ sannsyn for kva teikn som kjem neste" tone="amber" />
+        <Box title={s.arch.boxSoftmax.title} sub={s.arch.boxSoftmax.sub} tone="amber" />
       </div>
 
       {/* Forklaring (høgre på stor skjerm) */}
       <aside className="md:order-3">
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-          <h4 className="mb-2 font-semibold text-slate-800">Kva skjer inni?</h4>
+          <h4 className="mb-2 font-semibold text-slate-800">{s.arch.explainHeading}</h4>
           <ul className="space-y-2">
-            <li><b className="text-indigo-600">Innbygging:</b> kvart teikn blir til ei liste med tal, og vi legg til informasjon om <i>kvar</i> i teksten det står.</li>
-            <li><b className="text-violet-600">Sjølvoppmerksomheit:</b> kvart teikn ser på dei andre teikna og finn ut kva som er viktig i samanhengen.</li>
-            <li><b className="text-violet-600">Feed-forward:</b> eit lite nevralt nett som "tenkjer" vidare over kvar posisjon.</li>
-            <li><b className="text-emerald-600">Residualvegar:</b> informasjonen hoppar over kvart ledd slik at ingenting går tapt.</li>
-            <li><b className="text-amber-600">Softmax:</b> gjer poenga om til sannsyn – slik vel modellen neste teikn.</li>
+            {s.arch.explain.map((e, i) => {
+              const colors = ["text-indigo-600", "text-violet-600", "text-violet-600", "text-emerald-600", "text-amber-600"];
+              return (
+                <li key={i}>
+                  <b className={colors[i]}>{e.b}</b> {e.t}
+                </li>
+              );
+            })}
           </ul>
         </div>
       </aside>
