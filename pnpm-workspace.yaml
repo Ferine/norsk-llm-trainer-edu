@@ -1,0 +1,7 @@
+packages:
+  - "."
+
+# Supply-chain hardening. pnpm 10 also reads these from .npmrc.
+minimumReleaseAge: 10080
+minimumReleaseAgeExclude: []
+savePrefix: ""
