@@ -624,6 +624,14 @@ export class Transformer {
   }
 }
 
+// Deep-copy a model's parameters into a new Transformer with the same cfg.
+// Used to freeze a reference policy for DPO; only forward passes run on the copy.
+export function cloneTransformer(src: Transformer): Transformer {
+  const dst = new Transformer(src.cfg, mulberry32(0));
+  for (let i = 0; i < src.params.length; i++) dst.params[i].d.set(src.params[i].d);
+  return dst;
+}
+
 // -------------------------------- Adam --------------------------------------
 
 export class Adam {
