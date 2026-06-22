@@ -356,7 +356,7 @@ export function seqLogProb(logits: Tensor, r0: number, targets: number[]): Tenso
       sum += e;
     }
     for (let c = 0; c < V; c++) probs[i * V + c] /= sum;
-    lp += Math.log(probs[i * V + targets[i]] + 1e-12);
+    lp += logits.d[r * V + targets[i]] - mx - Math.log(sum);
   }
   out.d[0] = lp;
   out._back = () => {
