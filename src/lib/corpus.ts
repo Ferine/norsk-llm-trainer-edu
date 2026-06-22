@@ -18,7 +18,7 @@ Været i Norge skifter ofte. Den ene dagen skinner sola, og dagen etter kan det 
 
 Hva heter du? Jeg heter Ola og jeg kommer fra Norge. Når kommer toget? Det kommer klokka fire. Hvor mye koster brødet? Brødet koster tjue kroner. Kan du hjelpe meg? Ja, jeg hjelper deg gjerne. Er det langt å gå? Nei, det er bare et lite stykke. Liker du å lese bøker? Ja, jeg leser hele kvelden.`;
 
-const nynorsk = `Noreg er eit langt og smalt land i nord. Her finst det høge fjell, djupe fjordar og vide skogar. Om vinteren fell det mykje snø, og elvane kan fryse til is. Mange bygder ligg langs kysten, der folk lever av fiske og jordbruk. Om sommaran skinn sola lenge om kvelden, og nettene er korte. Bøndene dyrkar korn, poteter og grønsaker i grøne dalar. Fiskarane drar ut på havet tidleg kvar morgon for å fanga torsk og sild.
+const nynorsk = `Noreg er eit langt og smalt land i nord. Her finst det høge fjell, djupe fjordar og vide skogar. Om vinteren fell det mykje snø, og elvane kan fryse til is. Mange bygder ligg langs kysten, der folk lever av fiske og jordbruk. Om sommaren skinn sola lenge om kvelden, og nettene er korte. Bøndene dyrkar korn, poteter og grønsaker i grøne dalar. Fiskarane drar ut på havet tidleg kvar morgon for å fanga torsk og sild.
 
 Det var ein gong ein gamal mann som budde aleine i ei lita hytte ved skogen. Kvar morgon gjekk han ut for å henta ved og vatn. Ein dag fann han ei lita fugl som hadde brote vengen. Han tok ho med seg inn og stelte vel med ho i mange dagar. Etter ei veke kunne fuglen flyga att, og ho kom attende kvart vår for å syngja for den gamle mannen. Han smilte og visste at venner kjem attende når ein er god mot dei.
 
@@ -28,7 +28,7 @@ Vatn er viktig for alt liv på jorda. Utan vatn kan korkje plantar, dyr eller me
 
 Norske ordtak er fulle av gamal visdom. Betre sein enn aldri. Ein god dag kjem sjeldan aleine. Det er ikkje gull alt som glimrar. Mange små bekkar gjer ei stor elv. Ein skal ikkje skryta av dagen før kvelden kjem. Ute av auge, ute av sinne. Orda til gamle folk er ofte sanne.
 
-Vêret i Noreg skiftar ofte. Ein dag skin sola, og dagen etter kan det regna eller snøa. Våren er mild og grøn, sommaran er lys og varm, hausten er fargerik, og vinteren er kvit og kald. Folk kler seg etter vêret og etter årstida. Mange likar best dagane når det er vindstille og klart.
+Vêret i Noreg skiftar ofte. Ein dag skin sola, og dagen etter kan det regna eller snøa. Våren er mild og grøn, sommaren er lys og varm, hausten er fargerik, og vinteren er kvit og kald. Folk kler seg etter vêret og etter årstida. Mange likar best dagane når det er vindstille og klart.
 
 Kva heiter du? Eg heiter Ola og eg kjem frå Noreg. Kva tid kjem toget? Det kjem klokka fire. Kor mykje kostar brødet? Brødet kostar tjue kroner. Kan du hjelpa meg? Ja, eg hjelper deg gjerne. Er det langt å gå? Nei, det er berre eit lite stykke. Likar du å lesa bøker? Ja, eg les kvelden lang.`;
 
