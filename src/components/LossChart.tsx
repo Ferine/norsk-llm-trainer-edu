@@ -1,9 +1,10 @@
 interface Props {
   data: number[];
+  label?: string;
 }
 
 // Enkel, sjølv-teikna SVG-graf over tapet (loss) under trening.
-export default function LossChart({ data }: Props) {
+export default function LossChart({ data, label = "Siste tap:" }: Props) {
   const W = 640;
   const H = 220;
   const padL = 40;
@@ -68,7 +69,7 @@ export default function LossChart({ data }: Props) {
         </text>
       </svg>
       <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
-        <span>Siste tap: <span className="font-semibold text-indigo-600">{last.toFixed(4)}</span></span>
+        <span>{label} <span className="font-semibold text-indigo-600">{last.toFixed(4)}</span></span>
         <span>{data.length} måling(ar)</span>
       </div>
     </div>
