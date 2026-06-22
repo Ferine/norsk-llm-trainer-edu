@@ -334,6 +334,60 @@ export function crossEntropyLoss(logits: Tensor, targets: number[]): Tensor {
   return out;
 }
 
+// Sum of log-probabilities log softmax(logits[r0+i])[targets[i]] for i in [0, targets.length).
+// Backward: d(log softmax)/d logit = onehot(target) − softmax. (autograd)
+export function seqLogProb(logits: Tensor, r0: number, targets: number[]): Tensor {
+  const V = logits.cols;
+  const len = targets.length;
+  const out = tensor(1, 1, [logits]);
+  const probs = new Float32Array(len * V);
+  let lp = 0;
+  for (let i = 0; i < len; i++) {
+    const r = r0 + i;
+    let mx = -Infinity;
+    for (let c = 0; c < V; c++) {
+      const v = logits.d[r * V + c];
+      if (v > mx) mx = v;
+    }
+    let sum = 0;
+    for (let c = 0; c < V; c++) {
+      const e = Math.exp(logits.d[r * V + c] - mx);
+      probs[i * V + c] = e;
+      sum += e;
+    }
+    for (let c = 0; c < V; c++) probs[i * V + c] /= sum;
+    lp += Math.log(probs[i * V + targets[i]] + 1e-12);
+  }
+  out.d[0] = lp;
+  out._back = () => {
+    const g = out.grad[0];
+    for (let i = 0; i < len; i++) {
+      const r = r0 + i;
+      for (let c = 0; c < V; c++)
+        logits.grad[r * V + c] += g * ((c === targets[i] ? 1 : 0) - probs[i * V + c]);
+    }
+  };
+  return out;
+}
+
+// Numeric-only version (no autograd graph) for the frozen reference model.
+export function seqLogProbValue(logits: Tensor, r0: number, targets: number[]): number {
+  const V = logits.cols;
+  let lp = 0;
+  for (let i = 0; i < targets.length; i++) {
+    const r = r0 + i;
+    let mx = -Infinity;
+    for (let c = 0; c < V; c++) {
+      const v = logits.d[r * V + c];
+      if (v > mx) mx = v;
+    }
+    let sum = 0;
+    for (let c = 0; c < V; c++) sum += Math.exp(logits.d[r * V + c] - mx);
+    lp += logits.d[r * V + targets[i]] - mx - Math.log(sum);
+  }
+  return lp;
+}
+
 // Køyr baklengs propagasjon: topologisk sortering, så kall _back i omvendt rekkjefølgje.
 export function backward(root: Tensor) {
   const topo: Tensor[] = [];
