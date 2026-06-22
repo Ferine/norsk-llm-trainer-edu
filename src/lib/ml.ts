@@ -730,18 +730,18 @@ export interface SampleOpts {
   length: number;
 }
 
-// Generer tekst: gje ein starttekst, så lat modellen predikere teikn for teikn.
-export function generate(
+// Sample a continuation token-by-token. Shared core for generate() and the RLHF arena.
+export function sampleTokens(
   model: Transformer,
-  decode: (ids: number[]) => string,
   encode: (s: string) => number[],
   prompt: string,
   opts: SampleOpts,
   rng: () => number
-): string {
+): { promptIds: number[]; contIds: number[] } {
   let ctx = encode(prompt);
   if (ctx.length === 0) ctx = [0];
-  const generated: number[] = [];
+  const promptIds = ctx.slice();
+  const contIds: number[] = [];
   const maxCtx = model.seqLen;
   const greedy = opts.temperature <= 0;
   const topK = Math.max(1, Math.min(opts.topK, model.vocab));
@@ -750,9 +750,9 @@ export function generate(
     const logits = model.forward(window);
     const V = model.vocab;
     const off = (window.length - 1) * V;
-    let best = 0;
-    let bestv = -Infinity;
     if (greedy) {
+      let best = 0;
+      let bestv = -Infinity;
       for (let c = 0; c < V; c++) {
         const val = logits.d[off + c];
         if (val > bestv) {
@@ -761,7 +761,7 @@ export function generate(
         }
       }
       ctx.push(best);
-      generated.push(best);
+      contIds.push(best);
       continue;
     }
     const scaled = new Float32Array(V);
@@ -782,7 +782,7 @@ export function generate(
       probs[i] = e;
       sum += e;
     }
-    let r = rng();
+    const r = rng();
     let acc = 0;
     let chosen = top[top.length - 1];
     for (let i = 0; i < top.length; i++) {
@@ -793,7 +793,20 @@ export function generate(
       }
     }
     ctx.push(chosen);
-    generated.push(chosen);
+    contIds.push(chosen);
   }
-  return prompt + decode(generated);
+  return { promptIds, contIds };
+}
+
+// Generer tekst: gje ein starttekst, så lat modellen predikere teikn for teikn.
+export function generate(
+  model: Transformer,
+  decode: (ids: number[]) => string,
+  encode: (s: string) => number[],
+  prompt: string,
+  opts: SampleOpts,
+  rng: () => number
+): string {
+  const { contIds } = sampleTokens(model, encode, prompt, opts, rng);
+  return prompt + decode(contIds);
 }
