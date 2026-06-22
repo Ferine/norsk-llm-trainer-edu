@@ -388,6 +388,23 @@ export function seqLogProbValue(logits: Tensor, r0: number, targets: number[]): 
   return lp;
 }
 
+// DPO loss for one preference pair.
+// z = beta * ((lpW − refW) − (lpL − refL));  loss = softplus(−z) = −log sigmoid(z).
+// d loss/dz = −sigmoid(−z);  chain: dz/dlpW = +beta, dz/dlpL = −beta.
+export function dpoLoss(lpW: Tensor, lpL: Tensor, refW: number, refL: number, beta: number): Tensor {
+  const out = tensor(1, 1, [lpW, lpL]);
+  const z = beta * ((lpW.d[0] - refW) - (lpL.d[0] - refL));
+  out.d[0] = z > 0 ? Math.log1p(Math.exp(-z)) : -z + Math.log1p(Math.exp(z));
+  const sigNegZ = z > 0 ? Math.exp(-z) / (1 + Math.exp(-z)) : 1 / (1 + Math.exp(z)); // sigmoid(−z)
+  out._back = () => {
+    const g = out.grad[0];
+    const dz = -sigNegZ; // d loss/dz
+    lpW.grad[0] += g * dz * beta;
+    lpL.grad[0] += g * dz * -beta;
+  };
+  return out;
+}
+
 // Køyr baklengs propagasjon: topologisk sortering, så kall _back i omvendt rekkjefølgje.
 export function backward(root: Tensor) {
   const topo: Tensor[] = [];
