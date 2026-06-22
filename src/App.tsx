@@ -11,6 +11,8 @@ import { buildTokenizer, corpus } from "@/lib/corpus";
 import LossChart from "@/components/LossChart";
 import Architecture from "@/components/Architecture";
 import { Section, Card } from "@/components/ui";
+import Rlhf from "@/components/Rlhf";
+import { useRlhf } from "@/lib/useRlhf";
 
 const MAX_STEPS = 3500;
 const CHUNK = 6;
@@ -69,6 +71,13 @@ export default function App() {
   const [currentSample, setCurrentSample] = useState("");
   const [paramCount, setParamCount] = useState(0);
 
+  const rlhf = useRlhf({
+    getModel: () => engineRef.current?.model ?? null,
+    getTokenizer: () => engineRef.current?.tokenizer ?? null,
+    isTrained: () => stepRef.current > 0,
+    baseRunning: running,
+  });
+
   const buildEngine = useCallback((customText = activeExtraTextRef.current) => {
     activeExtraTextRef.current = customText;
     const fullText = corpus + "\n" + customText;
@@ -89,8 +98,9 @@ export default function App() {
     setLosses([]);
     setCurrentSample("");
     setParamCount(model.paramCount());
+    rlhf.reset();
     // berre arkitektur (preset) tvingar fram ein ny modell – ikkje lr/batch
-  }, [preset]);
+  }, [preset, rlhf.reset]);
 
   useEffect(() => {
     if (!runningRef.current) buildEngine();
@@ -140,11 +150,12 @@ export default function App() {
   }, [cfg.batch]);
 
   const start = useCallback(() => {
+    rlhf.reset();
     if (!engineRef.current || stepRef.current >= MAX_STEPS) buildEngine();
     runningRef.current = true;
     setRunning(true);
     loop();
-  }, [buildEngine, loop]);
+  }, [buildEngine, loop, rlhf.reset]);
 
   const stop = useCallback(() => {
     runningRef.current = false;
@@ -437,7 +448,7 @@ export default function App() {
                 </label>
                 <select
                   value={preset}
-                  disabled={running}
+                  disabled={running || rlhf.dpoRunning}
                   onChange={(e) => setPreset(e.target.value as PresetKey)}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm disabled:opacity-50"
                 >
@@ -457,7 +468,7 @@ export default function App() {
                   min={1}
                   max={8}
                   value={batch}
-                  disabled={running}
+                  disabled={running || rlhf.dpoRunning}
                   onChange={(e) => setBatch(Number(e.target.value))}
                   className="w-full accent-indigo-600 disabled:opacity-50"
                 />
@@ -472,7 +483,7 @@ export default function App() {
                   max={0.003}
                   step={0.0001}
                   value={lr}
-                  disabled={running}
+                  disabled={running || rlhf.dpoRunning}
                   onChange={(e) => setLr(Number(e.target.value))}
                   className="w-full accent-indigo-600 disabled:opacity-50"
                 />
@@ -484,7 +495,8 @@ export default function App() {
               {!running ? (
                 <button
                   onClick={start}
-                  className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-500"
+                  disabled={rlhf.dpoRunning}
+                  className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-500 disabled:opacity-50"
                 >
                   ▶ Start trening
                 </button>
@@ -641,6 +653,16 @@ export default function App() {
           </Card>
         </Section>
 
+        {/* RLHF */}
+        <Section
+          id="rlhf"
+          step={5}
+          title="RLHF – lær modellen kva vi føretrekkjer"
+          intro="Etter grunntreninga kan vi finjustere modellen med menneskeleg tilbakemelding. Du vel kva for eit av to framhald som er best, og modellen blir dytta mot valet ditt med DPO – forankra til ein frosen kopi av modellen."
+        >
+          <Rlhf rlhf={rlhf} examples={examples} />
+        </Section>
+
         {/* Ærlig note */}
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
           <b>Åtvaring – ærlig om kva dette er:</b> Dette er ein <i>svært liten</i> modell som blir
@@ -653,7 +675,7 @@ export default function App() {
         {/* Egen tekst */}
         <Section
           id="eigentekst"
-          step={5}
+          step={6}
           title="Legg til eigen tekst"
           intro="Meir og variert tekst gjer modellen betre. Lim inn nynorsk tekst her (t.d. frå ei bok eller noko du har skrive). Modellen blir bygd på nytt med den nye dataa."
         >
