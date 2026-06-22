@@ -46,6 +46,7 @@ export function useRlhf({ getModel, getTokenizer, isTrained, baseRunning }: Args
   const lossesRef = useRef<number[]>([]);
   const pairRngRef = useRef<() => number>(mulberry32(2027));
   const timerRef = useRef<number | null>(null);
+  const genTimerRef = useRef<number | null>(null);
   const dpoStepCountRef = useRef(0);
   const trainStartRef = useRef(0);
   const runningRef = useRef(false);
@@ -77,9 +78,11 @@ export function useRlhf({ getModel, getTokenizer, isTrained, baseRunning }: Args
   }, [getModel, getTokenizer, prompt, temp]);
 
   const generatePair = useCallback(() => {
+    if (genTimerRef.current !== null) window.clearTimeout(genTimerRef.current);
     setGenerating(true);
     // yield to the browser so the "lagar par…" state can paint before heavy sampling
-    window.setTimeout(() => {
+    genTimerRef.current = window.setTimeout(() => {
+      genTimerRef.current = null;
       const pair = samplePair();
       if (pair) {
         setPairA(pair.a);
@@ -190,6 +193,7 @@ export function useRlhf({ getModel, getTokenizer, isTrained, baseRunning }: Args
   }, []);
 
   const resetTuning = useCallback(() => {
+    stopTrainMore();
     const model = getModel();
     const ref = referenceRef.current;
     if (model && ref) for (let i = 0; i < model.params.length; i++) model.params[i].d.set(ref.params[i].d);
@@ -200,13 +204,17 @@ export function useRlhf({ getModel, getTokenizer, isTrained, baseRunning }: Args
     setLosses([]);
     setMetrics({ loss: 0, margin: 0, winRate: 0, count: 0 });
     generatePair();
-  }, [getModel, generatePair]);
+  }, [getModel, generatePair, stopTrainMore]);
 
   const reset = useCallback(() => {
     runningRef.current = false;
     if (timerRef.current !== null) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
+    }
+    if (genTimerRef.current !== null) {
+      window.clearTimeout(genTimerRef.current);
+      genTimerRef.current = null;
     }
     referenceRef.current = null;
     dpoOptRef.current = null;
@@ -227,6 +235,7 @@ export function useRlhf({ getModel, getTokenizer, isTrained, baseRunning }: Args
     () => () => {
       runningRef.current = false;
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+      if (genTimerRef.current !== null) window.clearTimeout(genTimerRef.current);
     },
     []
   );
