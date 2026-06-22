@@ -724,6 +724,72 @@ export function trainStep(
   return total / batchSize;
 }
 
+export interface PrefPair {
+  promptIds: number[];
+  chosenIds: number[];
+  rejectedIds: number[];
+}
+
+// Build a full sequence (prompt + continuation) capped to seqLen, truncating the
+// prompt from the left first so the continuation is preserved. Returns the sequence
+// and P = prompt length within the cap (>= 1). Continuation = seq.slice(P) (>= 1 token).
+function capSeq(promptIds: number[], contIds: number[], seqLen: number): { seq: number[]; P: number } {
+  let prompt = promptIds.length ? promptIds : [0];
+  let cont = contIds.slice();
+  if (cont.length < 1) cont = [prompt[prompt.length - 1]];
+  if (cont.length >= seqLen) cont = cont.slice(0, seqLen - 1);
+  let P = prompt.length;
+  if (P + cont.length > seqLen) {
+    P = seqLen - cont.length;
+    prompt = prompt.slice(prompt.length - P);
+  }
+  return { seq: prompt.concat(cont), P };
+}
+
+// One DPO update over a sampled minibatch of preference pairs.
+export function dpoStep(
+  policy: Transformer,
+  reference: Transformer,
+  opt: Adam,
+  pairs: PrefPair[],
+  batch: number,
+  beta: number,
+  rng: () => number
+): { loss: number; margin: number; winRate: number } {
+  if (pairs.length === 0) return { loss: 0, margin: 0, winRate: 0 };
+  opt.zeroGrad();
+  const seqLen = policy.seqLen;
+  const n = Math.min(batch, pairs.length);
+  let totalLoss = 0;
+  let totalMargin = 0;
+  let wins = 0;
+  for (let b = 0; b < n; b++) {
+    const pair = pairs[Math.min(pairs.length - 1, Math.floor(rng() * pairs.length))];
+    const w = capSeq(pair.promptIds, pair.chosenIds, seqLen);
+    const l = capSeq(pair.promptIds, pair.rejectedIds, seqLen);
+    const tgtW = w.seq.slice(w.P);
+    const tgtL = l.seq.slice(l.P);
+
+    const lpW = seqLogProb(policy.forward(w.seq), w.P - 1, tgtW);
+    const lpL = seqLogProb(policy.forward(l.seq), l.P - 1, tgtL);
+    const refW = seqLogProbValue(reference.forward(w.seq), w.P - 1, tgtW);
+    const refL = seqLogProbValue(reference.forward(l.seq), l.P - 1, tgtL);
+
+    const loss = dpoLoss(lpW, lpL, refW, refL, beta);
+    backward(loss);
+    totalLoss += loss.d[0];
+    const margin = (lpW.d[0] - refW) - (lpL.d[0] - refL);
+    totalMargin += margin;
+    if (margin > 0) wins++;
+  }
+  if (n > 1)
+    for (const p of policy.params)
+      for (let i = 0; i < p.grad.length; i++) p.grad[i] /= n;
+  opt.clipGradNorm(1.0);
+  opt.step();
+  return { loss: totalLoss / n, margin: totalMargin / n, winRate: wins / n };
+}
+
 export interface SampleOpts {
   temperature: number;
   topK: number;
