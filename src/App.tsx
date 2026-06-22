@@ -22,11 +22,11 @@ type PresetKey = "liten" | "mellom" | "stor";
 
 const PRESETS: Record<
   PresetKey,
-  { dim: number; nLayer: number; nHead: number; seqLen: number; ffnMult: number; label: string }
+  { dim: number; nLayer: number; nHead: number; seqLen: number; ffnMult: number }
 > = {
-  liten: { dim: 48, nLayer: 2, nHead: 2, seqLen: 32, ffnMult: 4, label: "Liten – raskast" },
-  mellom: { dim: 64, nLayer: 3, nHead: 2, seqLen: 40, ffnMult: 4, label: "Mellom – balanse" },
-  stor: { dim: 96, nLayer: 4, nHead: 4, seqLen: 48, ffnMult: 4, label: "Stor – tregast" },
+  liten: { dim: 48, nLayer: 2, nHead: 2, seqLen: 32, ffnMult: 4 },
+  mellom: { dim: 64, nLayer: 3, nHead: 2, seqLen: 40, ffnMult: 4 },
+  stor: { dim: 96, nLayer: 4, nHead: 4, seqLen: 48, ffnMult: 4 },
 };
 
 interface Engine {
@@ -498,7 +498,7 @@ export default function App() {
                 >
                   {(Object.keys(PRESETS) as PresetKey[]).map((k) => (
                     <option key={k} value={k}>
-                      {PRESETS[k].label}
+                      {s.train.presets[k]}
                     </option>
                   ))}
                 </select>

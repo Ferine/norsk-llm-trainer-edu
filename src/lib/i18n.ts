@@ -54,6 +54,7 @@ export interface Strings {
     title: string;
     intro: string;
     modelSize: string;
+    presets: { liten: string; mellom: string; stor: string };
     minibatch: (n: number) => string;
     learningRate: (x: string) => string;
     start: string;
@@ -195,6 +196,7 @@ const bm: Strings = {
     intro:
       "Nå setter vi i gang. For hvert steg gjetter modellen, måler tapet, og flytter vektene med Adam-optimering. Se om tapet går ned – da skjer læringen!",
     modelSize: "Modellstørrelse",
+    presets: { liten: "Liten – raskest", mellom: "Mellom – balanse", stor: "Stor – tregest" },
     minibatch: (n) => `Minibatch: ${n}`,
     learningRate: (x) => `Læringsrate: ${x}`,
     start: "▶ Start trening",
@@ -350,6 +352,7 @@ const nn: Strings = {
     intro:
       "No set vi i gong. For kvart steg gjet modellen, måler tapet, og flyttar vektane med Adam-optimering. Sjå om tapet går ned – då skjer læringa!",
     modelSize: "Modellstørrelse",
+    presets: { liten: "Liten – raskast", mellom: "Mellom – balanse", stor: "Stor – tregast" },
     minibatch: (n) => `Minibatch: ${n}`,
     learningRate: (x) => `Læringsrate: ${x}`,
     start: "▶ Start trening",
