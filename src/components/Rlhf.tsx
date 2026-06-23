@@ -1,52 +1,53 @@
 import LossChart from "@/components/LossChart";
 import { Card } from "@/components/ui";
 import type { useRlhf } from "@/lib/useRlhf";
+import type { Strings } from "@/lib/i18n";
 
 type RlhfApi = ReturnType<typeof useRlhf>;
 
 function PrefCard({
-  label,
   text,
   onPick,
   disabled,
+  answerLabel,
+  betterLabel,
 }: {
-  label: string;
   text: string;
   onPick: () => void;
   disabled: boolean;
+  answerLabel: string;
+  betterLabel: string;
 }) {
   return (
     <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4">
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Svar {label}</div>
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{answerLabel}</div>
       <p className="min-h-16 flex-1 whitespace-pre-wrap font-mono text-sm text-slate-700">{text || "…"}</p>
       <button
         onClick={onPick}
         disabled={disabled}
         className="mt-3 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
       >
-        👍 {label} er betre
+        {betterLabel}
       </button>
     </div>
   );
 }
 
-export default function Rlhf({ rlhf, examples }: { rlhf: RlhfApi; examples: string[] }) {
+export default function Rlhf({ rlhf, examples, s }: { rlhf: RlhfApi; examples: string[]; s: Strings }) {
   const busy = rlhf.baseRunning || rlhf.dpoRunning || rlhf.generating;
 
   if (!rlhf.started) {
     return (
       <Card className="space-y-4">
         <p className="text-sm text-slate-600">
-          RLHF («Reinforcement Learning from Human Feedback») lærer modellen kva slags svar vi
-          menneske føretrekkjer. Vi viser deg to framhald, du vel det beste, og modellen blir
-          justert mot valet ditt – forankra til ein frosen referansemodell (DPO).
+          {s.rlhf.introCard}
         </p>
         <button
           onClick={rlhf.start}
           disabled={rlhf.baseRunning}
           className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-violet-200 transition hover:bg-violet-500 disabled:opacity-50"
         >
-          Start preferanse-trening
+          {s.rlhf.startBtn}
         </button>
       </Card>
     );
@@ -56,12 +57,12 @@ export default function Rlhf({ rlhf, examples }: { rlhf: RlhfApi; examples: stri
     <Card className="space-y-5">
       {rlhf.untrainedHint && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-          Tips: tren modellen først i steg 3 – då blir framhalda meir meiningsfulle.
+          {s.rlhf.untrainedHint}
         </div>
       )}
 
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Starttekst</label>
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{s.rlhf.startTextLabel}</label>
         <textarea
           value={rlhf.prompt}
           onChange={(e) => rlhf.setPrompt(e.target.value)}
@@ -84,7 +85,7 @@ export default function Rlhf({ rlhf, examples }: { rlhf: RlhfApi; examples: stri
       <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Kreativitet: {rlhf.temp.toFixed(2)}
+            {s.rlhf.creativity(rlhf.temp.toFixed(2))}
           </label>
           <input
             type="range"
@@ -101,13 +102,13 @@ export default function Rlhf({ rlhf, examples }: { rlhf: RlhfApi; examples: stri
           disabled={busy}
           className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
         >
-          {rlhf.generating ? "Lagar par…" : "↻ Generer eit par"}
+          {rlhf.generating ? s.rlhf.makingPair : s.rlhf.generatePair}
         </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <PrefCard label="A" text={rlhf.pairA?.text ?? ""} onPick={() => rlhf.choose("A")} disabled={busy} />
-        <PrefCard label="B" text={rlhf.pairB?.text ?? ""} onPick={() => rlhf.choose("B")} disabled={busy} />
+        <PrefCard text={rlhf.pairA?.text ?? ""} onPick={() => rlhf.choose("A")} disabled={busy} answerLabel={s.rlhf.prefAnswer("A")} betterLabel={s.rlhf.prefBetter("A")} />
+        <PrefCard text={rlhf.pairB?.text ?? ""} onPick={() => rlhf.choose("B")} disabled={busy} answerLabel={s.rlhf.prefAnswer("B")} betterLabel={s.rlhf.prefBetter("B")} />
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -116,7 +117,7 @@ export default function Rlhf({ rlhf, examples }: { rlhf: RlhfApi; examples: stri
           disabled={busy}
           className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
         >
-          Hopp over (likeverdige)
+          {s.rlhf.skip}
         </button>
         {!rlhf.dpoRunning ? (
           <button
@@ -124,14 +125,14 @@ export default function Rlhf({ rlhf, examples }: { rlhf: RlhfApi; examples: stri
             disabled={rlhf.baseRunning || rlhf.metrics.count === 0}
             className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
           >
-            Tren meir på preferansane
+            {s.rlhf.trainMore}
           </button>
         ) : (
           <button
             onClick={rlhf.stopTrainMore}
             className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-500"
           >
-            ⏸ Stopp
+            {s.rlhf.stop}
           </button>
         )}
         <button
@@ -139,27 +140,26 @@ export default function Rlhf({ rlhf, examples }: { rlhf: RlhfApi; examples: stri
           disabled={busy}
           className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
         >
-          ↺ Nullstill justering
+          {s.rlhf.resetTuning}
         </button>
         <div className="ml-auto flex gap-3 text-xs text-slate-500">
           <span>
-            Preferansar: <b className="text-slate-800">{rlhf.metrics.count}</b>
+            {s.rlhf.prefs} <b className="text-slate-800">{rlhf.metrics.count}</b>
           </span>
           <span>
-            Margin: <b className="text-slate-800">{rlhf.metrics.margin.toFixed(3)}</b>
+            {s.rlhf.margin} <b className="text-slate-800">{rlhf.metrics.margin.toFixed(3)}</b>
           </span>
           <span>
-            Vinnar-rate: <b className="text-slate-800">{(rlhf.metrics.winRate * 100).toFixed(0)}%</b>
+            {s.rlhf.winRate} <b className="text-slate-800">{(rlhf.metrics.winRate * 100).toFixed(0)}%</b>
           </span>
         </div>
       </div>
 
       <div>
-        <h3 className="mb-2 font-semibold text-slate-900">DPO-tap over tid</h3>
-        <LossChart data={rlhf.losses} />
+        <h3 className="mb-2 font-semibold text-slate-900">{s.rlhf.dpoLossHeading}</h3>
+        <LossChart data={rlhf.losses} loss={s.loss} />
         <p className="mt-2 text-xs text-slate-500">
-          Margin = kor mykje meir sannsynleg det valde framhaldet er enn det avviste, samanlikna med
-          referansemodellen. Høgare margin og vinnar-rate = modellen følgjer preferansane dine.
+          {s.rlhf.dpoHelp}
         </p>
       </div>
     </Card>

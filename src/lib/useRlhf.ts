@@ -54,7 +54,7 @@ export function useRlhf({ getModel, getTokenizer, isTrained, baseRunning }: Args
   const [started, setStarted] = useState(false);
   const [dpoRunning, setDpoRunning] = useState(false);
   const [untrainedHint, setUntrainedHint] = useState(false);
-  const [prompt, setPrompt] = useState("Det var ein gong");
+  const [prompt, setPrompt] = useState("");
   const [temp, setTemp] = useState(1.0);
   const [pairA, setPairA] = useState<RlhfPair | null>(null);
   const [pairB, setPairB] = useState<RlhfPair | null>(null);
