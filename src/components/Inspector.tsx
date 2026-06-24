@@ -143,7 +143,7 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
                   </button>
                   {result.ids.map((_, c) => {
                     const future = c > r;
-                    const w = future ? 0 : view.weights[r * T + c];
+                    const w = future ? 0 : (view.weights[r * T + c] ?? 0);
                     return (
                       <div
                         key={`c${r}-${c}`}
