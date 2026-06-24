@@ -13,6 +13,7 @@ import LossChart from "@/components/LossChart";
 import Architecture from "@/components/Architecture";
 import { Section, Card } from "@/components/ui";
 import Rlhf from "@/components/Rlhf";
+import Inspector from "@/components/Inspector";
 import { useRlhf } from "@/lib/useRlhf";
 
 const MAX_STEPS = 3500;
@@ -597,10 +598,28 @@ export default function App() {
           </Card>
         </Section>
 
+        {/* Se inni modellen */}
+        <Section
+          id="inspect"
+          step={4}
+          title={s.inspect.title}
+          intro={s.inspect.intro}
+        >
+          <Card>
+            <Inspector
+              model={engineRef.current?.model ?? null}
+              tokenizer={engineRef.current?.tokenizer ?? null}
+              step={step}
+              defaultText={seed.sampleSentence}
+              s={s.inspect}
+            />
+          </Card>
+        </Section>
+
         {/* Chat / generering */}
         <Section
           id="chat"
-          step={4}
+          step={5}
           title={s.chat.title}
           intro={s.chat.intro}
         >
@@ -699,7 +718,7 @@ export default function App() {
         {/* RLHF */}
         <Section
           id="rlhf"
-          step={5}
+          step={6}
           title={s.rlhf.sectionTitle}
           intro={s.rlhf.sectionIntro}
         >
@@ -714,7 +733,7 @@ export default function App() {
         {/* Eigen tekst */}
         <Section
           id="eigentekst"
-          step={6}
+          step={7}
           title={s.extra.title}
           intro={s.extra.intro}
         >
