@@ -334,6 +334,29 @@ export function crossEntropyLoss(logits: Tensor, targets: number[]): Tensor {
   return out;
 }
 
+// Softmax of a single logits row → a probability distribution over the vocabulary.
+// `pos` selects the sequence row; the result has length = vocab. Pure (no autograd).
+export function rowProbs(logits: Tensor, pos: number): Float32Array {
+  if (!Number.isInteger(pos) || pos < 0 || pos >= logits.rows)
+    throw new RangeError(`row ${pos} is outside [0, ${logits.rows})`);
+  const V = logits.cols;
+  const off = pos * V;
+  let mx = -Infinity;
+  for (let c = 0; c < V; c++) {
+    const v = logits.d[off + c];
+    if (v > mx) mx = v;
+  }
+  let sum = 0;
+  const out = new Float32Array(V);
+  for (let c = 0; c < V; c++) {
+    const e = Math.exp(logits.d[off + c] - mx);
+    out[c] = e;
+    sum += e;
+  }
+  for (let c = 0; c < V; c++) out[c] /= sum;
+  return out;
+}
+
 // Sum of log-probabilities log softmax(logits[r0+i])[targets[i]] for i in [0, targets.length).
 // Backward: d(log softmax)/d logit = onehot(target) − softmax. (autograd)
 export function seqLogProb(logits: Tensor, r0: number, targets: number[]): Tensor {
@@ -497,6 +520,15 @@ interface Block {
   b2: Tensor;
 }
 
+// A single head's post-softmax attention matrix, captured for visualization.
+// weights is length T*T, row-major: row = query position, col = key position.
+export interface AttnView {
+  layer: number;
+  head: number;
+  T: number;
+  weights: Float32Array;
+}
+
 export class Transformer {
   cfg: ModelConfig;
   params: Tensor[];
@@ -563,7 +595,7 @@ export class Transformer {
     return this.cfg.seqLen;
   }
 
-  private attention(blk: Block, x: Tensor): Tensor {
+  private attention(blk: Block, x: Tensor, layer = 0, sink?: AttnView[]): Tensor {
     const q = matmul(x, blk.Wq);
     const k = matmul(x, blk.Wk);
     const v = matmul(x, blk.Wv);
@@ -578,6 +610,7 @@ export class Transformer {
       scores = scale(scores, sc);
       scores = causalMask(scores);
       const sm = softmaxRow(scores);
+      if (sink) sink.push({ layer, head: h, T: sm.rows, weights: sm.d.slice() });
       heads.push(matmul(sm, vh));
     }
     return matmul(concatCols(heads), blk.Wo);
@@ -592,15 +625,15 @@ export class Transformer {
     return h;
   }
 
-  private blockForward(blk: Block, x: Tensor): Tensor {
-    const a = this.attention(blk, layernorm(x, blk.ln1g, blk.ln1b));
+  private blockForward(blk: Block, x: Tensor, layer = 0, sink?: AttnView[]): Tensor {
+    const a = this.attention(blk, layernorm(x, blk.ln1g, blk.ln1b), layer, sink);
     x = add(x, a);
     const f = this.ffn(blk, layernorm(x, blk.ln2g, blk.ln2b));
     return add(x, f);
   }
 
   // Føreveg: tek token-id-ar og returnerer logits [T, vocab].
-  forward(ids: number[]): Tensor {
+  forward(ids: number[], sink?: AttnView[]): Tensor {
     const Tt = ids.length;
     if (Tt < 1 || Tt > this.seqLen)
       throw new RangeError(`Expected between 1 and ${this.seqLen} token IDs, got ${Tt}`);
@@ -612,9 +645,17 @@ export class Transformer {
     const posIdx: number[] = [];
     for (let i = 0; i < Tt; i++) posIdx[i] = i;
     let x = add(x0, gatherRows(this.posEmb, posIdx));
-    for (const blk of this.blocks) x = this.blockForward(blk, x);
+    for (let l = 0; l < this.blocks.length; l++) x = this.blockForward(this.blocks[l], x, l, sink);
     x = layernorm(x, this.lnFg, this.lnFb);
     return matmul(x, this.head);
+  }
+
+  // Forward pass that also records every head's post-softmax attention.
+  // For visualization only — no backward pass is run on the result.
+  inspect(ids: number[]): { logits: Tensor; attn: AttnView[] } {
+    const attn: AttnView[] = [];
+    const logits = this.forward(ids, attn);
+    return { logits, attn };
   }
 
   paramCount(): number {
