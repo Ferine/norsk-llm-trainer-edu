@@ -334,6 +334,29 @@ export function crossEntropyLoss(logits: Tensor, targets: number[]): Tensor {
   return out;
 }
 
+// Softmax of a single logits row → a probability distribution over the vocabulary.
+// `pos` selects the sequence row; the result has length = vocab. Pure (no autograd).
+export function rowProbs(logits: Tensor, pos: number): Float32Array {
+  if (!Number.isInteger(pos) || pos < 0 || pos >= logits.rows)
+    throw new RangeError(`row ${pos} is outside [0, ${logits.rows})`);
+  const V = logits.cols;
+  const off = pos * V;
+  let mx = -Infinity;
+  for (let c = 0; c < V; c++) {
+    const v = logits.d[off + c];
+    if (v > mx) mx = v;
+  }
+  let sum = 0;
+  const out = new Float32Array(V);
+  for (let c = 0; c < V; c++) {
+    const e = Math.exp(logits.d[off + c] - mx);
+    out[c] = e;
+    sum += e;
+  }
+  for (let c = 0; c < V; c++) out[c] /= sum;
+  return out;
+}
+
 // Sum of log-probabilities log softmax(logits[r0+i])[targets[i]] for i in [0, targets.length).
 // Backward: d(log softmax)/d logit = onehot(target) − softmax. (autograd)
 export function seqLogProb(logits: Tensor, r0: number, targets: number[]): Tensor {
