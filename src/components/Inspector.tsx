@@ -47,9 +47,11 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
   const sel = Math.min(pos ?? T - 1, T - 1);
   const nLayer = model.cfg.nLayer;
   const nHead = model.cfg.nHead;
+  const layerSel = Math.min(layer, nLayer - 1);
+  const headSel = Math.min(head, nHead - 1);
 
   const view =
-    result.attn.find((v) => v.layer === layer && v.head === head) ?? result.attn[0];
+    result.attn.find((v) => v.layer === layerSel && v.head === headSel) ?? result.attn[0];
 
   const probs = rowProbs(result.logits, sel);
   const ranking = Array.from(probs, (p, id) => ({ id, p })).sort((a, b) => b.p - a.p);
@@ -109,13 +111,13 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
           <div className="mb-3 flex flex-wrap items-center gap-1">
             <span className="mr-1 text-xs text-slate-500">{s.layerLabel}</span>
             {Array.from({ length: nLayer }, (_, i) => (
-              <button key={i} onClick={() => setLayer(i)} className={tabBtn(layer === i)}>
+              <button key={i} onClick={() => setLayer(i)} className={tabBtn(layerSel === i)}>
                 {i + 1}
               </button>
             ))}
             <span className="ml-3 mr-1 text-xs text-slate-500">{s.headLabel}</span>
             {Array.from({ length: nHead }, (_, i) => (
-              <button key={i} onClick={() => setHead(i)} className={tabBtn(head === i)}>
+              <button key={i} onClick={() => setHead(i)} className={tabBtn(headSel === i)}>
                 {i + 1}
               </button>
             ))}
