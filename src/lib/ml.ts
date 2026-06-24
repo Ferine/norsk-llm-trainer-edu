@@ -520,6 +520,15 @@ interface Block {
   b2: Tensor;
 }
 
+// A single head's post-softmax attention matrix, captured for visualization.
+// weights is length T*T, row-major: row = query position, col = key position.
+export interface AttnView {
+  layer: number;
+  head: number;
+  T: number;
+  weights: Float32Array;
+}
+
 export class Transformer {
   cfg: ModelConfig;
   params: Tensor[];
@@ -586,7 +595,7 @@ export class Transformer {
     return this.cfg.seqLen;
   }
 
-  private attention(blk: Block, x: Tensor): Tensor {
+  private attention(blk: Block, x: Tensor, layer = 0, sink?: AttnView[]): Tensor {
     const q = matmul(x, blk.Wq);
     const k = matmul(x, blk.Wk);
     const v = matmul(x, blk.Wv);
@@ -601,6 +610,7 @@ export class Transformer {
       scores = scale(scores, sc);
       scores = causalMask(scores);
       const sm = softmaxRow(scores);
+      if (sink) sink.push({ layer, head: h, T: sm.rows, weights: sm.d.slice() });
       heads.push(matmul(sm, vh));
     }
     return matmul(concatCols(heads), blk.Wo);
@@ -615,15 +625,15 @@ export class Transformer {
     return h;
   }
 
-  private blockForward(blk: Block, x: Tensor): Tensor {
-    const a = this.attention(blk, layernorm(x, blk.ln1g, blk.ln1b));
+  private blockForward(blk: Block, x: Tensor, layer = 0, sink?: AttnView[]): Tensor {
+    const a = this.attention(blk, layernorm(x, blk.ln1g, blk.ln1b), layer, sink);
     x = add(x, a);
     const f = this.ffn(blk, layernorm(x, blk.ln2g, blk.ln2b));
     return add(x, f);
   }
 
   // Føreveg: tek token-id-ar og returnerer logits [T, vocab].
-  forward(ids: number[]): Tensor {
+  forward(ids: number[], sink?: AttnView[]): Tensor {
     const Tt = ids.length;
     if (Tt < 1 || Tt > this.seqLen)
       throw new RangeError(`Expected between 1 and ${this.seqLen} token IDs, got ${Tt}`);
@@ -635,9 +645,17 @@ export class Transformer {
     const posIdx: number[] = [];
     for (let i = 0; i < Tt; i++) posIdx[i] = i;
     let x = add(x0, gatherRows(this.posEmb, posIdx));
-    for (const blk of this.blocks) x = this.blockForward(blk, x);
+    for (let l = 0; l < this.blocks.length; l++) x = this.blockForward(this.blocks[l], x, l, sink);
     x = layernorm(x, this.lnFg, this.lnFb);
     return matmul(x, this.head);
+  }
+
+  // Forward pass that also records every head's post-softmax attention.
+  // For visualization only — no backward pass is run on the result.
+  inspect(ids: number[]): { logits: Tensor; attn: AttnView[] } {
+    const attn: AttnView[] = [];
+    const logits = this.forward(ids, attn);
+    return { logits, attn };
   }
 
   paramCount(): number {
