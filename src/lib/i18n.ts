@@ -82,6 +82,25 @@ export interface Strings {
     thinking: string;
     answerLabel: string;
   };
+  inspect: {
+    title: string;
+    intro: string;
+    inputLabel: string;
+    clickHint: string;
+    attnHeading: string;
+    attnHelp: string;
+    layerLabel: string;
+    headLabel: string;
+    probHeading: string;
+    probHelp: string;
+    fasitLabel: string;
+    fasitNext: (ch: string) => string;
+    correct: string;
+    wrong: string;
+    noNext: string;
+    untrainedHint: string;
+    notReady: string;
+  };
   rlhf: {
     sectionTitle: string;
     sectionIntro: string;
@@ -225,6 +244,28 @@ const bm: Strings = {
     generate: "✨ Generer tekst",
     thinking: "Tenker…",
     answerLabel: "Svar fra modellen",
+  },
+  inspect: {
+    title: "Se inni modellen",
+    intro:
+      "Nå har modellen lært litt. La oss se hva som skjer inni den for ett enkelt tegn: hva ser den på, og hva tror den kommer neste?",
+    inputLabel: "Tekst å granske",
+    clickHint: "Klikk på et tegn under for å velge hvor i teksten du vil se nærmere.",
+    attnHeading: "Hva ser modellen på?",
+    attnHelp:
+      "Hver rad er ett tegn som «ser» bakover. Mørkere rute = mer oppmerksomhet. Det grå feltet er framtiden – den får modellen ikke se.",
+    layerLabel: "Lag",
+    headLabel: "Hode",
+    probHeading: "Hva tror modellen kommer neste?",
+    probHelp: "Lengre søyle = mer sikker. Dette er det modellen faktisk gjetter på.",
+    fasitLabel: "Fasit:",
+    fasitNext: (ch) => `det virkelige neste tegnet er «${ch}».`,
+    correct: "✓ modellen gjettet riktig!",
+    wrong: "✗ modellen bommet denne gangen.",
+    noNext: "Dette er det siste tegnet – det finnes ingen fasit å sammenligne med.",
+    untrainedHint:
+      "Modellen er ikke trent ennå, så den gjetter nesten tilfeldig. Tren den i steget over og kom tilbake hit for å se forskjellen!",
+    notReady: "Modellen er ikke klar ennå …",
   },
   rlhf: {
     sectionTitle: "RLHF – lær modellen hva vi foretrekker",
@@ -381,6 +422,28 @@ const nn: Strings = {
     generate: "✨ Generer tekst",
     thinking: "Tenkjer…",
     answerLabel: "Svar frå modellen",
+  },
+  inspect: {
+    title: "Sjå inni modellen",
+    intro:
+      "No har modellen lært litt. Lat oss sjå kva som skjer inni han for eitt enkelt teikn: kva ser han på, og kva trur han kjem neste?",
+    inputLabel: "Tekst å granske",
+    clickHint: "Klikk på eit teikn under for å velje kvar i teksten du vil sjå nærare.",
+    attnHeading: "Kva ser modellen på?",
+    attnHelp:
+      "Kvar rad er eitt teikn som «ser» bakover. Mørkare rute = meir merksemd. Det grå feltet er framtida – den får modellen ikkje sjå.",
+    layerLabel: "Lag",
+    headLabel: "Hovud",
+    probHeading: "Kva trur modellen kjem neste?",
+    probHelp: "Lengre søyle = meir sikker. Dette er det modellen faktisk gjettar på.",
+    fasitLabel: "Fasit:",
+    fasitNext: (ch) => `det verkelege neste teiknet er «${ch}».`,
+    correct: "✓ modellen gjetta rett!",
+    wrong: "✗ modellen bomma denne gongen.",
+    noNext: "Dette er det siste teiknet – det finst ingen fasit å samanlikne med.",
+    untrainedHint:
+      "Modellen er ikkje trena enno, så han gjettar nesten tilfeldig. Tren han i steget over og kom attende hit for å sjå skilnaden!",
+    notReady: "Modellen er ikkje klar enno …",
   },
   rlhf: {
     sectionTitle: "RLHF – lær modellen kva vi føretrekkjer",
