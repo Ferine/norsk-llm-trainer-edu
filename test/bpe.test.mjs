@@ -72,4 +72,25 @@ import assert from "node:assert/strict";
   assert.deepEqual(baseVocab, []);
 }
 
+// rivals: the top-2 runner-up pairs, in lexicographic order
+{
+  const { merges } = learnBpe("ab ab cd cd ef ef", 1);
+  assert.deepEqual(
+    merges[0].rivals,
+    [{ pair: "cd", count: 2 }, { pair: "ef", count: 2 }],
+    "rivals are the top-2 runner-up pairs in lexicographic order"
+  );
+}
+
+// encodeWord: out-of-vocabulary characters fall back to single characters
+{
+  const { merges } = learnBpe("abab abab cd", 10);
+  assert.deepEqual(encodeWord("xyz", merges, merges.length), ["x", "y", "z"], "OOV word → characters");
+  assert.deepEqual(
+    encodeWord("abq", merges, merges.length),
+    ["ab", "q"],
+    "partial OOV → known subword + leftover character"
+  );
+}
+
 console.log("bpe: PASS");
