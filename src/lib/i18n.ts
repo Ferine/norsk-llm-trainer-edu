@@ -31,6 +31,22 @@ export interface Strings {
     vocabHeading: (n: number) => string;
     charTooltip: (i: number) => string;
   };
+  bpe: {
+    title: string;
+    intro: string;
+    mergeBtn: string;
+    resetBtn: string;
+    mergeCount: (k: number, n: number) => string;
+    thisMergeHeading: string;
+    noMergeYet: string;
+    foundTimes: (n: number) => string;
+    rivalsLabel: string;
+    rulesHeading: string;
+    noRules: string;
+    sentenceHeading: (now: number, was: number) => string;
+    vocabLine: (base: number, merges: number, total: number) => string;
+    payoff: string;
+  };
   arch: {
     title: string;
     intro: string;
@@ -181,6 +197,24 @@ const bm: Strings = {
     howPara: (sample) => `Vi deler opp setningen «${sample}» tegn for tegn. Hvert tegn får sin egen ID:`,
     vocabHeading: (n) => `Hele tegnsettet (${n} token = vokabularet)`,
     charTooltip: (i) => `tegn #${i}`,
+  },
+  bpe: {
+    title: "Fra tegn til ord-biter",
+    intro:
+      "Ekte språkmodeller bruker ikke enkeltbokstaver. De lærer «ord-biter» (subord) ved å slå sammen de vanligste nabopara igjen og igjen. Prøv selv på den samme teksten.",
+    mergeBtn: "Slå sammen neste par",
+    resetBtn: "↺ Nullstill",
+    mergeCount: (k, n) => `Sammenslåinger: ${k} / ${n}`,
+    thisMergeHeading: "Denne sammenslåingen",
+    noMergeYet: "Trykk «Slå sammen neste par» for å starte – akkurat nå er hvert tegn sitt eget token.",
+    foundTimes: (n) => `funnet ${n} ganger i teksten`,
+    rivalsLabel: "konkurrenter:",
+    rulesHeading: "Reglene så langt",
+    noRules: "Ingen regler ennå.",
+    sentenceHeading: (now, was) => `Setningen nå – ${now} token (var ${was})`,
+    vocabLine: (base, merges, total) => `Vokabular: ${base} tegn + ${merges} ord-biter = ${total}`,
+    payoff:
+      "Når en hel ord-bit blir ett token, ser ikke modellen bokstavene inni – derfor bommer språkmodeller på å telle bokstaver i et ord.",
   },
   arch: {
     title: "Modellarkitekturen",
@@ -359,6 +393,24 @@ const nn: Strings = {
     howPara: (sample) => `Vi delar opp setninga «${sample}» teikn for teikn. Kvart teikn får sin eigen ID:`,
     vocabHeading: (n) => `Heile teiknsettet (${n} token = vokabularet)`,
     charTooltip: (i) => `teikn #${i}`,
+  },
+  bpe: {
+    title: "Frå teikn til ord-bitar",
+    intro:
+      "Ekte språkmodellar bruker ikkje enkeltbokstavar. Dei lærer «ord-bitar» (subord) ved å slå saman dei vanlegaste nabopara om att og om att. Prøv sjølv på den same teksten.",
+    mergeBtn: "Slå saman neste par",
+    resetBtn: "↺ Nullstill",
+    mergeCount: (k, n) => `Samanslåingar: ${k} / ${n}`,
+    thisMergeHeading: "Denne samanslåinga",
+    noMergeYet: "Trykk «Slå saman neste par» for å starte – akkurat no er kvart teikn sitt eige token.",
+    foundTimes: (n) => `funne ${n} gonger i teksten`,
+    rivalsLabel: "konkurrentar:",
+    rulesHeading: "Reglane så langt",
+    noRules: "Ingen reglar enno.",
+    sentenceHeading: (now, was) => `Setninga no – ${now} token (var ${was})`,
+    vocabLine: (base, merges, total) => `Vokabular: ${base} teikn + ${merges} ord-bitar = ${total}`,
+    payoff:
+      "Når ein heil ord-bit blir eitt token, ser ikkje modellen bokstavane inni – difor bommar språkmodellar på å telje bokstavar i eit ord.",
   },
   arch: {
     title: "Modellarkitekturen",
