@@ -13,6 +13,7 @@ import LossChart from "@/components/LossChart";
 import Architecture from "@/components/Architecture";
 import { Section, Card } from "@/components/ui";
 import Rlhf from "@/components/Rlhf";
+import BpeLab from "@/components/BpeLab";
 import Inspector from "@/components/Inspector";
 import { useRlhf } from "@/lib/useRlhf";
 
@@ -457,10 +458,22 @@ export default function App() {
           </Card>
         </Section>
 
+        {/* Fra tegn til ord-biter (BPE) */}
+        <Section
+          id="bpe"
+          step={2}
+          title={s.bpe.title}
+          intro={s.bpe.intro}
+        >
+          <Card>
+            <BpeLab corpus={activeCorpus} sampleSentence={sampleSentence} s={s.bpe} />
+          </Card>
+        </Section>
+
         {/* Arkitektur */}
         <Section
           id="arkitektur"
-          step={2}
+          step={3}
           title={s.arch.title}
           intro={s.arch.intro}
         >
@@ -480,7 +493,7 @@ export default function App() {
         {/* Trening */}
         <Section
           id="trening"
-          step={3}
+          step={4}
           title={s.train.title}
           intro={s.train.intro}
         >
@@ -601,7 +614,7 @@ export default function App() {
         {/* Se inni modellen */}
         <Section
           id="inspect"
-          step={4}
+          step={5}
           title={s.inspect.title}
           intro={s.inspect.intro}
         >
@@ -619,7 +632,7 @@ export default function App() {
         {/* Chat / generering */}
         <Section
           id="chat"
-          step={5}
+          step={6}
           title={s.chat.title}
           intro={s.chat.intro}
         >
@@ -718,7 +731,7 @@ export default function App() {
         {/* RLHF */}
         <Section
           id="rlhf"
-          step={6}
+          step={7}
           title={s.rlhf.sectionTitle}
           intro={s.rlhf.sectionIntro}
         >
@@ -733,7 +746,7 @@ export default function App() {
         {/* Eigen tekst */}
         <Section
           id="eigentekst"
-          step={7}
+          step={8}
           title={s.extra.title}
           intro={s.extra.intro}
         >
