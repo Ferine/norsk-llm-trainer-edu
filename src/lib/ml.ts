@@ -1,5 +1,5 @@
 // ============================================================================
-// Egen skrive, liten maskinlæringsmotor (reverse-mode autograd) + transformator.
+// Eigenskriven, liten maskinlæringsmotor (reverse-mode autograd) + transformator.
 // Alt her er ekte: føreveg, tap og baklengs propagasjon (backpropagation).
 // Ingenting er ferdig trent – modellen startar med tilfeldige tal.
 // ============================================================================
@@ -24,7 +24,7 @@ function tensor(rows: number, cols: number, prev: Tensor[] = []): Tensor {
   };
 }
 
-// ---------- grunnleggjande operasjonar (kvar med si egen deriverte) ----------
+// ---------- grunnleggjande operasjonar (kvar med si eiga deriverte) ----------
 
 export function add(a: Tensor, b: Tensor): Tensor {
   const out = tensor(a.rows, a.cols, [a, b]);
@@ -174,7 +174,7 @@ export function softmaxRow(a: Tensor): Tensor {
   return out;
 }
 
-// Maskerer framtida i oppmerksomheit (kausal maske) slik at posisjon i berre
+// Maskerer framtida i merksemda (kausal maske) slik at posisjon i berre
 // kan sjå posisjonar <= i.
 export function causalMask(a: Tensor): Tensor {
   const n = a.rows,
