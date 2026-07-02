@@ -15,6 +15,7 @@ import { Section, Card, Advanced } from "@/components/ui";
 import Rlhf from "@/components/Rlhf";
 import BpeLab from "@/components/BpeLab";
 import Inspector from "@/components/Inspector";
+import Skruer from "@/components/Skruer";
 import { useRlhf } from "@/lib/useRlhf";
 
 const MAX_STEPS = 3500;
@@ -165,6 +166,8 @@ export default function App() {
   const [currentSample, setCurrentSample] = useState("");
   const [paramCount, setParamCount] = useState(0);
   const [resetArmed, setResetArmed] = useState(false);
+  // Tel opp for kvar ny motor, så skrue-visualiseringa veit når ho må nullstille utvalet sitt.
+  const [engineGen, setEngineGen] = useState(0);
 
   const rlhf = useRlhf({
     getModel: () => engineRef.current?.model ?? null,
@@ -193,6 +196,7 @@ export default function App() {
     setLosses([]);
     setCurrentSample("");
     setParamCount(model.paramCount());
+    setEngineGen((g) => g + 1);
     rlhf.reset();
     // berre arkitektur (preset) tvingar fram ein ny modell – ikkje lr/batch
   }, [preset, rlhf.reset, activeCorpus]);
@@ -387,6 +391,8 @@ export default function App() {
   }, [paramCount, losses, displayTok, activeCorpus]);
 
   const examples = seed.examples;
+
+  const getParams = useCallback(() => engineRef.current?.model.params ?? null, []);
 
   const trainedDone = step >= MAX_STEPS && !running;
   const eta = (() => {
@@ -737,6 +743,18 @@ export default function App() {
                 {s.train.lossHelp}
               </p>
             </div>
+
+            {/* fordypning: sjå vektene («skruane») bli vridde i sanntid */}
+            <Advanced label={s.train.screwsLabel}>
+              <Skruer
+                getParams={getParams}
+                step={step}
+                engineGen={engineGen}
+                lr={lr}
+                help={s.train.screwsHelp}
+                idleText={s.train.screwsIdle}
+              />
+            </Advanced>
 
             {/* live-eksempel: eleven skriv på tavla */}
             <div className="tavle p-4">
