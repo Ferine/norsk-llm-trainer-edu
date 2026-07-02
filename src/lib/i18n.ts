@@ -168,23 +168,23 @@ const bm: Strings = {
     badge: "Ekte trening fra null – ingen ferdig modell",
     h1Pre: "Bygg din egen språkmodell på",
     h1Lang: "bokmål",
-    para: "Her trener du en ekte transformator (samme type som ChatGPT) helt fra bunnen av – med ekte baklengs propagasjon og Adam-optimering. Alt skjer lokalt på maskinen din. Følg med steg for steg, og se hvordan tilfeldige tall blir til bokmålstekst.",
+    para: "Her bygger og trener du en ekte språkmodell – samme type som ChatGPT, bare bitte liten – rett i nettleseren. Du ser den starte med rene tilfeldige tall, gjette, bomme og lære av feilene sine tusenvis av ganger, helt til det begynner å ligne bokmål. Alt skjer lokalt på din maskin, og alt forklares underveis.",
     ctaStart: "Start treningen",
     ctaUnderstand: "Forstå hvordan det fungerer",
     stats: [
-      { k: "tegn-nivå", v: "tokenisering" },
-      { k: "100%", v: "i nettleseren" },
-      { k: "fra null", v: "ekte vekter" },
+      { k: "100 %", v: "lokalt – ingenting forlater maskinen din" },
+      { k: "0", v: "forkunnskaper – alt forklares underveis" },
+      { k: "ekte", v: "maskinlæring – ikke en animasjon" },
     ],
   },
   understand: {
     title: "Hva er en språkmodell?",
     intro:
-      "En språkmodell lærer én enkel ting: å gjette hvilket tegn som kommer neste. Gjør vi det om og om igjen, kan den skrive hele setninger.",
+      "En språkmodell lærer én enkel ting: å gjette det neste tegnet. Gjør vi det om og om igjen, kan den skrive hele setninger.",
     cards: [
-      { t: "Gjett neste tegn", d: "Modellen leser teksten så langt og gjetter hvilken bokstav som bør komme neste.", i: "🔮" },
-      { t: "Mål feilen", d: "Vi sammenligner gjettingen med den ekte teksten og regner ut tapet (loss).", i: "📏" },
-      { t: "Juster vektene", d: "Backpropagation flytter alle vektene litt mot en bedre gjetting.", i: "🔧" },
+      { t: "Gjett neste tegn", d: "Modellen leser teksten så langt og gjetter hvilken bokstav som bør komme etterpå.", i: "🔮" },
+      { t: "Mål feilen", d: "Vi sammenligner gjettingen med den ekte teksten og måler hvor mye den bommet – jo mer overrasket modellen ble, jo større feil. Dette tallet kalles tap (loss).", i: "📏" },
+      { t: "Vri på skruene", d: "Inni modellen sitter tusenvis av små justeringsskruer (vektene). Feilen spores bakover, og hver skrue vris bitte litt mot en bedre gjetting – dette kalles backpropagation.", i: "🔧" },
     ],
   },
   data: {
@@ -201,7 +201,7 @@ const bm: Strings = {
   bpe: {
     title: "Fra tegn til ord-biter",
     intro:
-      "Ekte språkmodeller bruker ikke enkeltbokstaver. De lærer «ord-biter» (subord) ved å slå sammen de vanligste nabopara igjen og igjen. Prøv selv på den samme teksten.",
+      "Ekte språkmodeller bruker ikke enkeltbokstaver. De lærer «ord-biter» ved å slå sammen de vanligste nabopara igjen og igjen. Prøv selv på den samme teksten. (Den lille modellen vår holder seg til enkelttegn – men nå vet du hvordan de store gjør det.)",
     mergeBtn: "Slå sammen neste par",
     resetBtn: "↺ Nullstill",
     mergeCount: (k, n) => `Sammenslåinger: ${k} / ${n}`,
@@ -217,24 +217,24 @@ const bm: Strings = {
       "Når en hel ord-bit blir ett token, ser ikke modellen bokstavene inni – derfor bommer språkmodeller på å telle bokstaver i et ord.",
   },
   arch: {
-    title: "Modellarkitekturen",
+    title: "Slik er modellen bygd opp",
     intro:
-      "Vi bruker en transformator – algoritmen bak moderne språkmodeller. Dataene renner oppover gjennom blokkene, og hver blokk lærer noe nytt om sammenhengen i teksten.",
-    causalTitle: "Kausal maskering:",
+      "Vi bruker en transformer – oppskriften bak moderne språkmodeller som ChatGPT. Teksten renner oppover gjennom blokkene, og hver blokk lærer noe nytt om sammenhengen i teksten.",
+    causalTitle: "Ingen juksing:",
     causalBody:
-      "når modellen gjetter posisjon i, får den bare se det som kom før. Slik lærer den å skrive framover, ikke å jukse.",
-    headsTitle: 'Flere "hoder":',
+      "når modellen gjetter et tegn, får den bare se det som kom før – aldri fasiten. Slik lærer den å skrive framover. (Fagordet er kausal maskering.)",
+    headsTitle: "Flere «blikk» samtidig:",
     headsBody:
-      "multi-head oppmerksomhet lar modellen se på flere ulike ting samtidig – f.eks. både bokstav, ordlyd og betydning.",
-    boxInput: { title: "Inndata", sub: "tekst → tegn (token-id-er)" },
-    boxEmbedding: { title: "Innbygging (embedding)", sub: (dim) => `tegn + posisjon → ${dim} tall` },
-    boxBlock: { title: (i) => `Transformer-blokk ${i}`, sub: "selvoppmerksomhet + feed-forward" },
-    boxAttn: { title: "LayerNorm → Multi-head oppmerksomhet", sub: (heads) => `${heads} hoder` },
-    boxFfn: { title: "LayerNorm → Feed-forward (GELU)", sub: "ikke-lineær tenkning" },
-    residualNote: "+ residual-veier (hopp over ledd)",
-    boxFinalNorm: { title: "Sluttnormalisering", sub: "LayerNorm" },
-    boxOutHead: { title: "Utgangshode", sub: "→ poengsum (logits) for hvert tegn" },
-    boxSoftmax: { title: "Softmax", sub: "→ sannsynlighet for hvilket tegn som kommer neste" },
+      "modellen ser på teksten med flere «hoder» på én gang – ett kan følge med på bokstaver, et annet på ord og betydning. (Kalles multi-head oppmerksomhet.)",
+    boxInput: { title: "Inndata", sub: "teksten, delt opp i tegn" },
+    boxEmbedding: { title: "Innbygging (embedding)", sub: (dim) => `hvert tegn blir til ${dim} tall` },
+    boxBlock: { title: (i) => `Transformer-blokk ${i}`, sub: "ser på sammenhengen + tenker videre" },
+    boxAttn: { title: "Ser på sammenhengen", sub: (heads) => `multi-head oppmerksomhet, ${heads} hoder` },
+    boxFfn: { title: "Tenker videre", sub: "et lite nevralt nett (feed-forward)" },
+    residualNote: "+ snarveier forbi hvert ledd, så ingenting går tapt (residual)",
+    boxFinalNorm: { title: "Siste opprydding i tallene", sub: "LayerNorm" },
+    boxOutHead: { title: "Poengsum for hvert tegn", sub: "utgangshodet (logits)" },
+    boxSoftmax: { title: "Poeng blir sannsynlighet", sub: "softmax" },
     explainHeading: "Hva skjer inni?",
     explain: [
       { b: "Innbygging:", t: "hvert tegn blir til en liste med tall, og vi legger til informasjon om hvor i teksten det står." },
@@ -247,11 +247,11 @@ const bm: Strings = {
   train: {
     title: "Trening – se modellen lære",
     intro:
-      "Nå setter vi i gang. For hvert steg gjetter modellen, måler tapet, og flytter vektene med Adam-optimering. Se om tapet går ned – da skjer læringen!",
+      "Nå setter vi i gang! For hvert steg gjetter modellen, måler feilen og vrir alle de små skruene bitte litt i riktig retning. Se om tapet synker – da lærer den.",
     modelSize: "Modellstørrelse",
-    presets: { liten: "Liten – raskest", mellom: "Mellom – balanse", stor: "Stor – tregest" },
-    minibatch: (n) => `Minibatch: ${n}`,
-    learningRate: (x) => `Læringsrate: ${x}`,
+    presets: { liten: "Liten – rask, fin å starte med", mellom: "Mellom – god balanse", stor: "Stor – best resultat, tar lengst tid" },
+    minibatch: (n) => `Tekstbiter per steg (minibatch): ${n}`,
+    learningRate: (x) => `Skrittlengde (læringsrate): ${x}`,
     start: "▶ Start trening",
     stop: "⏸ Stopp",
     reset: "↺ Nullstill",
@@ -259,20 +259,20 @@ const bm: Strings = {
     params: "parametere",
     lossHeading: "Tap (loss) over tid",
     lossHelp:
-      "Lavere tap = bedre. En perfekt modell ville hatt tap rundt 0. Jo raskere kurven søker nedover, jo fortere lærer modellen.",
+      "Tapet måler hvor overrasket modellen blir av neste tegn – lavere er bedre. Jo raskere kurven synker, jo fortere lærer modellen. Flater den ut nær null, kan den teksten nesten utenat.",
     liveLabel: "Dette skriver modellen nå",
     livePlaceholder: "Trykk «Start trening» for å se eksempler underveis…",
   },
   chat: {
     title: "Prøv modellen",
     intro:
-      "Skriv en starttekst, og la modellen fortsette. Den gjetter ett tegn om gangen. Små modeller gir ikke perfekte svar – men se hvor mye bedre det blir etter hvert som den trener!",
+      "Skriv en starttekst, og la modellen fortsette – ett tegn om gangen. Husk at dette er en bitte liten modell: forvent sjarmerende tull, ikke ChatGPT. Men jo mer du trener den, jo bedre blir det! (Har du ikke trent ennå, blir det bare tilfeldige tegn.)",
     promptLabel: "Din starttekst (bokmål)",
     promptPlaceholder: "f.eks. «Det var en gang»",
     temp: (x) => `Temperatur: ${x}`,
     tempHelp: "0 = trygg, høy = kreativ",
     topK: (k) => `Top-k: ${k}`,
-    topKHelp: "bare de k beste valgene",
+    topKHelp: "hvor mange tegn den får velge blant",
     length: (n) => `Lengde: ${n} tegn`,
     lengthHelp: "hvor mange nye tegn",
     generate: "✨ Generer tekst",
@@ -282,7 +282,7 @@ const bm: Strings = {
   inspect: {
     title: "Se inni modellen",
     intro:
-      "Nå har modellen lært litt. La oss se hva som skjer inni den for ett enkelt tegn: hva ser den på, og hva tror den kommer neste?",
+      "Nå har modellen lært litt. La oss se hva som skjer inni den for ett enkelt tegn: hva ser den på, og hvilket tegn tror den kommer etterpå?",
     inputLabel: "Tekst å granske",
     clickHint: "Klikk på et tegn under for å velge hvor i teksten du vil se nærmere.",
     attnHeading: "Hva ser modellen på?",
@@ -290,7 +290,7 @@ const bm: Strings = {
       "Hver rad er ett tegn som «ser» bakover. Mørkere rute = mer oppmerksomhet. Det grå feltet er framtiden – den får modellen ikke se.",
     layerLabel: "Lag",
     headLabel: "Hode",
-    probHeading: "Hva tror modellen kommer neste?",
+    probHeading: "Hvilket tegn tror modellen kommer nå?",
     probHelp: "Lengre søyle = mer sikker. Dette er det modellen faktisk gjetter på.",
     fasitLabel: "Fasit:",
     fasitNext: (ch) => `det virkelige neste tegnet er «${ch}».`,
@@ -302,13 +302,13 @@ const bm: Strings = {
     notReady: "Modellen er ikke klar ennå …",
   },
   rlhf: {
-    sectionTitle: "RLHF – lær modellen hva vi foretrekker",
+    sectionTitle: "Lær modellen hva du liker (RLHF)",
     sectionIntro:
-      "Etter grunntreningen kan vi finjustere modellen med menneskelig tilbakemelding. Du velger hvilken av to fortsettelser som er best, og modellen blir dyttet mot valget ditt med DPO – forankret til en frossen kopi av modellen.",
+      "Etter grunntreningen kan du lære modellen smaken din. Den skriver to forslag, du velger det beste – og modellen dyttes litt mot valget ditt. Slik lærte også ChatGPT folkeskikk.",
     introCard:
-      "RLHF («Reinforcement Learning from Human Feedback») lærer modellen hva slags svar vi mennesker foretrekker. Vi viser deg to fortsettelser, du velger den beste, og modellen blir justert mot valget ditt – forankret til en frossen referansemodell (DPO).",
+      "Dette kalles RLHF («Reinforcement Learning from Human Feedback»): mennesker gir tilbakemelding, og modellen justeres mot svarene vi foretrekker. Oppskriften vi bruker heter DPO, og den holder modellen forankret til en frossen kopi av seg selv – så den lærer hva du liker uten å glemme det den allerede kan.",
     startBtn: "Start preferansetrening",
-    untrainedHint: "Tips: tren modellen først i steg 3 – da blir fortsettelsene mer meningsfulle.",
+    untrainedHint: "Tips: tren modellen først i steg 4 – da blir fortsettelsene mer meningsfulle.",
     startTextLabel: "Starttekst",
     creativity: (x) => `Kreativitet: ${x}`,
     generatePair: "↻ Generer et par",
@@ -322,14 +322,14 @@ const bm: Strings = {
     prefs: "Preferanser:",
     margin: "Margin:",
     winRate: "Vinner-rate:",
-    dpoLossHeading: "DPO-tap over tid",
+    dpoLossHeading: "Tap under preferansetreningen (DPO)",
     dpoHelp:
-      "Margin = hvor mye mer sannsynlig den valgte fortsettelsen er enn den avviste, sammenlignet med referansemodellen. Høyere margin og vinner-rate = modellen følger preferansene dine.",
+      "Margin = hvor mye modellen har flyttet seg mot valgene dine. Vinner-rate = hvor ofte den nå foretrekker det samme som deg. Høyere er bedre for begge.",
   },
   warning: {
     lead: "Advarsel – ærlig om hva dette er:",
     body:
-      " Dette er en svært liten modell som blir trent i nettleseren din på noen få setninger. Den kan ikke måle seg med store modeller som ChatGPT, som er titusenvis av ganger større og trener i uker på enorme mengder data. Men prinsippet er nøyaktig det samme: ekte transformator, ekte backpropagation, ekte læring. Mer tekst og flere steg gir bedre resultat – prøv å lime inn egen tekst i feltet under!",
+      " Dette er en svært liten modell som blir trent i nettleseren din på noen få setninger. Den kan ikke måle seg med store modeller som ChatGPT, som er millioner av ganger større og trener i uker på enorme mengder data. Men prinsippet er nøyaktig det samme: ekte transformer, ekte backpropagation, ekte læring. Mer tekst og flere steg gir bedre resultat – prøv å lime inn egen tekst i feltet under!",
   },
   extra: {
     title: "Legg til egen tekst",
@@ -348,7 +348,7 @@ const bm: Strings = {
   },
   footer: {
     line1:
-      "Bygd med egen skrevet maskinlæringsmotor – transformator, autograd og Adam – helt i JavaScript.",
+      "Bygd med egenskrevet maskinlæringsmotor – transformer, autograd og Adam – helt i JavaScript.",
     line2: "All kode og all læring skjer lokalt i din egen nettleser. 🇳🇴",
   },
   docTitle: "Språkmodell-trener – bygg AI på bokmål",
@@ -356,7 +356,7 @@ const bm: Strings = {
 
 const nn: Strings = {
   header: {
-    title: "Språkmodell-trener",
+    title: "Språkmodell-trenar",
     subtitle: "Lær AI på nynorsk – i nettlesaren",
     jump: "Hopp til trening →",
   },
@@ -364,23 +364,23 @@ const nn: Strings = {
     badge: "Ekte trening frå null – ingen ferdig modell",
     h1Pre: "Bygg din eigen språkmodell på",
     h1Lang: "nynorsk",
-    para: "Her trenar du ein ekte transformator (samme type som ChatGPT) heilt frå bunnen av – med ekte baklengs propagasjon og Adam-optimering. Alt skjer lokalt i maskina di. Følg med steg for steg, og sjå korleis tilfeldige tal blir til nynorsk tekst.",
+    para: "Her byggjer og trenar du ein ekte språkmodell – same type som ChatGPT, berre bitte liten – rett i nettlesaren. Du ser han starte med reine tilfeldige tal, gjette, bomme og lære av feila sine tusenvis av gonger, heilt til det byrjar å likne nynorsk. Alt skjer lokalt på maskina di, og alt blir forklart undervegs.",
     ctaStart: "Start treninga",
     ctaUnderstand: "Forstå korleis det fungerer",
     stats: [
-      { k: "teikn-nivå", v: "tokenisering" },
-      { k: "100%", v: "i nettlesaren" },
-      { k: "frå null", v: "ekte vektar" },
+      { k: "100 %", v: "lokalt – ingenting forlèt maskina di" },
+      { k: "0", v: "forkunnskapar – alt blir forklart undervegs" },
+      { k: "ekte", v: "maskinlæring – ikkje ein animasjon" },
     ],
   },
   understand: {
-    title: "Kva er ei språkmodell?",
+    title: "Kva er ein språkmodell?",
     intro:
-      "Ei språkmodell lærer éin enkel ting: å gjetta kva teikn som kjem neste. Gjer vi det om og om igjen, kan ho skriva heile setningar.",
+      "Ein språkmodell lærer éin enkel ting: å gjette det neste teiknet. Gjer vi det om og om igjen, kan han skrive heile setningar.",
     cards: [
-      { t: "Gjet neste teikn", d: "Modellen les teksten så langt og gjet kva bokstav som bør koma neste.", i: "🔮" },
-      { t: "Mål feilen", d: "Vi samanliknar gjettinga med den ekte teksten og rekna ut tapet (loss).", i: "📏" },
-      { t: "Juster vektane", d: "Backpropagation flyttar alle vektane litt mot ei betre gjetting.", i: "🔧" },
+      { t: "Gjett neste teikn", d: "Modellen les teksten så langt og gjettar kva bokstav som bør kome etterpå.", i: "🔮" },
+      { t: "Mål feilen", d: "Vi samanliknar gjettinga med den ekte teksten og måler kor mykje han bomma – di meir overraska modellen vart, di større feil. Dette talet blir kalla tap (loss).", i: "📏" },
+      { t: "Vri på skruane", d: "Inni modellen sit tusenvis av små justeringsskruar (vektane). Feilen blir spora bakover, og kvar skrue blir vridd bitte litt mot ei betre gjetting – dette blir kalla backpropagation.", i: "🔧" },
     ],
   },
   data: {
@@ -390,14 +390,14 @@ const nn: Strings = {
     snippetHeading: "Utsnitt av treningsdataa (nynorsk)",
     charsTotal: (n) => `${n} teikn totalt`,
     howHeading: "Slik blir teksten til tal",
-    howPara: (sample) => `Vi delar opp setninga «${sample}» teikn for teikn. Kvart teikn får sin eigen ID:`,
+    howPara: (sample) => `Vi deler opp setninga «${sample}» teikn for teikn. Kvart teikn får sin eigen ID:`,
     vocabHeading: (n) => `Heile teiknsettet (${n} token = vokabularet)`,
     charTooltip: (i) => `teikn #${i}`,
   },
   bpe: {
     title: "Frå teikn til ord-bitar",
     intro:
-      "Ekte språkmodellar bruker ikkje enkeltbokstavar. Dei lærer «ord-bitar» (subord) ved å slå saman dei vanlegaste nabopara om att og om att. Prøv sjølv på den same teksten.",
+      "Ekte språkmodellar bruker ikkje enkeltbokstavar. Dei lærer «ord-bitar» ved å slå saman dei vanlegaste nabopara om att og om att. Prøv sjølv på den same teksten. (Den vesle modellen vår held seg til enkeltteikn – men no veit du korleis dei store gjer det.)",
     mergeBtn: "Slå saman neste par",
     resetBtn: "↺ Nullstill",
     mergeCount: (k, n) => `Samanslåingar: ${k} / ${n}`,
@@ -413,41 +413,41 @@ const nn: Strings = {
       "Når ein heil ord-bit blir eitt token, ser ikkje modellen bokstavane inni – difor bommar språkmodellar på å telje bokstavar i eit ord.",
   },
   arch: {
-    title: "Modellarkitekturen",
+    title: "Slik er modellen bygd opp",
     intro:
-      "Vi nyttar ein transformator – algoritmen bak moderne språkmodellar. Dataen renn oppover gjennom blokkane, og kvar blokk lærer noko nytt om samanhengen i teksten.",
-    causalTitle: "Kausal maskering:",
+      "Vi nyttar ein transformer – oppskrifta bak moderne språkmodellar som ChatGPT. Teksten renn oppover gjennom blokkene, og kvar blokk lærer noko nytt om samanhengen i teksten.",
+    causalTitle: "Inga juksing:",
     causalBody:
-      "når modellen gjet posisjon i, får ho berre sjå det som kom før. Slik lærer ho å skriva framover, ikkje å juksa.",
-    headsTitle: 'Fleire "hovud":',
+      "når modellen gjettar eit teikn, får han berre sjå det som kom før – aldri fasiten. Slik lærer han å skrive framover. (Fagordet er kausal maskering.)",
+    headsTitle: "Fleire «blikk» samtidig:",
     headsBody:
-      "multi-head oppmerksomheit let modellen sjå på fleire ulike ting samtidig – t.d. både bokstav, ordlyd og tyding.",
-    boxInput: { title: "Inndata", sub: "tekst → teikn (token-id-ar)" },
-    boxEmbedding: { title: "Innbygging (embedding)", sub: (dim) => `teikn + posisjon → ${dim} tal` },
-    boxBlock: { title: (i) => `Transformer-blokk ${i}`, sub: "sjølvoppmerksomhet + feed-forward" },
-    boxAttn: { title: "LayerNorm → Multi-head oppmerksomheit", sub: (heads) => `${heads} hovud` },
-    boxFfn: { title: "LayerNorm → Feed-forward (GELU)", sub: "ikkje-lineær tenking" },
-    residualNote: "+ residual-vegar (sprang over ledd)",
-    boxFinalNorm: { title: "Slutt-normalisering", sub: "LayerNorm" },
-    boxOutHead: { title: "Utgangshovud", sub: "→ poengsum (logits) for kvart teikn" },
-    boxSoftmax: { title: "Softmax", sub: "→ sannsyn for kva teikn som kjem neste" },
+      "modellen ser på teksten med fleire «hovud» på éin gong – eitt kan følgje med på bokstavar, eit anna på ord og tyding. (Blir kalla multi-head merksemd.)",
+    boxInput: { title: "Inndata", sub: "teksten, delt opp i teikn" },
+    boxEmbedding: { title: "Innbygging (embedding)", sub: (dim) => `kvart teikn blir til ${dim} tal` },
+    boxBlock: { title: (i) => `Transformer-blokk ${i}`, sub: "ser på samanhengen + tenkjer vidare" },
+    boxAttn: { title: "Ser på samanhengen", sub: (heads) => `multi-head merksemd, ${heads} hovud` },
+    boxFfn: { title: "Tenkjer vidare", sub: "eit lite nevralt nett (feed-forward)" },
+    residualNote: "+ snarvegar forbi kvart ledd, så ingenting går tapt (residual)",
+    boxFinalNorm: { title: "Siste opprydding i tala", sub: "LayerNorm" },
+    boxOutHead: { title: "Poengsum for kvart teikn", sub: "utgangshovudet (logits)" },
+    boxSoftmax: { title: "Poeng blir sannsyn", sub: "softmax" },
     explainHeading: "Kva skjer inni?",
     explain: [
       { b: "Innbygging:", t: "kvart teikn blir til ei liste med tal, og vi legg til informasjon om kvar i teksten det står." },
-      { b: "Sjølvoppmerksomheit:", t: "kvart teikn ser på dei andre teikna og finn ut kva som er viktig i samanhengen." },
+      { b: "Sjølvmerksemd:", t: "kvart teikn ser på dei andre teikna og finn ut kva som er viktig i samanhengen." },
       { b: "Feed-forward:", t: "eit lite nevralt nett som «tenkjer» vidare over kvar posisjon." },
       { b: "Residualvegar:", t: "informasjonen hoppar over kvart ledd slik at ingenting går tapt." },
       { b: "Softmax:", t: "gjer poenga om til sannsyn – slik vel modellen neste teikn." },
     ],
   },
   train: {
-    title: "Trening – sjå modellen læra",
+    title: "Trening – sjå modellen lære",
     intro:
-      "No set vi i gong. For kvart steg gjet modellen, måler tapet, og flyttar vektane med Adam-optimering. Sjå om tapet går ned – då skjer læringa!",
-    modelSize: "Modellstørrelse",
-    presets: { liten: "Liten – raskast", mellom: "Mellom – balanse", stor: "Stor – tregast" },
-    minibatch: (n) => `Minibatch: ${n}`,
-    learningRate: (x) => `Læringsrate: ${x}`,
+      "No set vi i gang! For kvart steg gjettar modellen, måler feilen og vrir alle dei små skruane bitte litt i rett retning. Sjå om tapet søkk – då lærer han.",
+    modelSize: "Modellstorleik",
+    presets: { liten: "Liten – rask, fin å starte med", mellom: "Mellom – god balanse", stor: "Stor – best resultat, tek lengst tid" },
+    minibatch: (n) => `Tekstbitar per steg (minibatch): ${n}`,
+    learningRate: (x) => `Skrittlengd (læringsrate): ${x}`,
     start: "▶ Start trening",
     stop: "⏸ Stopp",
     reset: "↺ Nullstill",
@@ -455,20 +455,20 @@ const nn: Strings = {
     params: "parametrar",
     lossHeading: "Tap (loss) over tid",
     lossHelp:
-      "Lågare tap = betre. Ein perfekt modell ville hatt tap rundt 0. Jo raskare kurva søkjer nedover, jo fortare lærer modellen.",
+      "Tapet måler kor overraska modellen blir av neste teikn – lågare er betre. Jo raskare kurva søkk, jo fortare lærer modellen. Flatar ho ut nær null, kan han teksten nesten utanåt.",
     liveLabel: "Dette skriv modellen no",
     livePlaceholder: "Trykk «Start trening» for å sjå døme undervegs…",
   },
   chat: {
     title: "Prøv modellen",
     intro:
-      "Skriv ein starttekst, og lat modellen halda fram. Ho gjet eitt teikn om gongen. Små modellar gir ikkje perfekte svar – men sjå kor mykje betre det blir etter kvart som ho trenar!",
+      "Skriv ein starttekst, og lat modellen halde fram – eitt teikn om gongen. Hugs at dette er ein bitte liten modell: vent deg sjarmerande tull, ikkje ChatGPT. Men di meir du trenar han, di betre blir det! (Har du ikkje trena enno, blir det berre tilfeldige teikn.)",
     promptLabel: "Din starttekst (nynorsk)",
     promptPlaceholder: "t.d. «Det var ein gong»",
     temp: (x) => `Temperatur: ${x}`,
     tempHelp: "0 = trygg, høg = kreativ",
     topK: (k) => `Top-k: ${k}`,
-    topKHelp: "berre dei k beste vala",
+    topKHelp: "kor mange teikn han får velje mellom",
     length: (n) => `Lengd: ${n} teikn`,
     lengthHelp: "kor mange nye teikn",
     generate: "✨ Generer tekst",
@@ -478,7 +478,7 @@ const nn: Strings = {
   inspect: {
     title: "Sjå inni modellen",
     intro:
-      "No har modellen lært litt. Lat oss sjå kva som skjer inni han for eitt enkelt teikn: kva ser han på, og kva trur han kjem neste?",
+      "No har modellen lært litt. Lat oss sjå kva som skjer inni han for eitt enkelt teikn: kva ser han på, og kva teikn trur han kjem etterpå?",
     inputLabel: "Tekst å granske",
     clickHint: "Klikk på eit teikn under for å velje kvar i teksten du vil sjå nærare.",
     attnHeading: "Kva ser modellen på?",
@@ -486,7 +486,7 @@ const nn: Strings = {
       "Kvar rad er eitt teikn som «ser» bakover. Mørkare rute = meir merksemd. Det grå feltet er framtida – den får modellen ikkje sjå.",
     layerLabel: "Lag",
     headLabel: "Hovud",
-    probHeading: "Kva trur modellen kjem neste?",
+    probHeading: "Kva teikn trur modellen kjem no?",
     probHelp: "Lengre søyle = meir sikker. Dette er det modellen faktisk gjettar på.",
     fasitLabel: "Fasit:",
     fasitNext: (ch) => `det verkelege neste teiknet er «${ch}».`,
@@ -498,13 +498,13 @@ const nn: Strings = {
     notReady: "Modellen er ikkje klar enno …",
   },
   rlhf: {
-    sectionTitle: "RLHF – lær modellen kva vi føretrekkjer",
+    sectionTitle: "Lær modellen kva du likar (RLHF)",
     sectionIntro:
-      "Etter grunntreninga kan vi finjustere modellen med menneskeleg tilbakemelding. Du vel kva for eit av to framhald som er best, og modellen blir dytta mot valet ditt med DPO – forankra til ein frosen kopi av modellen.",
+      "Etter grunntreninga kan du lære modellen smaken din. Han skriv to forslag, du vel det beste – og modellen blir dytta litt mot valet ditt. Slik lærte òg ChatGPT folkeskikk.",
     introCard:
-      "RLHF («Reinforcement Learning from Human Feedback») lærer modellen kva slags svar vi menneske føretrekkjer. Vi viser deg to framhald, du vel det beste, og modellen blir justert mot valet ditt – forankra til ein frosen referansemodell (DPO).",
+      "Dette blir kalla RLHF («Reinforcement Learning from Human Feedback»): menneske gir tilbakemelding, og modellen blir justert mot svara vi føretrekkjer. Oppskrifta vi bruker heiter DPO, og ho held modellen forankra til ein frosen kopi av seg sjølv – så han lærer kva du likar utan å gløyme det han alt kan.",
     startBtn: "Start preferanse-trening",
-    untrainedHint: "Tips: tren modellen først i steg 3 – då blir framhalda meir meiningsfulle.",
+    untrainedHint: "Tips: tren modellen først i steg 4 – då blir framhalda meir meiningsfulle.",
     startTextLabel: "Starttekst",
     creativity: (x) => `Kreativitet: ${x}`,
     generatePair: "↻ Generer eit par",
@@ -518,19 +518,19 @@ const nn: Strings = {
     prefs: "Preferansar:",
     margin: "Margin:",
     winRate: "Vinnar-rate:",
-    dpoLossHeading: "DPO-tap over tid",
+    dpoLossHeading: "Tap under preferansetreninga (DPO)",
     dpoHelp:
-      "Margin = kor mykje meir sannsynleg det valde framhaldet er enn det avviste, samanlikna med referansemodellen. Høgare margin og vinnar-rate = modellen følgjer preferansane dine.",
+      "Margin = kor mykje modellen har flytta seg mot vala dine. Vinnar-rate = kor ofte han no føretrekkjer det same som deg. Høgare er betre for begge.",
   },
   warning: {
-    lead: "Åtvaring – ærlig om kva dette er:",
+    lead: "Åtvaring – ærleg om kva dette er:",
     body:
-      " Dette er ein svært liten modell som blir trent i nettlesaren din på nokre få setningar. Ho kan ikkje måla seg med store modellar som ChatGPT, som er titusenvis av gonger større og trenar i veker på enorme mengder data. Men prinsippet er nøyaktig det same: ekte transformator, ekte backpropagation, ekte læring. Meir tekst og fleire steg gir betre resultat – prøv å lime inn eigen tekst i feltet under!",
+      " Dette er ein svært liten modell som blir trent i nettlesaren din på nokre få setningar. Han kan ikkje måle seg med store modellar som ChatGPT, som er millionar av gonger større og trenar i veker på enorme mengder data. Men prinsippet er nøyaktig det same: ekte transformer, ekte backpropagation, ekte læring. Meir tekst og fleire steg gir betre resultat – prøv å lime inn eigen tekst i feltet under!",
   },
   extra: {
     title: "Legg til eigen tekst",
     intro:
-      "Meir og variert tekst gjer modellen betre. Lim inn nynorsk tekst her (t.d. frå ei bok eller noko du har skrive). Modellen blir bygd på nytt med den nye dataa.",
+      "Meir og variert tekst gjer modellen betre. Lim inn nynorsk tekst her (t.d. frå ei bok eller noko du har skrive). Modellen blir bygd på nytt med dei nye dataa.",
     placeholder: "Lim inn nynorsk tekst her… (gjerne fleire avsnitt)",
     charsNote: (n) => `Teken med i tillegg til ${n} faste teikn.`,
     rebuild: "Bygg modell på nytt",
@@ -544,10 +544,10 @@ const nn: Strings = {
   },
   footer: {
     line1:
-      "Bygt med eigen skreve maskinlæringsmotor – transformator, autograd og Adam – heilt i JavaScript.",
+      "Bygd med eigenskriven maskinlæringsmotor – transformer, autograd og Adam – heilt i JavaScript.",
     line2: "All kode og all læring skjer lokalt i din eigen nettlesar. 🇳🇴",
   },
-  docTitle: "Språkmodell-trener – bygg AI på nynorsk",
+  docTitle: "Språkmodell-trenar – bygg AI på nynorsk",
 };
 
 export const STRINGS: Record<Lang, Strings> = { bm, nn };
