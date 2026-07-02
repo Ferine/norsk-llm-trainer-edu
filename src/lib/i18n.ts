@@ -83,6 +83,10 @@ export interface Strings {
     start: string;
     stop: string;
     reset: string;
+    resetConfirm: string;
+    stamp: string;
+    etaSec: (n: number) => string;
+    etaMin: (n: number) => string;
     step: (s: number, max: number) => string;
     params: string;
     lossHeading: string;
@@ -277,6 +281,10 @@ const bm: Strings = {
     start: "▶ Start trening",
     stop: "⏸ Stopp",
     reset: "↺ Nullstill",
+    resetConfirm: "Sikker? Trykk igjen",
+    stamp: "Godkjent ✓",
+    etaSec: (n) => `ca. ${n} s igjen`,
+    etaMin: (n) => `ca. ${n} min igjen`,
     step: (s, max) => `Steg ${s} / ${max}`,
     params: "parametere",
     lossHeading: "Tap (loss) over tid",
@@ -488,6 +496,10 @@ const nn: Strings = {
     start: "▶ Start trening",
     stop: "⏸ Stopp",
     reset: "↺ Nullstill",
+    resetConfirm: "Sikker? Trykk ein gong til",
+    stamp: "Godkjend ✓",
+    etaSec: (n) => `ca. ${n} s att`,
+    etaMin: (n) => `ca. ${n} min att`,
     step: (s, max) => `Steg ${s} / ${max}`,
     params: "parametrar",
     lossHeading: "Tap (loss) over tid",
