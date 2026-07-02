@@ -44,11 +44,11 @@ export default function Rlhf({ rlhf, examples, s }: { rlhf: RlhfApi; examples: s
   }
 
   return (
-    <Card className="relative space-y-5">
-      {/* lærerens hånd: her vurderer mennesket */}
-      <span aria-hidden className="handnotat absolute -top-4 right-5 text-xl">
-        {s.rlhf.teacherNote}
-      </span>
+    <Card className="space-y-5">
+      {/* lærerens hånd: i flyten (ikkje absolutt) så panelramma aldri kryssar skrifta */}
+      <div aria-hidden className="-mb-4 -mt-1 text-right">
+        <span className="handnotat text-xl">{s.rlhf.teacherNote}</span>
+      </div>
 
       {rlhf.untrainedHint && (
         <div className="border-l-4 border-rettepenn bg-white px-3 py-2 text-sm leading-relaxed">
