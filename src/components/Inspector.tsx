@@ -39,7 +39,7 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
   }, [text, model, step, tokenizer]);
 
   if (!model || !tokenizer || !result) {
-    return <p className="text-sm text-slate-500">{s.notReady}</p>;
+    return <p className="text-sm text-blyant">{s.notReady}</p>;
   }
 
   const itos = tokenizer.itos;
@@ -60,41 +60,37 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
   const actualNext = sel + 1 < T ? result.ids[sel + 1] : null;
 
   const tabBtn = (active: boolean) =>
-    `rounded px-2 py-0.5 text-xs font-semibold transition ${
-      active ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+    `rounded-[2px] border px-2 py-0.5 text-xs font-semibold transition ${
+      active ? "border-blekk bg-blekk text-white" : "border-blekk/40 bg-white text-blekk hover:bg-papir"
     }`;
 
   return (
     <div className="space-y-6">
       {step === 0 && (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+        <p className="border-l-4 border-rettepenn bg-white px-3 py-2 text-sm leading-relaxed">
           {s.untrainedHint}
         </p>
       )}
 
       {/* input */}
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {s.inputLabel}
-        </label>
+        <label className="etikett mb-1 block">{s.inputLabel}</label>
         <input
           value={text}
           onChange={(e) => {
             setText(e.target.value);
             setPos(null);
           }}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+          className="felt font-mono"
         />
-        <p className="mt-2 text-[11px] text-slate-400">{s.clickHint}</p>
+        <p className="mt-2 text-[11px] text-blyant">{s.clickHint}</p>
         <div className="mt-2 flex flex-wrap gap-1">
           {result.ids.map((id, i) => (
             <button
               key={i}
               onClick={() => setPos(i)}
-              className={`rounded px-1.5 py-1 font-mono text-sm transition ${
-                i === sel
-                  ? "bg-indigo-600 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              className={`brikke px-1.5 py-1 text-sm transition ${
+                i === sel ? "bg-tusj font-semibold" : "hover:bg-papir"
               }`}
             >
               {charLabel(itos, id)}
@@ -106,16 +102,16 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
       <div className="grid gap-6 lg:grid-cols-2">
         {/* attention heatmap */}
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">{s.attnHeading}</h3>
-          <p className="mb-3 text-[11px] text-slate-400">{s.attnHelp}</p>
+          <h3 className="text-sm font-semibold text-blekk">{s.attnHeading}</h3>
+          <p className="mb-3 text-[11px] text-blyant">{s.attnHelp}</p>
           <div className="mb-3 flex flex-wrap items-center gap-1">
-            <span className="mr-1 text-xs text-slate-500">{s.layerLabel}</span>
+            <span className="mr-1 font-mono text-xs text-blyant">{s.layerLabel}</span>
             {Array.from({ length: nLayer }, (_, i) => (
               <button key={i} onClick={() => setLayer(i)} className={tabBtn(layerSel === i)}>
                 {i + 1}
               </button>
             ))}
-            <span className="ml-3 mr-1 text-xs text-slate-500">{s.headLabel}</span>
+            <span className="ml-3 mr-1 font-mono text-xs text-blyant">{s.headLabel}</span>
             {Array.from({ length: nHead }, (_, i) => (
               <button key={i} onClick={() => setHead(i)} className={tabBtn(headSel === i)}>
                 {i + 1}
@@ -129,7 +125,7 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
             >
               <div />
               {result.ids.map((id, c) => (
-                <div key={`h${c}`} className="text-center font-mono text-[10px] text-slate-400">
+                <div key={`h${c}`} className="text-center font-mono text-[10px] text-blyant">
                   {charLabel(itos, id)}
                 </div>
               ))}
@@ -138,7 +134,7 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
                   <button
                     onClick={() => setPos(r)}
                     className={`pr-1 text-right font-mono text-[10px] ${
-                      r === sel ? "font-bold text-indigo-600" : "text-slate-400"
+                      r === sel ? "font-bold text-blekk" : "text-blyant"
                     }`}
                   >
                     {charLabel(itos, rid)}
@@ -152,13 +148,13 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
                         title={`${charLabel(itos, rid)} → ${charLabel(itos, result.ids[c])}: ${(
                           w * 100
                         ).toFixed(0)}%`}
-                        className={`h-[1.1rem] w-[1.1rem] rounded-sm ${
-                          r === sel ? "ring-1 ring-indigo-400" : ""
+                        className={`h-[1.1rem] w-[1.1rem] rounded-[2px] ${
+                          r === sel ? "ring-1 ring-blekk/50" : ""
                         }`}
                         style={{
                           backgroundColor: future
-                            ? "#f1f5f9"
-                            : `rgba(79,70,229,${(0.08 + 0.92 * w).toFixed(3)})`,
+                            ? "#eceff0"
+                            : `rgba(29,54,82,${(0.06 + 0.94 * w).toFixed(3)})`,
                         }}
                       />
                     );
@@ -171,37 +167,37 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
 
         {/* next-character probabilities */}
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">{s.probHeading}</h3>
-          <p className="mb-3 text-[11px] text-slate-400">{s.probHelp}</p>
+          <h3 className="text-sm font-semibold text-blekk">{s.probHeading}</h3>
+          <p className="mb-3 text-[11px] text-blyant">{s.probHelp}</p>
           <div className="space-y-1">
             {top.map(({ id, p }, rank) => (
               <div key={id} className="flex items-center gap-2">
-                <span className="w-6 text-right font-mono text-xs text-slate-500">
+                <span className="w-6 text-right font-mono text-xs text-blyant">
                   {charLabel(itos, id)}
                 </span>
-                <div className="h-4 flex-1 overflow-hidden rounded bg-slate-100">
+                <div className="h-4 flex-1 overflow-hidden rounded-[2px] border border-blekk/20 bg-rute/25">
                   <div
-                    className={`h-4 rounded ${rank === 0 ? "bg-indigo-600" : "bg-indigo-400"}`}
+                    className={`h-full ${rank === 0 ? "bg-blekk" : "bg-blyant/50"}`}
                     style={{ width: `${(p * 100).toFixed(1)}%` }}
                   />
                 </div>
-                <span className="w-10 text-right text-xs tabular-nums text-slate-500">
+                <span className="w-10 text-right font-mono text-xs tabular-nums text-blyant">
                   {(p * 100).toFixed(0)}%
                 </span>
               </div>
             ))}
           </div>
-          <p className="mt-3 text-sm text-slate-600">
+          {/* fasiten er lærerens domene: rød penn, både ved rett og galt */}
+          <p className="mt-3 border-l-4 border-rettepenn bg-white px-3 py-2 text-sm leading-relaxed">
             {actualNext === null ? (
               s.noNext
             ) : (
               <>
-                {s.fasitLabel} {s.fasitNext(charLabel(itos, actualNext))}{" "}
-                {guess === actualNext ? (
-                  <span className="font-semibold text-emerald-600">{s.correct}</span>
-                ) : (
-                  <span className="font-semibold text-rose-500">{s.wrong}</span>
-                )}
+                <b className="text-rettepenn">{s.fasitLabel}</b>{" "}
+                {s.fasitNext(charLabel(itos, actualNext))}{" "}
+                <span className="font-semibold text-rettepenn">
+                  {guess === actualNext ? s.correct : s.wrong}
+                </span>
               </>
             )}
           </p>

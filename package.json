@@ -17,6 +17,10 @@
     "test": "pnpm run test:build && node test/seq-logprob.test.mjs && node test/dpo-loss.test.mjs && node test/clone.test.mjs && node test/corpus-lang.test.mjs && node test/i18n-parity.test.mjs && node test/generate-parity.test.mjs && node test/dpo-smoke.test.mjs && node test/inspect.test.mjs && node test/bpe.test.mjs"
   },
   "dependencies": {
+    "@fontsource/alfa-slab-one": "5.2.8",
+    "@fontsource/caveat": "5.2.8",
+    "@fontsource/ibm-plex-mono": "5.2.7",
+    "@fontsource/literata": "5.2.8",
     "clsx": "2.1.1",
     "react": "19.2.6",
     "react-dom": "19.2.6",

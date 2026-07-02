@@ -1,5 +1,5 @@
 import LossChart from "@/components/LossChart";
-import { Card } from "@/components/ui";
+import { Card, Advanced } from "@/components/ui";
 import type { useRlhf } from "@/lib/useRlhf";
 import type { Strings } from "@/lib/i18n";
 
@@ -19,14 +19,10 @@ function PrefCard({
   betterLabel: string;
 }) {
   return (
-    <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4">
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{answerLabel}</div>
-      <p className="min-h-16 flex-1 whitespace-pre-wrap font-mono text-sm text-slate-700">{text || "…"}</p>
-      <button
-        onClick={onPick}
-        disabled={disabled}
-        className="mt-3 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
-      >
+    <div className="flex flex-col rounded-[3px] border-2 border-blekk bg-white p-4">
+      <div className="etikett mb-2">{answerLabel}</div>
+      <p className="min-h-16 flex-1 whitespace-pre-wrap font-mono text-sm text-blekk">{text || "…"}</p>
+      <button onClick={onPick} disabled={disabled} className="knapp knapp-blekk mt-3">
         {betterLabel}
       </button>
     </div>
@@ -39,14 +35,8 @@ export default function Rlhf({ rlhf, examples, s }: { rlhf: RlhfApi; examples: s
   if (!rlhf.started) {
     return (
       <Card className="space-y-4">
-        <p className="text-sm text-slate-600">
-          {s.rlhf.introCard}
-        </p>
-        <button
-          onClick={rlhf.start}
-          disabled={rlhf.baseRunning}
-          className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-violet-200 transition hover:bg-violet-500 disabled:opacity-50"
-        >
+        <p className="text-sm leading-relaxed text-blyant">{s.rlhf.introCard}</p>
+        <button onClick={rlhf.start} disabled={rlhf.baseRunning} className="knapp knapp-blekk">
           {s.rlhf.startBtn}
         </button>
       </Card>
@@ -54,27 +44,32 @@ export default function Rlhf({ rlhf, examples, s }: { rlhf: RlhfApi; examples: s
   }
 
   return (
-    <Card className="space-y-5">
+    <Card className="relative space-y-5">
+      {/* lærerens hånd: her vurderer mennesket */}
+      <span aria-hidden className="handnotat absolute -top-4 right-5 text-xl">
+        {s.rlhf.teacherNote}
+      </span>
+
       {rlhf.untrainedHint && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="border-l-4 border-rettepenn bg-white px-3 py-2 text-sm leading-relaxed">
           {s.rlhf.untrainedHint}
         </div>
       )}
 
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{s.rlhf.startTextLabel}</label>
+        <label className="etikett mb-1 block">{s.rlhf.startTextLabel}</label>
         <textarea
           value={rlhf.prompt}
           onChange={(e) => rlhf.setPrompt(e.target.value)}
           rows={2}
-          className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+          className="felt resize-none"
         />
         <div className="mt-2 flex flex-wrap gap-2">
           {examples.map((ex) => (
             <button
               key={ex}
               onClick={() => rlhf.setPrompt(ex)}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600"
+              className="rounded-[2px] border border-blekk/40 bg-white px-3 py-1 font-mono text-xs text-blekk transition hover:bg-papir"
             >
               {ex}
             </button>
@@ -84,9 +79,7 @@ export default function Rlhf({ rlhf, examples, s }: { rlhf: RlhfApi; examples: s
 
       <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {s.rlhf.creativity(rlhf.temp.toFixed(2))}
-          </label>
+          <label className="etikett mb-1 block">{s.rlhf.creativity(rlhf.temp.toFixed(2))}</label>
           <input
             type="range"
             min={0.3}
@@ -94,14 +87,10 @@ export default function Rlhf({ rlhf, examples, s }: { rlhf: RlhfApi; examples: s
             step={0.05}
             value={rlhf.temp}
             onChange={(e) => rlhf.setTemp(Number(e.target.value))}
-            className="w-full accent-indigo-600"
+            className="w-full"
           />
         </div>
-        <button
-          onClick={rlhf.generatePair}
-          disabled={busy}
-          className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-        >
+        <button onClick={rlhf.generatePair} disabled={busy} className="knapp knapp-omriss">
           {rlhf.generating ? s.rlhf.makingPair : s.rlhf.generatePair}
         </button>
       </div>
@@ -112,56 +101,48 @@ export default function Rlhf({ rlhf, examples, s }: { rlhf: RlhfApi; examples: s
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          onClick={rlhf.skip}
-          disabled={busy}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-        >
+        <button onClick={rlhf.skip} disabled={busy} className="knapp knapp-omriss knapp-sm">
           {s.rlhf.skip}
         </button>
         {!rlhf.dpoRunning ? (
           <button
             onClick={rlhf.trainMore}
             disabled={rlhf.baseRunning || rlhf.metrics.count === 0}
-            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
+            className="knapp knapp-blekk knapp-sm"
           >
             {s.rlhf.trainMore}
           </button>
         ) : (
-          <button
-            onClick={rlhf.stopTrainMore}
-            className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-500"
-          >
+          <button onClick={rlhf.stopTrainMore} className="knapp knapp-rettepenn knapp-sm">
             {s.rlhf.stop}
           </button>
         )}
-        <button
-          onClick={rlhf.resetTuning}
-          disabled={busy}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-        >
+        <button onClick={rlhf.resetTuning} disabled={busy} className="knapp knapp-omriss knapp-sm">
           {s.rlhf.resetTuning}
         </button>
-        <div className="ml-auto flex gap-3 text-xs text-slate-500">
-          <span>
-            {s.rlhf.prefs} <b className="text-slate-800">{rlhf.metrics.count}</b>
-          </span>
-          <span>
-            {s.rlhf.margin} <b className="text-slate-800">{rlhf.metrics.margin.toFixed(3)}</b>
-          </span>
-          <span>
-            {s.rlhf.winRate} <b className="text-slate-800">{(rlhf.metrics.winRate * 100).toFixed(0)}%</b>
-          </span>
-        </div>
+        {/* talet på val er synleg – det forklarer kvifor «Tren mer» er grått ved 0 */}
+        <span className="ml-auto font-mono text-xs text-blyant">
+          {s.rlhf.prefs} <b className="text-blekk">{rlhf.metrics.count}</b>
+        </span>
       </div>
 
-      <div>
-        <h3 className="mb-2 font-semibold text-slate-900">{s.rlhf.dpoLossHeading}</h3>
-        <LossChart data={rlhf.losses} loss={s.loss} />
-        <p className="mt-2 text-xs text-slate-500">
-          {s.rlhf.dpoHelp}
-        </p>
-      </div>
+      <Advanced label={s.rlhf.statsLabel}>
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-4 font-mono text-xs text-blyant">
+            <span>
+              {s.rlhf.margin} <b className="text-blekk">{rlhf.metrics.margin.toFixed(3)}</b>
+            </span>
+            <span>
+              {s.rlhf.winRate} <b className="text-blekk">{(rlhf.metrics.winRate * 100).toFixed(0)}%</b>
+            </span>
+          </div>
+          <div>
+            <h3 className="mb-2 font-semibold text-blekk">{s.rlhf.dpoLossHeading}</h3>
+            <LossChart data={rlhf.losses} loss={s.loss} />
+            <p className="mt-2 text-xs leading-relaxed text-blyant">{s.rlhf.dpoHelp}</p>
+          </div>
+        </div>
+      </Advanced>
     </Card>
   );
 }
