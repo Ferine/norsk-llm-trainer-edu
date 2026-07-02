@@ -154,12 +154,17 @@ export default function App() {
   const timerRef = useRef<number | null>(null);
   const generateTimerRef = useRef<number | null>(null);
   const activeExtraTextRef = useRef("");
+  // Treningsfart (steg per ms, glidande snitt) for «ca. X s igjen»
+  const rateRef = useRef(0);
+  const lastTickRef = useRef<{ t: number; step: number } | null>(null);
+  const resetArmTimerRef = useRef<number | null>(null);
 
   const [running, setRunning] = useState(false);
   const [step, setStep] = useState(0);
   const [losses, setLosses] = useState<number[]>([]);
   const [currentSample, setCurrentSample] = useState("");
   const [paramCount, setParamCount] = useState(0);
+  const [resetArmed, setResetArmed] = useState(false);
 
   const rlhf = useRlhf({
     getModel: () => engineRef.current?.model ?? null,
@@ -217,6 +222,13 @@ export default function App() {
     }
     if (lossesRef.current.length > MAX_STEPS)
       lossesRef.current = lossesRef.current.slice(-MAX_STEPS);
+    const now = performance.now();
+    const prev = lastTickRef.current;
+    if (prev && stepRef.current > prev.step) {
+      const inst = (stepRef.current - prev.step) / Math.max(1, now - prev.t);
+      rateRef.current = rateRef.current ? rateRef.current * 0.8 + inst * 0.2 : inst;
+    }
+    lastTickRef.current = { t: now, step: stepRef.current };
     setStep(stepRef.current);
     setLosses(lossesRef.current.slice());
     if (stepRef.current % 60 < stepsThisChunk) {
@@ -242,6 +254,8 @@ export default function App() {
   const start = useCallback(() => {
     rlhf.reset();
     if (!engineRef.current || stepRef.current >= MAX_STEPS) buildEngine();
+    lastTickRef.current = null; // ikkje la pausetid forureine farten
+    setResetArmed(false);
     runningRef.current = true;
     setRunning(true);
     loop();
@@ -271,6 +285,21 @@ export default function App() {
     buildEngine();
   }, [stop, buildEngine]);
 
+  // Nullstilling kastar ei trena økt – krev to trykk når det finst noko å miste.
+  const onResetClick = useCallback(() => {
+    if (resetArmTimerRef.current !== null) {
+      window.clearTimeout(resetArmTimerRef.current);
+      resetArmTimerRef.current = null;
+    }
+    if (stepRef.current === 0 || resetArmed) {
+      setResetArmed(false);
+      reset();
+      return;
+    }
+    setResetArmed(true);
+    resetArmTimerRef.current = window.setTimeout(() => setResetArmed(false), 3000);
+  }, [resetArmed, reset]);
+
   const rebuildWithExtraText = useCallback(() => {
     stop();
     buildEngine(extraText);
@@ -281,6 +310,7 @@ export default function App() {
       runningRef.current = false;
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
       if (generateTimerRef.current !== null) window.clearTimeout(generateTimerRef.current);
+      if (resetArmTimerRef.current !== null) window.clearTimeout(resetArmTimerRef.current);
     },
     []
   );
@@ -357,6 +387,16 @@ export default function App() {
   }, [paramCount, losses, displayTok, activeCorpus]);
 
   const examples = seed.examples;
+
+  const trainedDone = step >= MAX_STEPS && !running;
+  const eta = (() => {
+    if (!running || !rateRef.current || step >= MAX_STEPS) return null;
+    const sec = (MAX_STEPS - step) / rateRef.current / 1000;
+    if (sec < 3) return null;
+    return sec >= 90
+      ? s.train.etaMin(Math.ceil(sec / 60))
+      : s.train.etaSec(Math.max(5, Math.round(sec / 5) * 5));
+  })();
 
   // Persist + reflect language on <html> and title.
   useEffect(() => {
@@ -660,14 +700,24 @@ export default function App() {
                   {s.train.stop}
                 </button>
               )}
-              <button onClick={reset} disabled={running} className="knapp knapp-omriss">
-                {s.train.reset}
+              <button
+                onClick={onResetClick}
+                disabled={running}
+                className={cn("knapp", resetArmed ? "knapp-rettepenn" : "knapp-omriss")}
+              >
+                {resetArmed ? s.train.resetConfirm : s.train.reset}
               </button>
+              {trainedDone && (
+                <span aria-hidden className="stempel">
+                  {s.train.stamp}
+                </span>
+              )}
               <div className="ml-auto text-right">
                 <div className="font-mono text-sm font-semibold text-blekk">
                   {s.train.step(step, MAX_STEPS)}
                 </div>
                 <div className="font-mono text-xs text-blyant">{stats.params.toLocaleString(activeLocale)} {s.train.params}</div>
+                {eta && <div className="font-mono text-[11px] text-blyant">{eta}</div>}
               </div>
             </div>
 

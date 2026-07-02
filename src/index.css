@@ -281,6 +281,34 @@
     display: inline-block;
   }
 
+  /* Lærerens stempel: dunkes i boka når økta er fullført */
+  .stempel {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--color-rettepenn);
+    border: 2px solid var(--color-rettepenn);
+    border-radius: 3px;
+    padding: 0.3rem 0.7rem;
+    transform: rotate(-6deg);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-rettepenn) 35%, transparent);
+    opacity: 0.9;
+    animation: stemple 0.25s ease-out;
+  }
+  @keyframes stemple {
+    from {
+      transform: rotate(-6deg) scale(1.7);
+      opacity: 0;
+    }
+    to {
+      transform: rotate(-6deg) scale(1);
+      opacity: 0.9;
+    }
+  }
+
   /* Bokstavbrikke: løs typografi, som settekassen på trykkeriet */
   .brikke {
     display: inline-flex;
