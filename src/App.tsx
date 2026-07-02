@@ -8,10 +8,10 @@ import {
   trainStep,
 } from "@/lib/ml";
 import { buildTokenizer, corpora } from "@/lib/corpus";
-import { STRINGS, SEEDS, LANGS, type Lang } from "@/lib/i18n";
+import { STRINGS, SEEDS, LANGS, type Lang, type Seeds, type Strings } from "@/lib/i18n";
 import LossChart from "@/components/LossChart";
 import Architecture from "@/components/Architecture";
-import { Section, Card } from "@/components/ui";
+import { Section, Card, Advanced } from "@/components/ui";
 import Rlhf from "@/components/Rlhf";
 import BpeLab from "@/components/BpeLab";
 import Inspector from "@/components/Inspector";
@@ -42,6 +42,68 @@ function charLabel(c: string): string {
   if (c === " ") return "␣";
   if (c === "\n") return "⏎";
   return c;
+}
+
+// Lærestripa: ekte utskrifter frå ei treningsøkt, skrivne fram teikn for teikn
+// på linjert papir. Dei to første radene får lærarens raude bølgjestrek.
+function LearningStrip({ rows, t }: { rows: Seeds["strip"]; t: Strings["hero"]["strip"] }) {
+  const total = useMemo(() => rows.reduce((n, r) => n + r.text.length, 0), [rows]);
+  const [visible, setVisible] = useState(0);
+
+  useEffect(() => {
+    setVisible(0);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setVisible(total);
+      return;
+    }
+    let i = 0;
+    const id = window.setInterval(() => {
+      i += 3;
+      setVisible(i);
+      if (i >= total) window.clearInterval(id);
+    }, 24);
+    return () => window.clearInterval(id);
+  }, [total, rows]);
+
+  let budget = visible;
+  const shown = rows.map((r) => {
+    const take = Math.max(0, Math.min(r.text.length, budget));
+    budget -= take;
+    return r.text.slice(0, take);
+  });
+  const done = visible >= total;
+
+  return (
+    <figure className="panel linjert relative mt-10 max-w-3xl overflow-hidden px-4 sm:px-6">
+      <figcaption className="etikett" style={{ lineHeight: "2rem" }}>
+        {t.title}
+      </figcaption>
+      {rows.map((r, i) => (
+        <div key={r.step} className="flex items-baseline gap-3" style={{ lineHeight: "2rem" }}>
+          <span className="w-16 flex-none text-right font-mono text-[10px] text-blyant sm:w-20">
+            {t.step(r.step)}
+          </span>
+          <span
+            className={`min-w-0 flex-1 truncate font-mono text-[13px] text-blekk ${
+              i < 2 ? "rettelinje" : ""
+            }`}
+          >
+            {shown[i]}
+          </span>
+        </div>
+      ))}
+      <div className="text-right" style={{ lineHeight: "2rem" }}>
+        <span
+          aria-hidden
+          className={`handnotat pr-2 text-xl transition-opacity duration-700 ${
+            done ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          ✓ {t.note}
+        </span>
+      </div>
+    </figure>
+  );
 }
 
 const LANG_KEY = "trainer-lang";
@@ -185,6 +247,16 @@ export default function App() {
     loop();
   }, [buildEngine, loop, rlhf.reset]);
 
+  // Verkstedknappen i heroen: start treninga med ein gong og hopp til oppgåve 5,
+  // så modellen lærer i bakgrunnen medan ein pratar seg gjennom oppgåve 1–2.
+  const startFromHero = useCallback(() => {
+    start();
+    const behavior: ScrollBehavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "auto"
+      : "smooth";
+    document.getElementById("trening")?.scrollIntoView({ behavior, block: "start" });
+  }, [start]);
+
   const stop = useCallback(() => {
     runningRef.current = false;
     setRunning(false);
@@ -265,6 +337,7 @@ export default function App() {
   }, [genTick, chatFull]);
 
   // ---- tokeniserings-framsyning ----
+  const [showFullCorpus, setShowFullCorpus] = useState(false);
   const displayTok = useMemo(() => buildTokenizer(activeCorpus), [activeCorpus]);
   const sampleSentence = seed.sampleSentence;
   const sampleTokens = useMemo(
@@ -301,19 +374,19 @@ export default function App() {
   }, [lang]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/40 text-slate-800">
+    <div className="min-h-screen">
       {/* Header */}
-      <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg shadow">
-              🧠
+      <header className="sticky top-0 z-20 border-b-2 border-blekk bg-papir/95 backdrop-blur">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 flex-none items-center justify-center rounded-[3px] bg-blekk pt-0.5 font-display text-sm leading-none text-white">
+              Aa
             </div>
             <div className="leading-tight">
-              <div className="text-sm font-bold text-slate-900">{s.header.title}</div>
-              <div className="text-[11px] text-slate-500">{s.header.subtitle}</div>
+              <div className="font-display text-[13px] text-blekk">{s.header.title}</div>
+              <div className="font-mono text-[10px] text-blyant">{s.header.subtitle}</div>
             </div>
-            <div className="ml-3 inline-flex overflow-hidden rounded-lg border border-slate-300 text-xs font-semibold">
+            <div className="ml-2 inline-flex overflow-hidden rounded-[3px] border-2 border-blekk font-mono text-xs font-semibold">
               {LANGS.map((l) => (
                 <button
                   key={l.id}
@@ -321,7 +394,7 @@ export default function App() {
                   disabled={running || rlhf.dpoRunning}
                   className={cn(
                     "px-2.5 py-1 transition disabled:opacity-50",
-                    lang === l.id ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                    lang === l.id ? "bg-blekk text-white" : "bg-white text-blekk hover:bg-papir"
                   )}
                 >
                   {l.label}
@@ -329,71 +402,85 @@ export default function App() {
               ))}
             </div>
           </div>
-          <a
-            href="#trening"
-            className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700"
-          >
-            {s.header.jump}
-          </a>
+          <div className="flex flex-none items-center gap-3">
+            {/* Levande status: gruppa kan vandre på sida medan eleven øver */}
+            {(running || step > 0) && (
+              <div className="hidden items-center gap-2 font-mono text-[11px] sm:flex">
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    running ? "animate-pulse bg-rettepenn" : "bg-blyant/40"
+                  )}
+                />
+                <span className="text-blyant">{s.train.step(step, MAX_STEPS)}</span>
+                {losses.length > 0 && (
+                  <span className="font-semibold text-rettepenn">
+                    {s.loss.axisLoss} {stats.last.toFixed(2)}
+                  </span>
+                )}
+              </div>
+            )}
+            <a href="#trening" className="knapp knapp-blekk knapp-sm">
+              {s.header.jump}
+            </a>
+          </div>
         </div>
       </header>
 
-      {/* Hero */}
-      <div className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 opacity-60">
-          <div className="absolute -left-20 top-0 h-72 w-72 rounded-full bg-indigo-300/40 blur-3xl" />
-          <div className="absolute right-0 top-10 h-72 w-72 rounded-full bg-violet-300/40 blur-3xl" />
-        </div>
-        <div className="relative mx-auto max-w-5xl px-4 py-14 sm:py-20">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-500" />
+      {/* Omslaget: tittel med tusj-strek + lærestripa */}
+      <div className="mx-auto max-w-4xl pr-4" style={{ paddingLeft: "var(--gutter)" }}>
+        <div className="pb-12 pt-10 sm:pt-14">
+          <div className="etikett mb-5 flex items-center gap-2">
+            <span className="h-2 w-2 flex-none animate-pulse rounded-full bg-rettepenn" />
             {s.hero.badge}
           </div>
-          <h1 className="max-w-3xl text-4xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl">
-            {s.hero.h1Pre}{" "}
-            <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
-              {s.hero.h1Lang}
-            </span>
+          <h1 className="max-w-3xl font-display text-[2.35rem] leading-[1.18] text-blekk sm:text-[3.25rem] sm:leading-[1.14]">
+            {s.hero.h1Pre} <span className="tusj-strek">{s.hero.h1Lang}</span>
           </h1>
-          <p className="mt-4 max-w-2xl text-lg text-slate-600">
-            {s.hero.para}
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <a href="#trening" className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-500">
+          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-blyant">{s.hero.para}</p>
+          <div className="mt-7 flex flex-wrap gap-3">
+            <button
+              onClick={startFromHero}
+              disabled={running || rlhf.dpoRunning}
+              className="knapp knapp-blekk"
+            >
               {s.hero.ctaStart}
-            </a>
-            <a href="#forsta" className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            </button>
+            <a href="#forsta" className="knapp knapp-omriss">
               {s.hero.ctaUnderstand}
             </a>
           </div>
-          <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 text-center">
-            {s.hero.stats.map((st) => (
-              <div key={st.v} className="rounded-xl border border-slate-200 bg-white/70 px-3 py-3">
-                <div className="text-lg font-bold text-indigo-600">{st.k}</div>
-                <div className="text-xs text-slate-500">{st.v}</div>
-              </div>
+          <p className="mt-6 flex flex-wrap gap-x-2 gap-y-1 font-mono text-xs text-blyant">
+            {s.hero.stats.map((st, i) => (
+              <span key={st.v}>
+                {i > 0 && <span className="mr-2 text-marg">·</span>}
+                <b className="font-semibold text-blekk">{st.k}</b> {st.v}
+              </span>
             ))}
-          </div>
+          </p>
+          <LearningStrip rows={seed.strip} t={s.hero.strip} />
+          <p className="mt-3 max-w-3xl font-mono text-[11px] leading-relaxed text-blyant">
+            {s.hero.strip.caption}
+          </p>
         </div>
       </div>
 
-      <main className="mx-auto max-w-5xl space-y-20 px-4 py-12">
+      <main className="side mx-auto max-w-4xl space-y-16 pb-16 pr-4 pt-6">
         {/* Forstå */}
         <Section
           id="forsta"
-          step={0}
+          step={1}
           title={s.understand.title}
           intro={s.understand.intro}
         >
           <div className="grid gap-4 sm:grid-cols-3">
             {s.understand.cards.map((c, i) => (
-              <Card key={i} className="text-center">
-                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-2xl">
-                  {c.i}
+              <Card key={i}>
+                <div aria-hidden className="font-display text-2xl text-blekk">
+                  {i + 1}.
                 </div>
-                <div className="text-xs font-bold uppercase tracking-wide text-indigo-500">Steg {i + 1}</div>
-                <div className="mt-1 font-semibold text-slate-900">{c.t}</div>
-                <p className="mt-1 text-sm text-slate-600">{c.d}</p>
+                <div className="mt-2 font-semibold text-blekk">{c.t}</div>
+                <p className="mt-1 text-sm leading-relaxed text-blyant">{c.d}</p>
               </Card>
             ))}
           </div>
@@ -402,45 +489,60 @@ export default function App() {
         {/* Data & tokenisering */}
         <Section
           id="data"
-          step={1}
+          step={2}
           title={s.data.title}
           intro={s.data.intro}
         >
           <Card className="space-y-5">
             <div>
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="font-semibold text-slate-900">{s.data.snippetHeading}</h3>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h3 className="font-semibold text-blekk">{s.data.snippetHeading}</h3>
+                <span className="font-mono text-xs text-blyant">
                   {s.data.charsTotal(stats.chars)}
                 </span>
               </div>
-              <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-xl bg-slate-900 p-4 text-sm leading-relaxed text-slate-100">
-{activeCorpus.slice(0, 420)}…
+              {/* lesestykket: teksten eleven skal lære av, satt som i ei lesebok */}
+              <pre
+                className={cn(
+                  "overflow-auto whitespace-pre-wrap rounded-[2px] border border-blekk/25 bg-papir/70 p-4 font-sans text-[15px] leading-relaxed text-blekk",
+                  !showFullCorpus && "max-h-40"
+                )}
+              >
+{showFullCorpus ? activeCorpus : `${activeCorpus.slice(0, 420)}…`}
               </pre>
+              <button
+                onClick={() => setShowFullCorpus((v) => !v)}
+                aria-expanded={showFullCorpus}
+                className="mt-2 font-mono text-xs font-semibold text-blekk"
+              >
+                {showFullCorpus ? s.data.showLess : s.data.showFull}
+              </button>
             </div>
 
             <div>
-              <h3 className="mb-2 font-semibold text-slate-900">{s.data.howHeading}</h3>
-              <p className="mb-3 text-sm text-slate-600">
+              <h3 className="mb-2 font-semibold text-blekk">{s.data.originHeading}</h3>
+              <p className="max-w-2xl text-sm leading-relaxed text-blyant">{s.data.originPara}</p>
+            </div>
+
+            <div>
+              <h3 className="mb-2 font-semibold text-blekk">{s.data.howHeading}</h3>
+              <p className="mb-3 text-sm text-blyant">
                 {s.data.howPara(sampleSentence)}
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {sampleTokens.map((t, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex flex-col items-center rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-center"
-                  >
-                    <span className="font-mono text-base font-semibold text-indigo-700">
+                  <span key={i} className="brikke flex-col px-2 py-1 text-center">
+                    <span className="font-mono text-base font-semibold text-blekk">
                       {charLabel(t.c)}
                     </span>
-                    <span className="text-[10px] text-slate-500">#{t.id}</span>
+                    <span className="font-mono text-[10px] text-blyant">#{t.id}</span>
                   </span>
                 ))}
               </div>
             </div>
 
             <div>
-              <h3 className="mb-2 font-semibold text-slate-900">
+              <h3 className="mb-2 font-semibold text-blekk">
                 {s.data.vocabHeading(vocabList.length)}
               </h3>
               <div className="flex flex-wrap gap-1">
@@ -448,7 +550,7 @@ export default function App() {
                   <span
                     key={i}
                     title={s.data.charTooltip(i)}
-                    className="inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-1.5 font-mono text-sm text-slate-600"
+                    className="brikke h-7 min-w-7 px-1.5 text-sm text-blekk"
                   >
                     {charLabel(c)}
                   </span>
@@ -461,9 +563,10 @@ export default function App() {
         {/* Fra tegn til ord-biter (BPE) */}
         <Section
           id="bpe"
-          step={2}
+          step={3}
           title={s.bpe.title}
           intro={s.bpe.intro}
+          fold={s.fold}
         >
           <Card>
             <BpeLab corpus={activeCorpus} sampleSentence={sampleSentence} s={s.bpe} />
@@ -473,18 +576,19 @@ export default function App() {
         {/* Arkitektur */}
         <Section
           id="arkitektur"
-          step={3}
+          step={4}
           title={s.arch.title}
           intro={s.arch.intro}
+          fold={s.fold}
         >
           <Card>
             <Architecture layers={cfg.nLayer} heads={cfg.nHead} dim={cfg.dim} s={s} />
-            <div className="mt-5 grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
-              <div className="rounded-xl bg-slate-50 p-3">
-                <b className="text-slate-800">{s.arch.causalTitle}</b> {s.arch.causalBody}
+            <div className="mt-5 grid gap-3 text-sm leading-relaxed text-blyant sm:grid-cols-2">
+              <div className="rounded-[2px] border border-blekk/25 bg-papir/70 p-3">
+                <b className="text-blekk">{s.arch.causalTitle}</b> {s.arch.causalBody}
               </div>
-              <div className="rounded-xl bg-slate-50 p-3">
-                <b className="text-slate-800">{s.arch.headsTitle}</b> {s.arch.headsBody}
+              <div className="rounded-[2px] border border-blekk/25 bg-papir/70 p-3">
+                <b className="text-blekk">{s.arch.headsTitle}</b> {s.arch.headsBody}
               </div>
             </div>
           </Card>
@@ -493,119 +597,105 @@ export default function App() {
         {/* Trening */}
         <Section
           id="trening"
-          step={4}
+          step={5}
           title={s.train.title}
           intro={s.train.intro}
         >
           <Card className="space-y-5">
-            {/* kontrollar */}
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {s.train.modelSize}
-                </label>
-                <select
-                  value={preset}
-                  disabled={running || rlhf.dpoRunning}
-                  onChange={(e) => setPreset(e.target.value as PresetKey)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm disabled:opacity-50"
-                >
-                  {(Object.keys(PRESETS) as PresetKey[]).map((k) => (
-                    <option key={k} value={k}>
-                      {s.train.presets[k]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {s.train.minibatch(cfg.batch)}
-                </label>
-                <input
-                  type="range"
-                  min={1}
-                  max={8}
-                  value={batch}
-                  disabled={running || rlhf.dpoRunning}
-                  onChange={(e) => setBatch(Number(e.target.value))}
-                  className="w-full accent-indigo-600 disabled:opacity-50"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {s.train.learningRate(lr.toFixed(4))}
-                </label>
-                <input
-                  type="range"
-                  min={0.0001}
-                  max={0.003}
-                  step={0.0001}
-                  value={lr}
-                  disabled={running || rlhf.dpoRunning}
-                  onChange={(e) => setLr(Number(e.target.value))}
-                  className="w-full accent-indigo-600 disabled:opacity-50"
-                />
-              </div>
+            {/* kontrollar: berre modellstorleik synleg – resten er fordjuping */}
+            <div className="max-w-sm">
+              <label className="etikett mb-1 block">{s.train.modelSize}</label>
+              <select
+                value={preset}
+                disabled={running || rlhf.dpoRunning}
+                onChange={(e) => setPreset(e.target.value as PresetKey)}
+                className="felt text-sm disabled:opacity-50"
+              >
+                {(Object.keys(PRESETS) as PresetKey[]).map((k) => (
+                  <option key={k} value={k}>
+                    {s.train.presets[k]}
+                  </option>
+                ))}
+              </select>
             </div>
+
+            <Advanced label={s.advanced}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="etikett mb-1 block">{s.train.minibatch(cfg.batch)}</label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={8}
+                    value={batch}
+                    disabled={running || rlhf.dpoRunning}
+                    onChange={(e) => setBatch(Number(e.target.value))}
+                    className="w-full disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="etikett mb-1 block">{s.train.learningRate(lr.toFixed(4))}</label>
+                  <input
+                    type="range"
+                    min={0.0001}
+                    max={0.003}
+                    step={0.0001}
+                    value={lr}
+                    disabled={running || rlhf.dpoRunning}
+                    onChange={(e) => setLr(Number(e.target.value))}
+                    className="w-full disabled:opacity-50"
+                  />
+                </div>
+              </div>
+            </Advanced>
 
             {/* knappar */}
             <div className="flex flex-wrap items-center gap-3">
               {!running ? (
-                <button
-                  onClick={start}
-                  disabled={rlhf.dpoRunning}
-                  className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:bg-indigo-500 disabled:opacity-50"
-                >
+                <button onClick={start} disabled={rlhf.dpoRunning} className="knapp knapp-blekk">
                   {s.train.start}
                 </button>
               ) : (
-                <button
-                  onClick={stop}
-                  className="rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-rose-200 transition hover:bg-rose-500"
-                >
+                <button onClick={stop} className="knapp knapp-rettepenn">
                   {s.train.stop}
                 </button>
               )}
-              <button
-                onClick={reset}
-                disabled={running}
-                className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-              >
+              <button onClick={reset} disabled={running} className="knapp knapp-omriss">
                 {s.train.reset}
               </button>
-              <div className="ml-auto text-right text-sm">
-                <div className="font-semibold text-slate-900">
+              <div className="ml-auto text-right">
+                <div className="font-mono text-sm font-semibold text-blekk">
                   {s.train.step(step, MAX_STEPS)}
                 </div>
-                <div className="text-xs text-slate-500">{stats.params.toLocaleString(activeLocale)} {s.train.params}</div>
+                <div className="font-mono text-xs text-blyant">{stats.params.toLocaleString(activeLocale)} {s.train.params}</div>
               </div>
             </div>
 
             {/* framdrift */}
-            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+            <div className="h-2.5 w-full overflow-hidden rounded-[2px] border border-blekk/30 bg-white">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all"
+                className="h-full bg-blekk transition-all"
                 style={{ width: `${(step / MAX_STEPS) * 100}%` }}
               />
             </div>
 
             {/* tap-graf */}
             <div>
-              <h3 className="mb-2 font-semibold text-slate-900">{s.train.lossHeading}</h3>
+              <h3 className="mb-2 font-semibold text-blekk">{s.train.lossHeading}</h3>
               <LossChart data={losses} loss={s.loss} />
-              <p className="mt-2 text-xs text-slate-500">
+              <p className="mt-2 text-xs leading-relaxed text-blyant">
                 {s.train.lossHelp}
               </p>
             </div>
 
-            {/* live-eksempel */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <span className={cn("h-2 w-2 rounded-full", running ? "animate-pulse bg-emerald-500" : "bg-slate-300")} />
+            {/* live-eksempel: eleven skriv på tavla */}
+            <div className="tavle p-4">
+              <div className="mb-2 flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-kritt/70">
+                <span className={cn("h-2 w-2 rounded-full", running ? "animate-pulse bg-tusj" : "bg-kritt/30")} />
                 {s.train.liveLabel}
               </div>
-              <p className="min-h-6 whitespace-pre-wrap font-mono text-sm text-slate-700">
-                {currentSample || <span className="text-slate-400">{s.train.livePlaceholder}</span>}
+              <p className="min-h-6 whitespace-pre-wrap font-mono text-sm text-kritt">
+                {currentSample || <span className="text-kritt/50">{s.train.livePlaceholder}</span>}
               </p>
             </div>
           </Card>
@@ -614,7 +704,7 @@ export default function App() {
         {/* Se inni modellen */}
         <Section
           id="inspect"
-          step={5}
+          step={6}
           title={s.inspect.title}
           intro={s.inspect.intro}
         >
@@ -629,23 +719,27 @@ export default function App() {
           </Card>
         </Section>
 
+        {/* Ærlig note – lærerens rettepenn, plassert FØR eleven prøver seg */}
+        <section className="rounded-[3px] border-2 border-rettepenn bg-white p-5 text-sm leading-relaxed">
+          <b className="text-rettepenn">{s.warning.lead}</b>
+          {s.warning.body}
+        </section>
+
         {/* Chat / generering */}
         <Section
           id="chat"
-          step={6}
+          step={7}
           title={s.chat.title}
           intro={s.chat.intro}
         >
           <Card className="space-y-5">
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {s.chat.promptLabel}
-              </label>
+              <label className="etikett mb-1 block">{s.chat.promptLabel}</label>
               <textarea
                 value={chatPrompt}
                 onChange={(e) => setChatPrompt(e.target.value)}
                 rows={2}
-                className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                className="felt resize-none"
                 placeholder={s.chat.promptPlaceholder}
               />
               <div className="mt-2 flex flex-wrap gap-2">
@@ -653,7 +747,7 @@ export default function App() {
                   <button
                     key={ex}
                     onClick={() => setChatPrompt(ex)}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600"
+                    className="rounded-[2px] border border-blekk/40 bg-white px-3 py-1 font-mono text-xs text-blekk transition hover:bg-papir"
                   >
                     {ex}
                   </button>
@@ -661,68 +755,63 @@ export default function App() {
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {s.chat.temp(genTemp.toFixed(2))}
-                </label>
-                <input
-                  type="range"
-                  min={0}
-                  max={1.5}
-                  step={0.05}
-                  value={genTemp}
-                  onChange={(e) => setGenTemp(Number(e.target.value))}
-                  className="w-full accent-indigo-600"
-                />
-                <p className="text-[11px] text-slate-400">{s.chat.tempHelp}</p>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {s.chat.topK(genTopK)}
-                </label>
-                <input
-                  type="range"
-                  min={1}
-                  max={Math.max(2, stats.vocab)}
-                  value={genTopK}
-                  onChange={(e) => setGenTopK(Number(e.target.value))}
-                  className="w-full accent-indigo-600"
-                />
-                <p className="text-[11px] text-slate-400">{s.chat.topKHelp}</p>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {s.chat.length(genLen)}
-                </label>
-                <input
-                  type="range"
-                  min={20}
-                  max={240}
-                  step={10}
-                  value={genLen}
-                  onChange={(e) => setGenLen(Number(e.target.value))}
-                  className="w-full accent-indigo-600"
-                />
-                <p className="text-[11px] text-slate-400">{s.chat.lengthHelp}</p>
-              </div>
+            {/* temperatur er den eine morosame brytaren – resten er fordjuping */}
+            <div className="max-w-sm">
+              <label className="etikett mb-1 block">{s.chat.temp(genTemp.toFixed(2))}</label>
+              <input
+                type="range"
+                min={0}
+                max={1.5}
+                step={0.05}
+                value={genTemp}
+                onChange={(e) => setGenTemp(Number(e.target.value))}
+                className="w-full"
+              />
+              <p className="text-[11px] text-blyant">{s.chat.tempHelp}</p>
             </div>
 
-            <button
-              onClick={runGenerate}
-              disabled={genLoading}
-              className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-violet-200 transition hover:bg-violet-500 disabled:opacity-60"
-            >
+            <Advanced label={s.advanced}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="etikett mb-1 block">{s.chat.topK(genTopK)}</label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={Math.max(2, stats.vocab)}
+                    value={genTopK}
+                    onChange={(e) => setGenTopK(Number(e.target.value))}
+                    className="w-full"
+                  />
+                  <p className="text-[11px] text-blyant">{s.chat.topKHelp}</p>
+                </div>
+                <div>
+                  <label className="etikett mb-1 block">{s.chat.length(genLen)}</label>
+                  <input
+                    type="range"
+                    min={20}
+                    max={240}
+                    step={10}
+                    value={genLen}
+                    onChange={(e) => setGenLen(Number(e.target.value))}
+                    className="w-full"
+                  />
+                  <p className="text-[11px] text-blyant">{s.chat.lengthHelp}</p>
+                </div>
+              </div>
+            </Advanced>
+
+            <button onClick={runGenerate} disabled={genLoading} className="knapp knapp-blekk">
               {genLoading ? s.chat.thinking : s.chat.generate}
             </button>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-900 p-4">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            {/* svaret kjem på tavla */}
+            <div className="tavle p-4">
+              <div className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-kritt/70">
                 {s.chat.answerLabel}
               </div>
-              <p className="min-h-8 whitespace-pre-wrap font-mono text-sm leading-relaxed text-emerald-100">
+              <p className="min-h-8 whitespace-pre-wrap font-mono text-sm leading-relaxed text-kritt">
                 {chatShown}
-                <span className="animate-pulse text-emerald-300">▍</span>
+                <span className="animate-pulse text-tusj">▍</span>
               </p>
             </div>
           </Card>
@@ -731,22 +820,17 @@ export default function App() {
         {/* RLHF */}
         <Section
           id="rlhf"
-          step={7}
+          step={8}
           title={s.rlhf.sectionTitle}
           intro={s.rlhf.sectionIntro}
         >
           <Rlhf rlhf={rlhf} examples={examples} s={s} />
         </Section>
 
-        {/* Ærlig note */}
-        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
-          <b>{s.warning.lead}</b>{s.warning.body}
-        </section>
-
         {/* Eigen tekst */}
         <Section
           id="eigentekst"
-          step={8}
+          step={9}
           title={s.extra.title}
           intro={s.extra.intro}
         >
@@ -757,14 +841,14 @@ export default function App() {
               rows={5}
               disabled={running}
               placeholder={s.extra.placeholder}
-              className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:opacity-50"
+              className="felt resize-y disabled:opacity-50"
             />
-            <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-              <span>{s.extra.charsNote(activeCorpus.length)}</span>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <span className="font-mono text-xs text-blyant">{s.extra.charsNote(activeCorpus.length)}</span>
               <button
                 onClick={rebuildWithExtraText}
                 disabled={running}
-                className="rounded-lg bg-slate-900 px-3 py-1.5 font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
+                className="knapp knapp-blekk knapp-sm"
               >
                 {s.extra.rebuild}
               </button>
@@ -773,8 +857,8 @@ export default function App() {
         </Section>
       </main>
 
-      <footer className="border-t border-slate-200 bg-white py-8">
-        <div className="mx-auto max-w-5xl px-4 text-center text-sm text-slate-500">
+      <footer className="border-t-2 border-blekk py-8">
+        <div className="mx-auto max-w-4xl px-4 text-center font-mono text-[11px] leading-relaxed text-blyant">
           {s.footer.line1}
           <br />
           {s.footer.line2}

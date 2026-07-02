@@ -7,6 +7,8 @@ export const LANGS: { id: Lang; label: string; htmlLang: string; locale: string 
 
 export interface Strings {
   header: { title: string; subtitle: string; jump: string };
+  fold: { tag: string; show: string; hide: string };
+  advanced: string;
   hero: {
     badge: string;
     h1Pre: string;
@@ -15,16 +17,21 @@ export interface Strings {
     ctaStart: string;
     ctaUnderstand: string;
     stats: { k: string; v: string }[]; // length 3
+    strip: { title: string; step: (n: number) => string; note: string; caption: string };
   };
   understand: {
     title: string;
     intro: string;
-    cards: { t: string; d: string; i: string }[]; // length 3
+    cards: { t: string; d: string }[]; // length 3
   };
   data: {
     title: string;
     intro: string;
     snippetHeading: string;
+    showFull: string;
+    showLess: string;
+    originHeading: string;
+    originPara: string;
     charsTotal: (n: number) => string;
     howHeading: string;
     howPara: (sample: string) => string;
@@ -121,6 +128,7 @@ export interface Strings {
     sectionTitle: string;
     sectionIntro: string;
     introCard: string;
+    teacherNote: string;
     startBtn: string;
     untrainedHint: string;
     startTextLabel: string;
@@ -136,6 +144,7 @@ export interface Strings {
     prefs: string;
     margin: string;
     winRate: string;
+    statsLabel: string;
     dpoLossHeading: string;
     dpoHelp: string;
   };
@@ -164,6 +173,8 @@ const bm: Strings = {
     subtitle: "Lær AI på bokmål – i nettleseren",
     jump: "Hopp til trening →",
   },
+  fold: { tag: "Fordypning – valgfritt", show: "+ vis", hide: "− skjul" },
+  advanced: "Flere innstillinger",
   hero: {
     badge: "Ekte trening fra null – ingen ferdig modell",
     h1Pre: "Bygg din egen språkmodell på",
@@ -176,15 +187,21 @@ const bm: Strings = {
       { k: "0", v: "forkunnskaper – alt forklares underveis" },
       { k: "ekte", v: "maskinlæring – ikke en animasjon" },
     ],
+    strip: {
+      title: "Fra kaos til bokmål – én ekte treningsøkt:",
+      step: (n) => `steg ${n}`,
+      note: "nesten norsk!",
+      caption: "Ekte utskrifter fra denne appen (minste modellen). Tren din egen nedenfor – du får se det samme skje.",
+    },
   },
   understand: {
     title: "Hva er en språkmodell?",
     intro:
       "En språkmodell lærer én enkel ting: å gjette det neste tegnet. Gjør vi det om og om igjen, kan den skrive hele setninger.",
     cards: [
-      { t: "Gjett neste tegn", d: "Modellen leser teksten så langt og gjetter hvilken bokstav som bør komme etterpå.", i: "🔮" },
-      { t: "Mål feilen", d: "Vi sammenligner gjettingen med den ekte teksten og måler hvor mye den bommet – jo mer overrasket modellen ble, jo større feil. Dette tallet kalles tap (loss).", i: "📏" },
-      { t: "Vri på skruene", d: "Inni modellen sitter tusenvis av små justeringsskruer (vektene). Feilen spores bakover, og hver skrue vris bitte litt mot en bedre gjetting – dette kalles backpropagation.", i: "🔧" },
+      { t: "Gjett neste tegn", d: "Modellen leser teksten så langt og gjetter hvilken bokstav som bør komme etterpå." },
+      { t: "Mål feilen", d: "Vi sammenligner gjettingen med den ekte teksten og måler hvor mye den bommet – jo mer overrasket modellen ble, jo større feil. Dette tallet kalles tap (loss)." },
+      { t: "Vri på skruene", d: "Inni modellen sitter tusenvis av små justeringsskruer (vektene). Feilen spores bakover, og hver skrue vris bitte litt mot en bedre gjetting – dette kalles backpropagation." },
     ],
   },
   data: {
@@ -192,6 +209,11 @@ const bm: Strings = {
     intro:
       "Først trenger vi tekst. Her bruker vi norsk bokmål. Datamaskinen forstår ikke bokstaver, så vi deler teksten opp i små enheter – token – og gir hver av dem et tall.",
     snippetHeading: "Utsnitt av treningsdataene (bokmål)",
+    showFull: "+ vis hele teksten",
+    showLess: "− vis mindre",
+    originHeading: "Hvor kommer treningsdata fra?",
+    originPara:
+      "Tekstsamlingen en modell lærer av kalles et korpus. Vårt er noen få avsnitt skrevet for hånd, men de store modellene leser milliarder av sider samlet inn fra internett, bøker, aviser og leksikon. Og kvaliteten avgjør – modellen blir som teksten den leser. Derfor brukes det mye tid på å rydde bort feil, søppel og skjevheter før treningen starter.",
     charsTotal: (n) => `${n} tegn totalt`,
     howHeading: "Slik blir teksten til tall",
     howPara: (sample) => `Vi deler opp setningen «${sample}» tegn for tegn. Hvert tegn får sin egen ID:`,
@@ -275,7 +297,7 @@ const bm: Strings = {
     topKHelp: "hvor mange tegn den får velge blant",
     length: (n) => `Lengde: ${n} tegn`,
     lengthHelp: "hvor mange nye tegn",
-    generate: "✨ Generer tekst",
+    generate: "Generer tekst",
     thinking: "Tenker…",
     answerLabel: "Svar fra modellen",
   },
@@ -307,14 +329,15 @@ const bm: Strings = {
       "Etter grunntreningen kan du lære modellen smaken din. Den skriver to forslag, du velger det beste – og modellen dyttes litt mot valget ditt. Slik lærte også ChatGPT folkeskikk.",
     introCard:
       "Dette kalles RLHF («Reinforcement Learning from Human Feedback»): mennesker gir tilbakemelding, og modellen justeres mot svarene vi foretrekker. Oppskriften vi bruker heter DPO, og den holder modellen forankret til en frossen kopi av seg selv – så den lærer hva du liker uten å glemme det den allerede kan.",
+    teacherNote: "nå er DU læreren!",
     startBtn: "Start preferansetrening",
-    untrainedHint: "Tips: tren modellen først i steg 4 – da blir fortsettelsene mer meningsfulle.",
+    untrainedHint: "Tips: tren modellen først i oppgave 5 – da blir fortsettelsene mer meningsfulle.",
     startTextLabel: "Starttekst",
     creativity: (x) => `Kreativitet: ${x}`,
     generatePair: "↻ Generer et par",
     makingPair: "Lager par…",
     prefAnswer: (label) => `Svar ${label}`,
-    prefBetter: (label) => `👍 ${label} er bedre`,
+    prefBetter: (label) => `✓ ${label} er bedre`,
     skip: "Hopp over (likeverdige)",
     trainMore: "Tren mer på preferansene",
     stop: "⏸ Stopp",
@@ -322,6 +345,7 @@ const bm: Strings = {
     prefs: "Preferanser:",
     margin: "Margin:",
     winRate: "Vinner-rate:",
+    statsLabel: "Tallene bak justeringen",
     dpoLossHeading: "Tap under preferansetreningen (DPO)",
     dpoHelp:
       "Margin = hvor mye modellen har flyttet seg mot valgene dine. Vinner-rate = hvor ofte den nå foretrekker det samme som deg. Høyere er bedre for begge.",
@@ -360,6 +384,8 @@ const nn: Strings = {
     subtitle: "Lær AI på nynorsk – i nettlesaren",
     jump: "Hopp til trening →",
   },
+  fold: { tag: "Fordjuping – valfritt", show: "+ vis", hide: "− skjul" },
+  advanced: "Fleire innstillingar",
   hero: {
     badge: "Ekte trening frå null – ingen ferdig modell",
     h1Pre: "Bygg din eigen språkmodell på",
@@ -372,15 +398,21 @@ const nn: Strings = {
       { k: "0", v: "forkunnskapar – alt blir forklart undervegs" },
       { k: "ekte", v: "maskinlæring – ikkje ein animasjon" },
     ],
+    strip: {
+      title: "Frå kaos til nynorsk – éi ekte treningsøkt:",
+      step: (n) => `steg ${n}`,
+      note: "nesten norsk!",
+      caption: "Ekte utskrifter frå denne appen (minste modellen). Tren din eigen nedanfor – du får sjå det same skje.",
+    },
   },
   understand: {
     title: "Kva er ein språkmodell?",
     intro:
       "Ein språkmodell lærer éin enkel ting: å gjette det neste teiknet. Gjer vi det om og om igjen, kan han skrive heile setningar.",
     cards: [
-      { t: "Gjett neste teikn", d: "Modellen les teksten så langt og gjettar kva bokstav som bør kome etterpå.", i: "🔮" },
-      { t: "Mål feilen", d: "Vi samanliknar gjettinga med den ekte teksten og måler kor mykje han bomma – di meir overraska modellen vart, di større feil. Dette talet blir kalla tap (loss).", i: "📏" },
-      { t: "Vri på skruane", d: "Inni modellen sit tusenvis av små justeringsskruar (vektane). Feilen blir spora bakover, og kvar skrue blir vridd bitte litt mot ei betre gjetting – dette blir kalla backpropagation.", i: "🔧" },
+      { t: "Gjett neste teikn", d: "Modellen les teksten så langt og gjettar kva bokstav som bør kome etterpå." },
+      { t: "Mål feilen", d: "Vi samanliknar gjettinga med den ekte teksten og måler kor mykje han bomma – di meir overraska modellen vart, di større feil. Dette talet blir kalla tap (loss)." },
+      { t: "Vri på skruane", d: "Inni modellen sit tusenvis av små justeringsskruar (vektane). Feilen blir spora bakover, og kvar skrue blir vridd bitte litt mot ei betre gjetting – dette blir kalla backpropagation." },
     ],
   },
   data: {
@@ -388,6 +420,11 @@ const nn: Strings = {
     intro:
       "Først treng vi tekst. Her bruker vi norsk nynorsk. Datamaskina forstår ikkje bokstavar, så vi deler teksten opp i små einingar – token – og gir kvar av dei eit tal.",
     snippetHeading: "Utsnitt av treningsdataa (nynorsk)",
+    showFull: "+ vis heile teksten",
+    showLess: "− vis mindre",
+    originHeading: "Kvar kjem treningsdata frå?",
+    originPara:
+      "Tekstsamlinga ein modell lærer av blir kalla eit korpus. Vårt er nokre få avsnitt skrivne for hand, men dei store modellane les milliardar av sider samla inn frå internett, bøker, aviser og leksikon. Og kvaliteten avgjer – modellen blir som teksten han les. Difor blir det brukt mykje tid på å rydde bort feil, søppel og skeivskapar før treninga startar.",
     charsTotal: (n) => `${n} teikn totalt`,
     howHeading: "Slik blir teksten til tal",
     howPara: (sample) => `Vi deler opp setninga «${sample}» teikn for teikn. Kvart teikn får sin eigen ID:`,
@@ -471,7 +508,7 @@ const nn: Strings = {
     topKHelp: "kor mange teikn han får velje mellom",
     length: (n) => `Lengd: ${n} teikn`,
     lengthHelp: "kor mange nye teikn",
-    generate: "✨ Generer tekst",
+    generate: "Generer tekst",
     thinking: "Tenkjer…",
     answerLabel: "Svar frå modellen",
   },
@@ -503,14 +540,15 @@ const nn: Strings = {
       "Etter grunntreninga kan du lære modellen smaken din. Han skriv to forslag, du vel det beste – og modellen blir dytta litt mot valet ditt. Slik lærte òg ChatGPT folkeskikk.",
     introCard:
       "Dette blir kalla RLHF («Reinforcement Learning from Human Feedback»): menneske gir tilbakemelding, og modellen blir justert mot svara vi føretrekkjer. Oppskrifta vi bruker heiter DPO, og ho held modellen forankra til ein frosen kopi av seg sjølv – så han lærer kva du likar utan å gløyme det han alt kan.",
+    teacherNote: "no er DU læraren!",
     startBtn: "Start preferanse-trening",
-    untrainedHint: "Tips: tren modellen først i steg 4 – då blir framhalda meir meiningsfulle.",
+    untrainedHint: "Tips: tren modellen først i oppgåve 5 – då blir framhalda meir meiningsfulle.",
     startTextLabel: "Starttekst",
     creativity: (x) => `Kreativitet: ${x}`,
     generatePair: "↻ Generer eit par",
     makingPair: "Lagar par…",
     prefAnswer: (label) => `Svar ${label}`,
-    prefBetter: (label) => `👍 ${label} er betre`,
+    prefBetter: (label) => `✓ ${label} er betre`,
     skip: "Hopp over (likeverdige)",
     trainMore: "Tren meir på preferansane",
     stop: "⏸ Stopp",
@@ -518,6 +556,7 @@ const nn: Strings = {
     prefs: "Preferansar:",
     margin: "Margin:",
     winRate: "Vinnar-rate:",
+    statsLabel: "Tala bak justeringa",
     dpoLossHeading: "Tap under preferansetreninga (DPO)",
     dpoHelp:
       "Margin = kor mykje modellen har flytta seg mot vala dine. Vinnar-rate = kor ofte han no føretrekkjer det same som deg. Høgare er betre for begge.",
@@ -557,6 +596,8 @@ export interface Seeds {
   examples: string[];
   sampleSentence: string;
   trainSeed: string;
+  /** Ekte utskrifter fra en treningsøkt (frø 42/1337/7, preset «liten») til helte-stripen. */
+  strip: { step: number; text: string }[];
 }
 
 export const SEEDS: Record<Lang, Seeds> = {
@@ -565,11 +606,23 @@ export const SEEDS: Record<Lang, Seeds> = {
     examples: ["Det var en gang", "Norge er", "Jeg heter", "Vann er"],
     sampleSentence: "Norge er et land",
     trainSeed: "Det var en gang",
+    strip: [
+      { step: 0, text: "Det var en gangyvGRgfåÅypOgLyJ?biNsDsDngJØØgÅaÅasØIDngNÅFegNyJ.lFyDngf" },
+      { step: 300, text: "Det var en gang s lar stareter iskjet ser lelaneg amer i som lte var f" },
+      { step: 1200, text: "Det var en gangetr og sa sta det dlam havennt arsennet sti tarng en sn" },
+      { step: 3500, text: "Det var en gang snøi skye sammen vlar av havett andet havet.⏎⏎Om vanne" },
+    ],
   },
   nn: {
     chatPrompt: "Det var ein gong",
     examples: ["Det var ein gong", "Noreg er", "Eg heiter", "Vatn er"],
     sampleSentence: "Noreg er eit land",
     trainSeed: "Det var ein gong",
+    strip: [
+      { step: 0, text: "Det var ein gong ,aJ,hybrhUID.⏎djKLI.mKjOMÅÅjjåFåJFStnMjØØØbMLLfhkåjDot" },
+      { step: 300, text: "Det var ein gong svenein fr lein d meg stillame fleger d steti br var l" },
+      { step: 1200, text: "Det var ein gong olla tin soppå ilkvan sog ogenen, log sar sedaven vari" },
+      { step: 3500, text: "Det var ein gong eav t ilav havetner alti de havame frodskyr elysame fe" },
+    ],
   },
 };
