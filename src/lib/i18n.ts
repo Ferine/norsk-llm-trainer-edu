@@ -91,6 +91,9 @@ export interface Strings {
     params: string;
     lossHeading: string;
     lossHelp: string;
+    screwsLabel: string;
+    screwsHelp: string;
+    screwsIdle: string;
     liveLabel: string;
     livePlaceholder: string;
   };
@@ -290,6 +293,10 @@ const bm: Strings = {
     lossHeading: "Tap (loss) over tid",
     lossHelp:
       "Tapet måler hvor overrasket modellen blir av neste tegn – lavere er bedre. Jo raskere kurven synker, jo fortere lærer modellen. Flater den ut nær null, kan den teksten nesten utenat.",
+    screwsLabel: "Se skruene bli vridd",
+    screwsHelp:
+      "Hver rute er én av modellens justeringsskruer (vekter) – et lite utvalg av alle sammen. Mørk rute = skruen ble vridd mye nå nettopp. Tidlig i treningen er det mange mørke ruter; etter hvert som modellen lærer, blir det stadig færre og roligere.",
+    screwsIdle: "Start treningen for å se skruene i arbeid.",
     liveLabel: "Dette skriver modellen nå",
     livePlaceholder: "Trykk «Start trening» for å se eksempler underveis…",
   },
@@ -505,6 +512,10 @@ const nn: Strings = {
     lossHeading: "Tap (loss) over tid",
     lossHelp:
       "Tapet måler kor overraska modellen blir av neste teikn – lågare er betre. Jo raskare kurva søkk, jo fortare lærer modellen. Flatar ho ut nær null, kan han teksten nesten utanåt.",
+    screwsLabel: "Sjå skruane bli vridde",
+    screwsHelp:
+      "Kvar rute er éin av justeringsskruane til modellen (vektene) – eit lite utval av alle saman. Mørk rute = skruen vart vriden mykje no nettopp. Tidleg i treninga er det mange mørke ruter; etter kvart som modellen lærer, blir det stadig færre og rolegare.",
+    screwsIdle: "Start treninga for å sjå skruane i arbeid.",
     liveLabel: "Dette skriv modellen no",
     livePlaceholder: "Trykk «Start trening» for å sjå døme undervegs…",
   },
