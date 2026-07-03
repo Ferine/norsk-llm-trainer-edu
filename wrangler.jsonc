@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sprakmodell-trener",
+  "compatibility_date": "2026-07-03",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [
+    {
+      "pattern": "training.aitester.win",
+      "custom_domain": true
+    }
+  ]
+}
