@@ -11,6 +11,8 @@ the machine learning is real** — the same math as ChatGPT, just very, very sma
 
 The whole UI is bilingual: **Bokmål** (default) and **Nynorsk**, switchable with one click.
 
+**🔗 Live demo: <https://training.aitester.win>** — nothing to install, trains in your browser.
+
 <!-- TODO: drop a screen recording / screenshot here — e.g. ![demo](docs/demo.gif) -->
 
 ---
@@ -52,6 +54,7 @@ pnpm build        # produce a single self-contained dist/index.html
 pnpm preview      # serve the production build locally
 pnpm test         # run the model + i18n test suite
 pnpm typecheck    # type-check without emitting
+pnpm run deploy   # build + publish to Cloudflare Workers (see Deployment)
 ```
 
 Then open the dev URL Vite prints (usually <http://localhost:5173>) and start training.
@@ -59,6 +62,22 @@ Then open the dev URL Vite prints (usually <http://localhost:5173>) and start tr
 > The production build inlines all JS and CSS into one HTML file via
 > [`vite-plugin-singlefile`](https://github.com/richardtallent/vite-plugin-singlefile) — you can
 > email it, host it on any static server, or open it straight from disk.
+
+---
+
+## 🚢 Deployment
+
+The site is hosted on **Cloudflare Workers** as an assets-only Worker (no server code — it just
+serves the single built HTML file from the edge) at **<https://training.aitester.win>**.
+Config lives in `wrangler.jsonc`: `dist/` as the assets directory, SPA fallback, and the custom
+domain as a route (wrangler provisions DNS + TLS automatically).
+
+```bash
+pnpm run deploy   # vite build + wrangler deploy in one go
+```
+
+> Note the explicit `run` — plain `pnpm deploy` collides with pnpm's built-in workspace
+> `deploy` command and won't do what you want.
 
 ---
 
@@ -172,9 +191,11 @@ src/
     Inspector.tsx     # attention heatmap + next-character probability bars
     LossChart.tsx     # training/DPO loss curve
     Rlhf.tsx          # preference-selection arena
+    Skruer.tsx        # «Skruene vris» — live heatmap of real weight changes during training
     ui.tsx            # shared Section/Card primitives
   App.tsx          # the full guided single-page experience
 test/              # Node test suite for the pure-logic library
+wrangler.jsonc     # Cloudflare Workers config (assets-only Worker + custom domain)
 ```
 
 ---
