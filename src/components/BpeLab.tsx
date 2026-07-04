@@ -62,7 +62,7 @@ export default function BpeLab({ corpus, sampleSentence, s }: Props) {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* this merge */}
         <div>
           <h3 className="mb-2 text-sm font-semibold text-blekk">{s.thisMergeHeading}</h3>

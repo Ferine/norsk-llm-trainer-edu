@@ -423,14 +423,14 @@ export default function App() {
     <div className="min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-20 border-b-2 border-blekk bg-papir/95 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5">
+        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-2.5 sm:px-4">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 flex-none items-center justify-center rounded-[3px] bg-blekk pt-0.5 font-display text-sm leading-none text-white">
+            <div className="hidden h-9 w-9 flex-none items-center justify-center rounded-[3px] bg-blekk pt-0.5 font-display text-sm leading-none text-white sm:flex">
               Aa
             </div>
             <div className="leading-tight">
               <div className="font-display text-[13px] text-blekk">{s.header.title}</div>
-              <div className="font-mono text-[10px] text-blyant">{s.header.subtitle}</div>
+              <div className="hidden font-mono text-[10px] text-blyant sm:block">{s.header.subtitle}</div>
             </div>
             <div className="ml-2 inline-flex overflow-hidden rounded-[3px] border-2 border-blekk font-mono text-xs font-semibold">
               {LANGS.map((l) => (
@@ -439,7 +439,7 @@ export default function App() {
                   onClick={() => setLang(l.id)}
                   disabled={running || rlhf.dpoRunning}
                   className={cn(
-                    "px-2.5 py-1 transition disabled:opacity-50",
+                    "px-2 py-1 transition disabled:opacity-50 sm:px-2.5",
                     lang === l.id ? "bg-blekk text-white" : "bg-white text-blekk hover:bg-papir"
                   )}
                 >
@@ -448,7 +448,7 @@ export default function App() {
               ))}
             </div>
           </div>
-          <div className="flex flex-none items-center gap-3">
+          <div className="ml-auto flex flex-none items-center gap-3">
             {/* Levande status: gruppa kan vandre på sida medan eleven øver */}
             {(running || step > 0) && (
               <div className="hidden items-center gap-2 font-mono text-[11px] sm:flex">
@@ -519,7 +519,7 @@ export default function App() {
           title={s.understand.title}
           intro={s.understand.intro}
         >
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {s.understand.cards.map((c, i) => (
               <Card key={i}>
                 <div aria-hidden className="font-display text-2xl text-blekk">
@@ -629,7 +629,7 @@ export default function App() {
         >
           <Card>
             <Architecture layers={cfg.nLayer} heads={cfg.nHead} dim={cfg.dim} s={s} />
-            <div className="mt-5 grid gap-3 text-sm leading-relaxed text-blyant sm:grid-cols-2">
+            <div className="mt-5 grid grid-cols-1 gap-3 text-sm leading-relaxed text-blyant sm:grid-cols-2">
               <div className="rounded-[2px] border border-blekk/25 bg-papir/70 p-3">
                 <b className="text-blekk">{s.arch.causalTitle}</b> {s.arch.causalBody}
               </div>
@@ -666,7 +666,7 @@ export default function App() {
             </div>
 
             <Advanced label={s.advanced}>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="etikett mb-1 block">{s.train.minibatch(cfg.batch)}</label>
                   <input
@@ -839,7 +839,7 @@ export default function App() {
             </div>
 
             <Advanced label={s.advanced}>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="etikett mb-1 block">{s.chat.topK(genTopK)}</label>
                   <input
