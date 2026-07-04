@@ -99,7 +99,7 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* attention heatmap */}
         <div>
           <h3 className="text-sm font-semibold text-blekk">{s.attnHeading}</h3>

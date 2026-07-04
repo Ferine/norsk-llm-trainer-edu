@@ -47,7 +47,7 @@ function Arrow() {
 // Skjematisk teikning av transformer-arkitekturen (GPT-stil).
 export default function Architecture({ layers, heads, dim, s }: Props) {
   return (
-    <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr]">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto_1fr]">
       {/* Hovudstraum (venstre/sentralt) */}
       <div className="space-y-0 md:order-2">
         <Box title={s.arch.boxInput.title} sub={s.arch.boxInput.sub} />

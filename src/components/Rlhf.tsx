@@ -77,7 +77,7 @@ export default function Rlhf({ rlhf, examples, s }: { rlhf: RlhfApi; examples: s
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
         <div>
           <label className="etikett mb-1 block">{s.rlhf.creativity(rlhf.temp.toFixed(2))}</label>
           <input
@@ -95,7 +95,7 @@ export default function Rlhf({ rlhf, examples, s }: { rlhf: RlhfApi; examples: s
         </button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <PrefCard text={rlhf.pairA?.text ?? ""} onPick={() => rlhf.choose("A")} disabled={busy} answerLabel={s.rlhf.prefAnswer("A")} betterLabel={s.rlhf.prefBetter("A")} />
         <PrefCard text={rlhf.pairB?.text ?? ""} onPick={() => rlhf.choose("B")} disabled={busy} answerLabel={s.rlhf.prefAnswer("B")} betterLabel={s.rlhf.prefBetter("B")} />
       </div>
