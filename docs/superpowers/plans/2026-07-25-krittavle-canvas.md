@@ -37,7 +37,7 @@
 - `src/lib/i18n.ts` — four new strings × two languages, plus interface entries.
 - `src/App.tsx` — §5 and §7 chalkboard markup replaced by `<Tavle>`; `runGenerate` stores confidence.
 - `package.json` — `test:build` compiles `chalk.ts`; `test` runs the two new test files.
-- `index.html` — origin trial `<meta>` (Task 5 only).
+- *(`index.html` is deliberately NOT modified — the origin trial token is deferred; see Task 5 Step 2.)*
 
 **Rationale for the split:** `chalk.ts` holds all the tunable math so it can be unit-tested in Node without a DOM, mirroring how `ml.ts` is already tested. `Tavle.tsx` holds all the rendering. The shader lives in its own file so `Tavle.tsx` stays readable — the same reason `Skruer.tsx` is separate from `App.tsx`.
 
@@ -826,7 +826,6 @@ Everything here is an upgrade over Task 4's output. If any step proves unworkabl
 **Files:**
 - Create: `src/components/tavle.glsl.ts`
 - Modify: `src/components/Tavle.tsx`
-- Modify: `index.html`
 
 **Interfaces:**
 - Consumes: `supportsElementTexture`, `forcedTier` from `src/lib/chalk.ts` (Task 2); the `Gauge` type and existing markup from `src/components/Tavle.tsx` (Task 4).
@@ -901,19 +900,15 @@ void main() {
 }`;
 ```
 
-- [ ] **Step 2: Add the origin trial meta tag**
+- [ ] **Step 2: Origin trial — deferred, do not edit `index.html`**
 
-Register `training.aitester.win` for the HTML-in-Canvas origin trial at <https://developer.chrome.com/origintrials>, then add the returned token to `index.html` inside `<head>`, after the `<meta name="theme-color" ...>` line:
+**Decided 2026-07-25: no token yet. Do not add a `<meta http-equiv="origin-trial">` tag in this task.** A placeholder token is not a reminder, it is a malformed header Chrome silently ignores, and it reads as an unresolved placeholder in review.
 
-```html
-    <!-- HTML-in-Canvas origin trial. Går ut med Chrome 150; når han går ut,
-         fell tavlene stille tilbake til CSS-nivået og alt verkar framleis. -->
-    <meta http-equiv="origin-trial" content="REPLACE_WITH_TOKEN_FROM_CHROME_ORIGIN_TRIALS" />
-```
+Develop and verify tier 2 against the flag instead: Chrome Canary 149+ with `chrome://flags/#canvas-draw-element` enabled. Everything in this task is buildable and verifiable that way.
 
-For local development the token is not needed: run Chrome Canary 149+ with `chrome://flags/#canvas-draw-element` enabled.
+Consequence, which is by design: until `training.aitester.win` is registered at <https://developer.chrome.com/origintrials>, the deployed site serves tier 1 to everyone. Nothing breaks — that is the degradation ladder doing its job. Registering later is a one-line addition to `index.html` with no code change.
 
-If the token has not been obtained yet, skip this step and develop against the flag. The feature is complete without it — only the deployed site loses tier 2.
+`index.html` is therefore **not** in this task's file list. Leave it untouched.
 
 - [ ] **Step 3: Add the WebGL overlay to `Tavle.tsx`**
 
@@ -1204,7 +1199,7 @@ Record the measured medians in the commit message regardless of outcome.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/components/Tavle.tsx src/components/tavle.glsl.ts index.html
+git add src/components/Tavle.tsx src/components/tavle.glsl.ts
 git commit -m "feat(tavle): WebGL chalk-bleed upgrade via html-in-canvas
 
 Measured steps/sec tier1 vs tier2: <fill in from Step 7>"
