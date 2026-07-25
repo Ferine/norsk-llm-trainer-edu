@@ -816,12 +816,19 @@ export default function App() {
               // oppgåve 5 sin opphavlege tekststil: lågare min-høgd, ingen linjeavstand
               textClassName="min-h-6 whitespace-pre-wrap font-mono text-sm text-kritt"
               // Tier 2 er halden att her: denne målaren teiknar inni sjølve
-              // opplæringsløkka, appens varmaste sti, og eit nytt WebGL-kontekst
-              // per steg er for dyrt til å ta sjansen på utan å ha målt
-              // steg/sekund med og utan – det målet kunne ikkje takast no.
-              // Oppgåve 7 sin målar (under) skil seg frå denne: han teiknar
-              // éin gong per generering, ikkje per treningssteg, så han held
-              // fram med tier 2.
+              // opplæringsløkka, appens varmaste sti (~16ms per steg). Det er
+              // IKKJE eit nytt WebGL-kontekst som er dyrt – getContext("webgl2")
+              // på same lerret gjev same konteksten att, kvar gong. Det som
+              // faktisk vart bygd på nytt kvart steg (før det vart retta) var
+              // sjølve GL-programmet og ressursane hans. Sjølv med det retta,
+              // er kostnaden ved den løpande teikninga – texElementImage2D +
+              // shader kvart steg – aldri målt her, og tier 2 er uansett
+              // uverifisert (sjå tier-deteksjonen i chalk.ts). Difor står
+              // lerretet halde att her til nokon har målt steg/sekund med og
+              // utan. Oppgåve 7 sin målar (under) skil seg frå denne: han
+              // teiknar éin gong per generering, ikkje per treningssteg, så
+              // han held fram med tier 2 (når han er tvinga på med ?tier=2 og
+              // nettlesaren støttar det).
               noCanvas
               // måleren gjeld berre når det finst eit ekte tap å måle mot
               gauge={

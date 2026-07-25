@@ -26,6 +26,16 @@ export type Gauge =
 const DEFAULT_TEXT_CLASS =
   "min-h-8 whitespace-pre-wrap font-mono text-sm leading-relaxed text-kritt";
 
+// Les computed `rgb(...)`/`rgba(...)` frå nettlesaren og gjer om til 0..1 –
+// aldri ein hardkoda hex-literal, så fargen held seg synkron med
+// --color-tavle. Feiltolerant med vilje: eit format vi ikkje kjenner igjen
+// skal aldri teiknast som ein tilfeldig feil farge, difor null i staden.
+function parseRgb(color: string): [number, number, number] | null {
+  const m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*[\d.]+\s*)?\)$/.exec(color);
+  if (!m) return null;
+  return [Number(m[1]) / 255, Number(m[2]) / 255, Number(m[3]) / 255];
+}
+
 interface Props {
   label: string;
   text: string;
@@ -58,13 +68,13 @@ export default function Tavle({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [tier2, setTier2] = useState(false);
 
+  // Tier 2 har aldri køyrt – korkje her eller i Chrome Canary med flagget på.
+  // Difor er han opt-in via ?tier=2 og *ikkje* noko evnesjekken åleine kan
+  // slå på: ei nettlesar som i teorien støttar texElementImage2D skal ikkje
+  // få tier 2 gratis før nokon faktisk har sett han teikne noko. Når han er
+  // verifisert i Canary, kan sjekken opnast til rein evnesjekk att.
   useEffect(() => {
-    const forced = forcedTier();
-    if (forced !== null) {
-      setTier2(forced === 2);
-      return;
-    }
-    setTier2(supportsElementTexture());
+    setTier2(forcedTier() === 2 && supportsElementTexture());
   }, []);
 
   // tier2 kan vere sant medan noCanvas trekkjer lerretet attende – då skal
@@ -96,17 +106,28 @@ export default function Tavle({
   // = heilt uklart. For per-teikn-måling teiknar vi éin rute per teikn-utsnitt
   // ut frå den faktiske plasseringa, så det held sjølv når linja bryt.
   // For tap-måling er heile flata éin verdi.
+  // Eitt lite lerret, laga éin gong og gjenbrukt kvart bilete – ikkje eit
+  // nytt DOM-element og ein ny 2D-kontekst per animasjonsbilete.
+  const scratchRef = useRef<{ c: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null>(
+    null
+  );
+
   const buildSmudgeMap = useCallback(() => {
     const el = boardRef.current;
     if (!el || !gauge) return null;
     const r = el.getBoundingClientRect();
     const w = Math.max(1, Math.round(r.width / 4));
     const h = Math.max(1, Math.round(r.height / 4));
-    const c = document.createElement("canvas");
-    c.width = w;
-    c.height = h;
-    const ctx = c.getContext("2d");
-    if (!ctx) return null;
+
+    if (!scratchRef.current) {
+      const c = document.createElement("canvas");
+      const ctx = c.getContext("2d");
+      if (!ctx) return null;
+      scratchRef.current = { c, ctx };
+    }
+    const { c, ctx } = scratchRef.current;
+    if (c.width !== w) c.width = w;
+    if (c.height !== h) c.height = h;
 
     if (gauge.kind === "loss") {
       const v = Math.round(lineSmudge * 255);
@@ -131,44 +152,110 @@ export default function Tavle({
     return c;
   }, [gauge, lineSmudge, spans]);
 
+  // buildSmudgeMap får ny identitet kvar gong spans/lineSmudge endrar seg –
+  // altså kvart teikn tavla skriv. rAF-løkka i effekten under les difor
+  // alltid den ferskaste versjonen via ein ref, i staden for å ha
+  // buildSmudgeMap i avhengslista og bygge heile GL-programmet på nytt kvart
+  // bilete. Sett kvar renders, ikkje berre ved mount: ei useEffect-tilnærming
+  // ville sjølv innført éin renders forseinking.
+  const mapRef = useRef(buildSmudgeMap);
+  mapRef.current = buildSmudgeMap;
+
+  // t0 må overleve heile tavla si levetid, ikkje berre eitt køyr av effekten
+  // under – elles frys drifta kvar gong effekten (uriktig) vart bygd på nytt.
+  const t0Ref = useRef(performance.now());
+
   useLayoutEffect(() => {
     if (!tier2Active || !gauge) return;
     const el = boardRef.current;
     const canvas = canvasRef.current;
     if (!el || !canvas) return;
 
-    const gl = canvas.getContext("webgl2", { premultipliedAlpha: true });
+    // Tavla sin eigen bakgrunnsfarge, lesen frå CSS i staden for hardkoda –
+    // shaderen komposittar kritet mot denne, så teksten under vert verkeleg
+    // dekt til, ikkje berre tona. Feiltolerant: finn vi ikkje ein trygg farge
+    // å lese, er det tryggare å ikkje teikne tier 2 i det heile.
+    const boardEl = el.closest(".tavle");
+    const bg = boardEl ? parseRgb(getComputedStyle(boardEl).backgroundColor) : null;
+    if (!bg) {
+      setTier2(false); // kan ikkje lese bakgrunnsfargen trygt: fall til CSS-nivået
+      return;
+    }
+
+    // Kvar piksel shaderen skriv er no heilt ugjennomsiktig (sjå tavle.glsl),
+    // så teiknebuffet treng ikkje sin eigen alfakanal, og premultipliedAlpha
+    // vert dermed irrelevant. Difor berre alpha: false, ikkje begge.
+    const gl = canvas.getContext("webgl2", { alpha: false });
     if (!gl) {
       setTier2(false); // ingen WebGL2 likevel: fall til CSS-nivået
       return;
     }
+
+    // Alt som kan trenge oppdrydding, samla under éin disponerar – kalla frå
+    // kvar einaste bail-out under, så ingen feilveg kan gløyme kva han skapte.
+    let prog: WebGLProgram | null = null;
+    let vert: WebGLShader | null = null;
+    let frag: WebGLShader | null = null;
+    let buf: WebGLBuffer | null = null;
+    let boardTex: WebGLTexture | null = null;
+    let smudgeTex: WebGLTexture | null = null;
+
+    const disposeAll = () => {
+      if (vert) gl.deleteShader(vert);
+      if (frag) gl.deleteShader(frag);
+      if (prog) gl.deleteProgram(prog);
+      if (buf) gl.deleteBuffer(buf);
+      if (boardTex) gl.deleteTexture(boardTex);
+      if (smudgeTex) gl.deleteTexture(smudgeTex);
+    };
 
     const compile = (type: number, src: string) => {
       const sh = gl.createShader(type)!;
       gl.shaderSource(sh, src);
       gl.compileShader(sh);
       if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-        throw new Error(gl.getShaderInfoLog(sh) ?? "shader compile failed");
+        const log = gl.getShaderInfoLog(sh) ?? "shader compile failed";
+        gl.deleteShader(sh); // ikkje lat ein mislukka shader bli verande
+        throw new Error(log);
       }
       return sh;
     };
 
-    let prog: WebGLProgram;
     try {
+      vert = compile(gl.VERTEX_SHADER, VERT);
+      frag = compile(gl.FRAGMENT_SHADER, FRAG);
       prog = gl.createProgram()!;
-      gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
-      gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+      gl.attachShader(prog, vert);
+      gl.attachShader(prog, frag);
       gl.linkProgram(prog);
       if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
         throw new Error(gl.getProgramInfoLog(prog) ?? "link failed");
       }
     } catch {
+      disposeAll();
       setTier2(false);
       return;
     }
+    // Reint vaktpunkt for typesjekkaren: linja over garanterer at alle tre er
+    // sette når vi kjem hit, men disposeAll+retur dekkjer det uansett om noko
+    // uventa skulle vise seg null.
+    if (!prog || !vert || !frag) {
+      disposeAll();
+      setTier2(false);
+      return;
+    }
+
+    // Lenka: sjølve programmet held skuggarane i live sidan dei er tilkopla,
+    // sjølv om vi flaggar dei for sletting no. Dei treng ikkje leve vidare
+    // som eigne objekt.
+    gl.deleteShader(vert);
+    gl.deleteShader(frag);
+    vert = null;
+    frag = null;
+
     gl.useProgram(prog);
 
-    const buf = gl.createBuffer();
+    buf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(
       gl.ARRAY_BUFFER,
@@ -189,12 +276,15 @@ export default function Tavle({
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       return t;
     };
-    const boardTex = mkTex(0);
-    const smudgeTex = mkTex(1);
+    boardTex = mkTex(0);
+    smudgeTex = mkTex(1);
     gl.uniform1i(gl.getUniformLocation(prog, "u_board"), 0);
     gl.uniform1i(gl.getUniformLocation(prog, "u_smudge"), 1);
     const uTexel = gl.getUniformLocation(prog, "u_texel");
     const uTime = gl.getUniformLocation(prog, "u_time");
+    // u_bg er statisk for heile denne tavla si levetid – sett éin gong, ikkje
+    // kvart bilete, i motsetnad til u_texel/u_time.
+    gl.uniform3f(gl.getUniformLocation(prog, "u_bg"), bg[0], bg[1], bg[2]);
 
     // Rørsle er pynt; uklarleik er informasjon. Ved redusert rørsle frys tida,
     // men kartet blir teikna som før.
@@ -202,60 +292,87 @@ export default function Tavle({
 
     let raf = 0;
     let alive = true;
-    const t0 = performance.now();
+
+    // Éin veg ut, brukt av oppryddinga ved unmount/dep-endring OG av
+    // feilvegane under. setTier2 høyrer IKKJE heime her: han skal berre skje
+    // på ein reell feil (sjå `fail` nedanfor), ikkje på ein vanleg unmount.
+    const teardown = () => {
+      if (!alive) return;
+      alive = false;
+      cancelAnimationFrame(raf);
+      canvas.removeEventListener("webglcontextlost", onContextLost);
+      disposeAll();
+    };
+
+    // Same feilveg for eit GPU-context-tap som for ein synkron feil i frame():
+    // rydd opp og fall til CSS-nivået. Utan denne lyttaren ville ein GPU-reset
+    // late tavla stå att frose på gamle piksler med CSS-målaren undertrykt.
+    const fail = () => {
+      teardown();
+      setTier2(false);
+    };
+
+    const onContextLost = (e: Event) => {
+      e.preventDefault();
+      fail();
+    };
+    canvas.addEventListener("webglcontextlost", onContextLost);
 
     const frame = () => {
       if (!alive) return;
-      const r = el.getBoundingClientRect();
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      const w = Math.max(1, Math.round(r.width * dpr));
-      const h = Math.max(1, Math.round(r.height * dpr));
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
+      try {
+        const r = el.getBoundingClientRect();
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        const w = Math.max(1, Math.round(r.width * dpr));
+        const h = Math.max(1, Math.round(r.height * dpr));
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+        gl.viewport(0, 0, w, h);
+        gl.uniform2f(uTexel, 1 / w, 1 / h);
+        gl.uniform1f(uTime, still ? 0 : (performance.now() - t0Ref.current) / 1000);
+
+        const map = mapRef.current();
+        if (map) {
+          gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, smudgeTex);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, map);
+        }
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, boardTex);
+        // den eksperimentelle utvidinga: levande DOM rett inn som tekstur
+        (gl as unknown as {
+          texElementImage2D: (
+            target: number, level: number, internalformat: number,
+            format: number, type: number, element: Element
+          ) => void;
+        }).texElementImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        raf = requestAnimationFrame(frame);
+      } catch {
+        // Same feilveg same om det er ramme 1 eller ramme N: løkka stoggar
+        // og målaren fell attende til CSS – aldri ei tavle frose på gamle
+        // piksler med ingen målar i det heile.
+        fail();
       }
-      gl.viewport(0, 0, w, h);
-      gl.uniform2f(uTexel, 1 / w, 1 / h);
-      gl.uniform1f(uTime, still ? 0 : (performance.now() - t0) / 1000);
-
-      const map = buildSmudgeMap();
-      if (map) {
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, smudgeTex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, map);
-      }
-
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, boardTex);
-      // den eksperimentelle utvidinga: levande DOM rett inn som tekstur
-      (gl as unknown as {
-        texElementImage2D: (
-          target: number, level: number, internalformat: number,
-          format: number, type: number, element: Element
-        ) => void;
-      }).texElementImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
-
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-      raf = requestAnimationFrame(frame);
     };
 
-    try {
-      frame();
-    } catch {
-      alive = false;
-      setTier2(false); // utvidinga finst ikkje likevel
-      return;
-    }
+    frame();
 
     return () => {
-      alive = false;
-      cancelAnimationFrame(raf);
-      gl.deleteProgram(prog);
-      gl.deleteBuffer(buf);
-      gl.deleteTexture(boardTex);
-      gl.deleteTexture(smudgeTex);
+      teardown();
     };
-  }, [tier2Active, gauge, buildSmudgeMap]);
+    // Avhengslista er halden stabil med vilje: `gauge` og `buildSmudgeMap`
+    // får ny identitet kvart bilete tavla teiknar (sjå kommentaren over
+    // mapRef), så dei ville ha bygd GL-programmet på nytt kvart bilete om dei
+    // stod her. `gauge?.kind` fangar det einaste som faktisk skal starte
+    // effekten på nytt: at tavla byter mellom tap-måling og per-teikn-måling
+    // (eller mellom å ha ei måling og ikkje).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tier2Active, gauge?.kind]);
 
   return (
     <div className={cn("space-y-2", className)}>
