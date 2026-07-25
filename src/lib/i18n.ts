@@ -103,6 +103,8 @@ export interface Strings {
     screwsIdle: string;
     liveLabel: string;
     livePlaceholder: string;
+    focusLegend: string;
+    focusSummary: (pct: number) => string;
   };
   chat: {
     title: string;
@@ -118,6 +120,8 @@ export interface Strings {
     generate: string;
     thinking: string;
     answerLabel: string;
+    confLegend: string;
+    confSummary: (pct: number) => string;
   };
   inspect: {
     title: string;
@@ -310,6 +314,9 @@ const bm: Strings = {
     screwsIdle: "Start treningen for å se skruene i arbeid.",
     liveLabel: "Dette skriver modellen nå",
     livePlaceholder: "Trykk «Start trening» for å se eksempler underveis…",
+    focusLegend:
+      "Teksten står uklart så lenge modellen gjetter, og blir skarpere etter hvert som den lærer. Uskarpheten er ikke pynt – den er tapet fra grafen over, tegnet om til krittstøv.",
+    focusSummary: (pct) => `Skarphet: ${pct} % av veien fra ren gjetting til stø hånd.`,
   },
   chat: {
     title: "Prøv modellen",
@@ -326,6 +333,9 @@ const bm: Strings = {
     generate: "Generer tekst",
     thinking: "Tenker…",
     answerLabel: "Svar fra modellen",
+    confLegend:
+      "Uklare bokstaver = modellen var usikker på akkurat det tegnet. Starteksten din står alltid skarpt – den ble gitt, ikke gjettet. Skru temperaturen opp, så ser du modellen velge tegn den selv tror lite på.",
+    confSummary: (pct) => `I snitt var modellen ${pct} % sikker på tegnene den skrev.`,
   },
   inspect: {
     title: "Se inni modellen",
@@ -533,6 +543,9 @@ const nn: Strings = {
     screwsIdle: "Start treninga for å sjå skruane i arbeid.",
     liveLabel: "Dette skriv modellen no",
     livePlaceholder: "Trykk «Start trening» for å sjå døme undervegs…",
+    focusLegend:
+      "Teksten står uklart så lenge modellen gjettar, og blir skarpare etter kvart som han lærer. Uskarpleiken er ikkje pynt – han er tapet frå grafen over, teikna om til krittstøv.",
+    focusSummary: (pct) => `Skarpleik: ${pct} % av vegen frå rein gjetting til stø hand.`,
   },
   chat: {
     title: "Prøv modellen",
@@ -549,6 +562,9 @@ const nn: Strings = {
     generate: "Generer tekst",
     thinking: "Tenkjer…",
     answerLabel: "Svar frå modellen",
+    confLegend:
+      "Uklare bokstavar = modellen var usikker på akkurat det teiknet. Starteksten din står alltid skarpt – han vart gjeven, ikkje gjetta. Skru temperaturen opp, så ser du modellen velje teikn han sjølv trur lite på.",
+    confSummary: (pct) => `I snitt var modellen ${pct} % sikker på teikna han skreiv.`,
   },
   inspect: {
     title: "Sjå inni modellen",

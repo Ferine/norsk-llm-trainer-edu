@@ -837,6 +837,25 @@ export interface SampleOpts {
   length: number;
 }
 
+// Kor sikker var modellen på teiknet han valde? Full softmax over heile
+// ordforrådet ved temperatur 1 – modellens eigen tru, uavhengig av kva
+// temperatur og top-k brukaren har skrudd på. Difor rører ikkje
+// temperatur-slideren dette talet: temperatur gjev ikkje ny kunnskap, han
+// gjer berre trekkinga meir vågal, og då ser du modellen plukke teikn han
+// sjølv trur lite på. Kostar O(V) per steg, V ≈ 50 – forsvinnande lite mot
+// eit framoversteg.
+function chosenProb(logits: Float32Array, off: number, V: number, chosen: number): number {
+  let mx = -Infinity;
+  for (let c = 0; c < V; c++) {
+    const v = logits[off + c];
+    if (v > mx) mx = v;
+  }
+  let sum = 0;
+  for (let c = 0; c < V; c++) sum += Math.exp(logits[off + c] - mx);
+  // sum >= 1 alltid (maksleddet er exp(0)), så ingen deling på null
+  return Math.exp(logits[off + chosen] - mx) / sum;
+}
+
 // Sample a continuation token-by-token. Shared core for generate() and the RLHF arena.
 export function sampleTokens(
   model: Transformer,
@@ -844,11 +863,12 @@ export function sampleTokens(
   prompt: string,
   opts: SampleOpts,
   rng: () => number
-): { promptIds: number[]; contIds: number[] } {
+): { promptIds: number[]; contIds: number[]; conf: Float32Array } {
   let ctx = encode(prompt);
   if (ctx.length === 0) ctx = [0];
   const promptIds = ctx.slice();
   const contIds: number[] = [];
+  const conf = new Float32Array(opts.length);
   const maxCtx = model.seqLen;
   const greedy = opts.temperature <= 0;
   const topK = Math.max(1, Math.min(opts.topK, model.vocab));
@@ -867,6 +887,7 @@ export function sampleTokens(
           best = c;
         }
       }
+      conf[step] = chosenProb(logits.d, off, V, best);
       ctx.push(best);
       contIds.push(best);
       continue;
@@ -899,10 +920,32 @@ export function sampleTokens(
         break;
       }
     }
+    conf[step] = chosenProb(logits.d, off, V, chosen);
     ctx.push(chosen);
     contIds.push(chosen);
   }
-  return { promptIds, contIds };
+  return { promptIds, contIds, conf };
+}
+
+// Generer tekst med tal på: teksten, kvar starteksten sluttar, og kor sikker
+// modellen var på kvart teikn han sjølv skreiv. Starteksten har ingen
+// sikkerheit – han vart gjeven, ikkje gjetta.
+export function generateDetailed(
+  model: Transformer,
+  decode: (ids: number[]) => string,
+  encode: (s: string) => number[],
+  prompt: string,
+  opts: SampleOpts,
+  rng: () => number
+): { text: string; promptLen: number; conf: Float32Array } {
+  const { contIds, conf } = sampleTokens(model, encode, prompt, opts, rng);
+  // promptLen tel kodepunkt, ikkje UTF-16-einingar: teksten under blir vist
+  // teikn for teikn via Array.from (kodepunkt-iterasjon), og tokenisatoren
+  // er òg kodepunkt-basert (for...of over strengen). Eit astralt teikn i
+  // prompten (t.d. eit emoji) tel som 2 UTF-16-einingar men berre 1
+  // kodepunkt – med .length her ville alle confidence-verdiane etter det
+  // teiknet blitt forskyvne eitt hakk i Tavle.tsx sitt smugekart.
+  return { text: prompt + decode(contIds), promptLen: Array.from(prompt).length, conf };
 }
 
 // Generer tekst: gje ein starttekst, så lat modellen predikere teikn for teikn.
@@ -914,6 +957,5 @@ export function generate(
   opts: SampleOpts,
   rng: () => number
 ): string {
-  const { contIds } = sampleTokens(model, encode, prompt, opts, rng);
-  return prompt + decode(contIds);
+  return generateDetailed(model, decode, encode, prompt, opts, rng).text;
 }
