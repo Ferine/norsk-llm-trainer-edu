@@ -20,10 +20,18 @@ const MIN_OPACITY = 0.45;
 // modellen er like sikker på alle teikn i ordforrådet, altså at han ikkje
 // veit noko som helst. Det er den ærlege botnen å måle frå.
 export function lossToFocus(loss: number, vocab: number): number {
+  // Eit øydelagt vokabular (NaN/uendeleg) gjev ikkje noko truverdig gjettetak
+  // å måle frå. Då er det tryggaste å teikne tavla heilt uskarp, same
+  // konvensjon som confToSmudge sitt garbage-in-fallback.
+  if (!Number.isFinite(vocab)) return 0;
   const ceil = Math.log(Math.max(2, vocab));
   if (!Number.isFinite(loss) || loss <= 0) return 1;
-  const span = ceil - LOSS_FLOOR;
-  if (span <= 0) return 1;
+  // Golvet kan aldri liggje meir enn halvvegs ned frå gjettetaket. Då er
+  // span garantert positivt (span > ceil/2 > 0 sidan vocab >= 2), og
+  // ln(V) landar difor alltid nøyaktig på 0 – også for eit lite vokabular
+  // der det faste LOSS_FLOOR elles ville ha lege over eller på taket.
+  const floor = Math.min(LOSS_FLOOR, ceil * 0.5);
+  const span = ceil - floor;
   const t = (ceil - loss) / span;
   return Math.min(1, Math.max(0, t));
 }

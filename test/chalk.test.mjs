@@ -58,4 +58,56 @@ assert.ok(chalkOpacity(1) < chalkOpacity(0.5) && chalkOpacity(1) > 0);
 assert.equal(supportsElementTexture(), false, "no WebGL2 in Node");
 assert.equal(forcedTier(), null, "no location in Node");
 
+// --- Fix pass (code review, finding 1): golvet må vere relativt til taket,
+// elles klapsar span saman for lite vokabular ---
+
+// nullpunktet skal vere eksakt 0 sjølv ved svært lite vokabular, der det
+// gamle faste golvet (LOSS_FLOOR=1,25) ville ha lege over taket
+assert.ok(
+  Math.abs(lossToFocus(Math.log(2), 2)) < 1e-9,
+  "ln(2) must map to exactly 0 focus at vocab=2"
+);
+assert.ok(
+  Math.abs(lossToFocus(Math.log(3), 3)) < 1e-9,
+  "ln(3) must map to exactly 0 focus at vocab=3"
+);
+
+// monotont fallande i tap held også ved vokabular=2, der golvet no er
+// halvparten av taket i staden for det faste (og der uoppnåelege) 1,25
+{
+  let prev2 = -1;
+  const ceil2 = Math.log(2);
+  const floor2 = ceil2 * 0.5;
+  for (const loss of [ceil2, ceil2 * 0.85, ceil2 * 0.7, ceil2 * 0.55, floor2]) {
+    const f = lossToFocus(loss, 2);
+    assert.ok(f > prev2, `focus must increase as loss falls at vocab=2 (loss=${loss})`);
+    prev2 = f;
+  }
+}
+
+// regresjonsvern: ved realistisk (teiknnivå) vokabular=50 skal golvet
+// framleis vere det faste LOSS_FLOOR=1,25 (sidan ceil*0,5 ~1,96 > 1,25), slik
+// at biletet på tavla ikkje endrar seg. Rekna direkte mot den gamle
+// golv-spannen, slik at ei seinare endring i golvvalet ved realistiske
+// vokabularstorleikar feilar høglydt.
+{
+  const oldSpanAt50 = RANDOM - 1.25;
+  const expected = (RANDOM - 2) / oldSpanAt50;
+  assert.ok(
+    Math.abs(lossToFocus(2, V) - expected) < 1e-9,
+    "vocab=50 behaviour must be unchanged from the old fixed LOSS_FLOOR span"
+  );
+}
+
+// --- Fix pass (code review, finding 2): ikkje-endeleg vokabular må ikkje
+// smitte NaN vidare ---
+for (const badVocab of [NaN, Infinity, -Infinity]) {
+  const f = lossToFocus(1.5, badVocab);
+  assert.ok(Number.isFinite(f), `non-finite vocab (${badVocab}) must not propagate to NaN`);
+  assert.ok(f >= 0 && f <= 1, `non-finite vocab (${badVocab}) must clamp to [0,1]`);
+}
+
+// --- Fix pass (code review, finding 3): manglande grensetest for smudge ---
+assert.equal(confToSmudge(0), 1, "fully uncertain is fully smudged");
+
 console.log("chalk: PASS");
