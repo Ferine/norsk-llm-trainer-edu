@@ -6,7 +6,14 @@ export const LANGS: { id: Lang; label: string; htmlLang: string; locale: string 
 ];
 
 export interface Strings {
-  header: { title: string; subtitle: string; jump: string };
+  header: {
+    title: string;
+    subtitle: string;
+    jump: string;
+    langConfirm: (target: string) => string;
+    langConfirmYes: string;
+    langConfirmNo: string;
+  };
   fold: { tag: string; show: string; hide: string };
   advanced: string;
   hero: {
@@ -179,6 +186,10 @@ const bm: Strings = {
     title: "Språkmodell-trener",
     subtitle: "Lær AI på bokmål – i nettleseren",
     jump: "Hopp til trening →",
+    langConfirm: (target) =>
+      `Å bytte til ${target} bygger modellen på nytt og nullstiller treningen du har gjort. Vil du bytte?`,
+    langConfirmYes: "Ja",
+    langConfirmNo: "Nei",
   },
   fold: { tag: "Fordypning – valgfritt", show: "+ vis", hide: "− skjul" },
   advanced: "Flere innstillinger",
@@ -398,6 +409,10 @@ const nn: Strings = {
     title: "Språkmodell-trenar",
     subtitle: "Lær AI på nynorsk – i nettlesaren",
     jump: "Hopp til trening →",
+    langConfirm: (target) =>
+      `Å byte til ${target} byggjer modellen på nytt og nullstiller treninga du har gjort. Vil du byte?`,
+    langConfirmYes: "Ja",
+    langConfirmNo: "Nei",
   },
   fold: { tag: "Fordjuping – valfritt", show: "+ vis", hide: "− skjul" },
   advanced: "Fleire innstillingar",
