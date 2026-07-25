@@ -17,6 +17,7 @@ uniform sampler2D u_board;   // levande DOM frå tavla
 uniform sampler2D u_smudge;  // uklarleik per teikn, same geometri som tavla
 uniform vec2 u_texel;        // 1.0 / oppløysing
 uniform float u_time;        // sekund; frose ved prefers-reduced-motion
+uniform vec3 u_bg;           // tavla sin eigen bakgrunnsfarge (0..1), lesen frå --color-tavle
 out vec4 outColor;
 
 float hash(vec2 p) {
@@ -34,7 +35,11 @@ float noise(vec2 p) {
 void main() {
   float s = texture(u_smudge, v_uv).r;
   if (s <= 0.004) {
-    outColor = texture(u_board, v_uv);
+    // Tavla under er krit-på-gjennomsiktig – utan denne blandinga ville
+    // det rå originalbiletet lyst gjennom lerretet og gjort heile tier 2
+    // usynleg. Same komposittering som nedanfor, berre utan smitting.
+    vec4 boardCol = texture(u_board, v_uv);
+    outColor = vec4(mix(u_bg, boardCol.rgb, boardCol.a), 1.0);
     return;
   }
 
@@ -58,5 +63,10 @@ void main() {
 
   vec4 col = acc / wsum;
   col.a *= mix(1.0, 0.55, s);
-  outColor = col;
+  // Bland mot tavla sin eigen bakgrunn i staden for å berre skru ned alpha:
+  // lågare alpha skal blekne kritet MOT tavla (som chalkOpacity i tier 1),
+  // ikkje lyse det opp slik premultipliert komposittering ville ha gjort
+  // om vi let det gjennomsiktige originalbiletet skine gjennom. Resultatet
+  // er alltid heilt ugjennomsiktig – tavla under vert aldri synleg.
+  outColor = vec4(mix(u_bg, col.rgb, col.a), 1.0);
 }`;
