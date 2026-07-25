@@ -939,7 +939,13 @@ export function generateDetailed(
   rng: () => number
 ): { text: string; promptLen: number; conf: Float32Array } {
   const { contIds, conf } = sampleTokens(model, encode, prompt, opts, rng);
-  return { text: prompt + decode(contIds), promptLen: prompt.length, conf };
+  // promptLen tel kodepunkt, ikkje UTF-16-einingar: teksten under blir vist
+  // teikn for teikn via Array.from (kodepunkt-iterasjon), og tokenisatoren
+  // er òg kodepunkt-basert (for...of over strengen). Eit astralt teikn i
+  // prompten (t.d. eit emoji) tel som 2 UTF-16-einingar men berre 1
+  // kodepunkt – med .length her ville alle confidence-verdiane etter det
+  // teiknet blitt forskyvne eitt hakk i Tavle.tsx sitt smugekart.
+  return { text: prompt + decode(contIds), promptLen: Array.from(prompt).length, conf };
 }
 
 // Generer tekst: gje ein starttekst, så lat modellen predikere teikn for teikn.

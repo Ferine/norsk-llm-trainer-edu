@@ -2,6 +2,7 @@ import {
   lossToFocus,
   confToSmudge,
   meanConf,
+  trailingMean,
   blurPx,
   chalkOpacity,
   supportsElementTexture,
@@ -109,5 +110,38 @@ for (const badVocab of [NaN, Infinity, -Infinity]) {
 
 // --- Fix pass (code review, finding 3): manglande grensetest for smudge ---
 assert.equal(confToSmudge(0), 1, "fully uncertain is fully smudged");
+
+// --- Final review fix pass (finding 2): trailingMean jamnar ut §5 sin
+// målar mot minibatch-støy ---
+
+// tomt array => 0, aldri NaN
+assert.equal(trailingMean([], 20), 0, "empty losses must not be NaN");
+
+// vindauge lengre enn tilgjengeleg data => snitt av alt vi har
+assert.ok(
+  Math.abs(trailingMean([1, 2, 3], 20) - 2) < 1e-9,
+  "window wider than the data must average over what's available"
+);
+
+// vanleg tilfelle: berre dei siste `window` verdiane skal telje med
+assert.ok(
+  Math.abs(trailingMean([100, 100, 1, 2, 3], 3) - 2) < 1e-9,
+  "must average only the trailing window, ignoring older values"
+);
+
+// vindauge = 1 er identisk med siste verdi
+assert.equal(trailingMean([5, 6, 7], 1), 7, "window of 1 must equal the last value");
+
+// jamnar faktisk ut støy: eit hakk (ein enkelt outlier) skal dempast mykje
+// meir i det glidande snittet enn i den rå siste verdien
+{
+  const noisy = [55, 53, 59, 56, 57, 55, 56, 58, 56, 90]; // siste er ein outlier
+  const last = noisy[noisy.length - 1];
+  const smoothed = trailingMean(noisy, 20);
+  assert.ok(
+    Math.abs(smoothed - last) > 10,
+    "a single spike must be damped far more in the trailing mean than in the raw last value"
+  );
+}
 
 console.log("chalk: PASS");

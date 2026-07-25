@@ -5,8 +5,16 @@
 // Biletspråket er felles for begge tavlene: krit som ikkje har sett seg.
 // Usikker modell => uklare, bleike bokstavar. Sikker modell => skarpt krit.
 
-// Golvet er målt i praksis: preset «liten» på det norske korpuset legg seg
-// rundt 1,25 i tap etter 3500 steg. Under golvet er biletet heilt skarpt.
+// Golvet er IKKJE der tapet landar til slutt – målt i praksis (preset
+// «liten», bokmål-korpuset, lr 8e-4, batch 4, modellfrø 1337, treningsfrø
+// 42) når tapet ca. 0,59 ved steg 3500, og krysser 1,25 alt rundt steg
+// 2200. Golvet er difor sett slik at målaren fullfører sveipet sitt
+// (0 => 1 i skarpleik) rundt steg 2200–2400, medan tapkurva ved sida av
+// framleis synleg halverer seg vidare. Det gjev ei jamn, lesbar rørsle
+// gjennom steg 1–2400 (uskarpleik 1,60px ved steg 1 => 0,94 ved 60 => 0,57
+// ved 300 => 0,34 ved 1200 => 0,16 ved 1800 => 0,00 ved 2400) i staden for
+// at målaren følgjer tapet heilt ned og difor står nesten urørt store
+// delar av økta. Under golvet er biletet heilt skarpt.
 const LOSS_FLOOR = 1.25;
 
 // Maksimal uskarpleik i piksler. Over ~1,8px blir monospace-teikn uleselege
@@ -50,6 +58,24 @@ export function meanConf(conf: Float32Array): number {
   let sum = 0;
   for (let i = 0; i < conf.length; i++) sum += conf[i];
   return sum / conf.length;
+}
+
+// Glidande snitt over dei siste `window` tapa. §5 sin målar les tapet frå
+// éin einaste minibatch (4 utdrag), og den verdien hoppar med
+// minibatch-støy for kvar CHUNK-oppdatering (~6 gonger i sekundet) – ein
+// skjelvande gauge og eit ulesbart samandrag, utan at det seier noko ekte
+// om korleis treninga *faktisk* går. Eit glidande snitt over t.d. dei siste
+// 20 stega jamnar ut støya og er attpåtil eit meir ærleg augeblinksmål på
+// framgang enn éin minibatch. Tolerant med tomt array og eit vindauge som
+// er større enn det vi har data for (brukar då berre det vi har).
+export function trailingMean(losses: number[], window: number): number {
+  if (losses.length === 0) return 0;
+  const w = Number.isFinite(window)
+    ? Math.min(losses.length, Math.max(1, Math.floor(window)))
+    : losses.length;
+  let sum = 0;
+  for (let i = losses.length - w; i < losses.length; i++) sum += losses[i];
+  return sum / w;
 }
 
 export function blurPx(smudge: number): number {

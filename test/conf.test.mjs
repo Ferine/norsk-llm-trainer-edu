@@ -43,9 +43,41 @@ for (let i = 0; i < a.conf.length; i++) {
 const d = generateDetailed(m, tok.decode, tok.encode, prompt, og, mulberry32(1));
 const g = generate(m, tok.decode, tok.encode, prompt, og, mulberry32(1));
 assert.equal(d.text, g);
-assert.equal(d.promptLen, prompt.length);
+// promptLen er eit kodepunkt-tal, ikkje eit UTF-16-lengde-tal (dei er like
+// for denne promten sidan han berre har BMP-teikn, men samanlikninga skal
+// framleis vere mot kodepunkt-talet, ikkje mot .length)
+assert.equal(d.promptLen, Array.from(prompt).length);
 assert.equal(d.conf.length, 10);
 // teikn-nivå tokenisering: framhaldet har eitt teikn per conf-verdi
-assert.equal(d.text.length - d.promptLen, d.conf.length);
+assert.equal(Array.from(d.text).length - d.promptLen, d.conf.length);
+
+// --- Fix pass (code review, finding 1): promptLen må telje kodepunkt,
+// ikkje UTF-16-einingar, elles hamnar heile smugekartet i Tavle.tsx eitt
+// hakk feil for ein prompt med eit astralt teikn (t.d. emoji) ---
+{
+  const emojiPrompt = "Det var 🐑 en gang";
+  // 🐑 er eitt kodepunkt men to UTF-16-einingar – nettopp skilnaden
+  // reproen målte (promptLen=18 vs. 17 kodepunkt)
+  assert.equal(emojiPrompt.length, 18, "sanity: UTF-16 length counts the emoji as two units");
+  assert.equal(Array.from(emojiPrompt).length, 17, "sanity: code-point length counts the emoji as one");
+
+  const opts2 = { temperature: 0.9, topK: 5, length: 20 };
+  const ed = generateDetailed(m, tok.decode, tok.encode, emojiPrompt, opts2, mulberry32(11));
+  const st2 = sampleTokens(m, tok.encode, emojiPrompt, opts2, mulberry32(11));
+
+  assert.equal(ed.promptLen, Array.from(emojiPrompt).length, "promptLen must be the code-point count");
+
+  // Sjølve eigenskapen som var øydelagd: for kvar genererte posisjon i skal
+  // kodepunktet i teksten på plass promptLen+i vere nøyaktig det teiknet
+  // conf[i]/contIds[i] gjeld for – ikkje eit teikn frå naboposisjonen.
+  const codePoints = Array.from(ed.text);
+  for (let i = 0; i < st2.contIds.length; i++) {
+    assert.equal(
+      codePoints[ed.promptLen + i],
+      tok.decode([st2.contIds[i]]),
+      `generated char at position ${i} must align with its own token, not a shifted neighbour`
+    );
+  }
+}
 
 console.log("conf: PASS");
