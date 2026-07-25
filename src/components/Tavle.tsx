@@ -12,6 +12,12 @@ export type Gauge =
   | { kind: "loss"; value: number; vocab: number }
   | { kind: "conf"; conf: Float32Array; promptLen: number };
 
+// Standardklassen er oppgåve 7 sin opphavlege stil. Oppgåve 5 hadde ei anna
+// høgd og utan linjeavstand – gjeven via textClassName, slik at kvar tavle
+// held fram med å sjå ut som ho gjorde før denne komponenten fanst.
+const DEFAULT_TEXT_CLASS =
+  "min-h-8 whitespace-pre-wrap font-mono text-sm leading-relaxed text-kritt";
+
 interface Props {
   label: string;
   text: string;
@@ -20,6 +26,7 @@ interface Props {
   summary: string;
   gauge?: Gauge;
   className?: string;
+  textClassName?: string;
   children?: ReactNode;
 }
 
@@ -31,6 +38,7 @@ export default function Tavle({
   summary,
   gauge,
   className,
+  textClassName = DEFAULT_TEXT_CLASS,
   children,
 }: Props) {
   // Per-teikn-utsnitt lagar vi berre når vi faktisk måler per teikn.
@@ -47,8 +55,11 @@ export default function Tavle({
   }, [gauge, text]);
 
   // Tap-måleren gjeld heile linja under eitt – tapet *er* ein global skalar.
+  // Utan tekst er det ingenting å måle: plassholdaren skal aldri visast uklar.
   const lineSmudge =
-    gauge?.kind === "loss" ? 1 - lossToFocus(gauge.value, gauge.vocab) : 0;
+    gauge?.kind === "loss" && text
+      ? 1 - lossToFocus(gauge.value, gauge.vocab)
+      : 0;
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -61,9 +72,13 @@ export default function Tavle({
             seg nøyaktig oppå teksten – ikkje oppå etiketten. */}
         <div className="relative">
           <p
-            className="min-h-8 whitespace-pre-wrap font-mono text-sm leading-relaxed text-kritt"
+            className={textClassName}
             style={
-              gauge?.kind === "loss"
+              // Berre stil linja når det faktisk finst modell-tekst å vise fram –
+              // elles ville plassholdaren (vanleg UI, ikkje modell-utdata) blitt
+              // uklar saman med han. Sjekket her, ikkje berre ved kallestaden,
+              // held gjeld for alle framtidige brukarar av <Tavle>.
+              gauge?.kind === "loss" && text
                 ? {
                     filter: `blur(${blurPx(lineSmudge).toFixed(2)}px)`,
                     opacity: chalkOpacity(lineSmudge),
@@ -96,8 +111,10 @@ export default function Tavle({
         </div>
       </div>
       {/* Måleren er reint visuell. Samandraget ber same talet i ord, slik at
-          skjermlesarar – og folk som berre vil ha talet – får det same. */}
-      {gauge && (
+          skjermlesarar – og folk som berre vil ha talet – får det same.
+          Utan tekst er det ingen måling å melde frå om, så samandraget
+          ligg nede saman med sjølve uklarleiken. */}
+      {gauge && text && (
         <p className="text-xs leading-relaxed text-blyant">
           {summary} {legend}
         </p>
