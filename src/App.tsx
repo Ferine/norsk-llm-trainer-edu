@@ -813,6 +813,8 @@ export default function App() {
               summary={s.train.focusSummary(
                 Math.round(lossToFocus(stats.last, stats.vocab) * 100)
               )}
+              // oppgåve 5 sin opphavlege tekststil: lågare min-høgd, ingen linjeavstand
+              textClassName="min-h-6 whitespace-pre-wrap font-mono text-sm text-kritt"
               // måleren gjeld berre når det finst eit ekte tap å måle mot
               gauge={
                 losses.length > 0
