@@ -316,7 +316,7 @@ const bm: Strings = {
     livePlaceholder: "Trykk «Start trening» for å se eksempler underveis…",
     focusLegend:
       "Teksten står uklart så lenge modellen gjetter, og blir skarpere etter hvert som den lærer. Uskarpheten er ikke pynt – den er tapet fra grafen over, tegnet om til krittstøv.",
-    focusSummary: (pct) => `Skarphet: ${pct} % av veien fra ren gjetting til ferdig lært.`,
+    focusSummary: (pct) => `Skarphet: ${pct} % av veien fra ren gjetting til stø hånd.`,
   },
   chat: {
     title: "Prøv modellen",
@@ -545,7 +545,7 @@ const nn: Strings = {
     livePlaceholder: "Trykk «Start trening» for å sjå døme undervegs…",
     focusLegend:
       "Teksten står uklart så lenge modellen gjettar, og blir skarpare etter kvart som han lærer. Uskarpleiken er ikkje pynt – han er tapet frå grafen over, teikna om til krittstøv.",
-    focusSummary: (pct) => `Skarpleik: ${pct} % av vegen frå rein gjetting til ferdig lært.`,
+    focusSummary: (pct) => `Skarpleik: ${pct} % av vegen frå rein gjetting til stø hand.`,
   },
   chat: {
     title: "Prøv modellen",

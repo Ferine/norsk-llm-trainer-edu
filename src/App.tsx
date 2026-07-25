@@ -8,7 +8,7 @@ import {
   mulberry32,
   trainStep,
 } from "@/lib/ml";
-import { lossToFocus, meanConf } from "@/lib/chalk";
+import { lossToFocus, meanConf, trailingMean } from "@/lib/chalk";
 import { buildTokenizer, corpora } from "@/lib/corpus";
 import { STRINGS, SEEDS, LANGS, type Lang, type Seeds, type Strings } from "@/lib/i18n";
 import LossChart from "@/components/LossChart";
@@ -23,6 +23,9 @@ import { useRlhf } from "@/lib/useRlhf";
 
 const MAX_STEPS = 3500;
 const CHUNK = 6;
+// §5 sin målar les eit glidande snitt over dei siste stega, ikkje det rå
+// siste tapet – sjå GAUGE_SMOOTH_WINDOW-bruken i `stats` under.
+const GAUGE_SMOOTH_WINDOW = 20;
 
 type PresetKey = "liten" | "mellom" | "stor";
 
@@ -414,6 +417,12 @@ export default function App() {
       vocab: eng?.tokenizer.vocab ?? displayTok.vocab,
       chars: eng?.data.length ?? activeCorpus.length,
       last: losses.length ? losses[losses.length - 1] : 0,
+      // Glidande snitt for §5 sin målar (sjå GAUGE_SMOOTH_WINDOW): éin
+      // minibatch-loss hoppar med støy kvar CHUNK-oppdatering (~6 Hz), og
+      // det er verken ei leseleg tavle eller eit ærleg "korleis går det no"-
+      // tal. `last` over blir ikkje endra – han er framleis det rå,
+      // augeblinkelege talet aksen i header viser.
+      smoothed: trailingMean(losses, GAUGE_SMOOTH_WINDOW),
     };
   }, [paramCount, losses, displayTok, activeCorpus]);
 
@@ -810,8 +819,13 @@ export default function App() {
               text={currentSample}
               placeholder={s.train.livePlaceholder}
               legend={s.train.focusLegend}
+              // Målaren (både samandraget her og `gauge` under) les det
+              // glatta tapet, ikkje `stats.last` – sjå kommentaren ved
+              // `smoothed` i `stats`. Header-aksen over held fram med
+              // `stats.last` urørt: det er den rå, augeblinkelege statusen,
+              // medan denne målaren skal vere til å lese medan han oppdaterer.
               summary={s.train.focusSummary(
-                Math.round(lossToFocus(stats.last, stats.vocab) * 100)
+                Math.round(lossToFocus(stats.smoothed, stats.vocab) * 100)
               )}
               // oppgåve 5 sin opphavlege tekststil: lågare min-høgd, ingen linjeavstand
               textClassName="min-h-6 whitespace-pre-wrap font-mono text-sm text-kritt"
@@ -833,7 +847,7 @@ export default function App() {
               // måleren gjeld berre når det finst eit ekte tap å måle mot
               gauge={
                 losses.length > 0
-                  ? { kind: "loss", value: stats.last, vocab: stats.vocab }
+                  ? { kind: "loss", value: stats.smoothed, vocab: stats.vocab }
                   : undefined
               }
             >
