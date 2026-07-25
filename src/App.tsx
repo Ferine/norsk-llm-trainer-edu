@@ -128,6 +128,8 @@ function writeStoredLang(l: Lang) {
 export default function App() {
   // ---- language ----
   const [lang, setLang] = useState<Lang>(() => readStoredLang());
+  // Byte av språk byggjer modellen på nytt – hald att til brukaren stadfestar
+  const [pendingLang, setPendingLang] = useState<Lang | null>(null);
   const s = STRINGS[lang];
   const seed = SEEDS[lang];
   const activeCorpus = corpora[lang];
@@ -304,6 +306,24 @@ export default function App() {
     resetArmTimerRef.current = window.setTimeout(() => setResetArmed(false), 3000);
   }, [resetArmed, reset]);
 
+  // Språkbyte kastar korpus + modell. Er det ei trena økt å miste, spør først.
+  const requestLang = useCallback(
+    (next: Lang) => {
+      if (next === lang) return;
+      if (stepRef.current > 0) {
+        setPendingLang(next);
+        return;
+      }
+      setLang(next);
+    },
+    [lang]
+  );
+  const confirmLang = useCallback(() => {
+    if (pendingLang) setLang(pendingLang);
+    setPendingLang(null);
+  }, [pendingLang]);
+  const cancelLang = useCallback(() => setPendingLang(null), []);
+
   const rebuildWithExtraText = useCallback(() => {
     stop();
     buildEngine(extraText);
@@ -436,7 +456,7 @@ export default function App() {
               {LANGS.map((l) => (
                 <button
                   key={l.id}
-                  onClick={() => setLang(l.id)}
+                  onClick={() => requestLang(l.id)}
                   disabled={running || rlhf.dpoRunning}
                   className={cn(
                     "px-2 py-1 transition disabled:opacity-50 sm:px-2.5",
@@ -448,29 +468,50 @@ export default function App() {
               ))}
             </div>
           </div>
-          <div className="ml-auto flex flex-none items-center gap-3">
-            {/* Levande status: gruppa kan vandre på sida medan eleven øver */}
-            {(running || step > 0) && (
-              <div className="hidden items-center gap-2 font-mono text-[11px] sm:flex">
-                <span
-                  className={cn(
-                    "h-2 w-2 rounded-full",
-                    running ? "animate-pulse bg-rettepenn" : "bg-blyant/40"
-                  )}
-                />
-                <span className="text-blyant">{s.train.step(step, MAX_STEPS)}</span>
-                {losses.length > 0 && (
-                  <span className="font-semibold text-rettepenn">
-                    {s.loss.axisLoss} {stats.last.toFixed(2)}
-                  </span>
+          {/* Levande status: full breidd på eiga linje på mobil, inline til høgre elles */}
+          {(running || step > 0) && (
+            <div className="order-3 flex w-full items-center gap-2 border-t border-blekk/15 pt-2 font-mono text-[11px] sm:order-none sm:ml-auto sm:w-auto sm:border-0 sm:pt-0">
+              <span
+                className={cn(
+                  "h-2 w-2 flex-none rounded-full",
+                  running ? "animate-pulse bg-rettepenn" : "bg-blyant/40"
                 )}
-              </div>
-            )}
-            <a href="#trening" className="knapp knapp-blekk knapp-sm">
-              {s.header.jump}
-            </a>
-          </div>
+              />
+              <span className="text-blyant">{s.train.step(step, MAX_STEPS)}</span>
+              {losses.length > 0 && (
+                <span className="font-semibold text-rettepenn">
+                  {s.loss.axisLoss} {stats.last.toFixed(2)}
+                </span>
+              )}
+            </div>
+          )}
+          <a
+            href="#trening"
+            className="knapp knapp-blekk knapp-sm order-2 flex-none sm:order-none"
+          >
+            {s.header.jump}
+          </a>
         </div>
+        {/* Stadfesting: språkbyte kastar den trena økta – rettepennens raude strek */}
+        {pendingLang && (
+          <div className="border-t-2 border-rettepenn bg-white">
+            <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 sm:px-4">
+              <span className="min-w-0 flex-1 text-sm leading-snug text-blekk">
+                {s.header.langConfirm(
+                  LANGS.find((l) => l.id === pendingLang)!.label.toLowerCase()
+                )}
+              </span>
+              <div className="flex flex-none gap-2">
+                <button onClick={confirmLang} className="knapp knapp-rettepenn knapp-sm">
+                  {s.header.langConfirmYes}
+                </button>
+                <button onClick={cancelLang} className="knapp knapp-omriss knapp-sm">
+                  {s.header.langConfirmNo}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Omslaget: tittel med tusj-strek + lærestripa */}
