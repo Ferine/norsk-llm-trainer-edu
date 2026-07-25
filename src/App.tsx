@@ -815,6 +815,14 @@ export default function App() {
               )}
               // oppgåve 5 sin opphavlege tekststil: lågare min-høgd, ingen linjeavstand
               textClassName="min-h-6 whitespace-pre-wrap font-mono text-sm text-kritt"
+              // Tier 2 er halden att her: denne målaren teiknar inni sjølve
+              // opplæringsløkka, appens varmaste sti, og eit nytt WebGL-kontekst
+              // per steg er for dyrt til å ta sjansen på utan å ha målt
+              // steg/sekund med og utan – det målet kunne ikkje takast no.
+              // Oppgåve 7 sin målar (under) skil seg frå denne: han teiknar
+              // éin gong per generering, ikkje per treningssteg, så han held
+              // fram med tier 2.
+              noCanvas
               // måleren gjeld berre når det finst eit ekte tap å måle mot
               gauge={
                 losses.length > 0
