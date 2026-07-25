@@ -51,22 +51,33 @@ void main() {
   // Fleire prøver langs retninga => kritstøvet blør inn i nabobokstaven.
   // Dette er heile grunnen til at tier 2 finst; CSS-uskarpleik er innestengd
   // i sin eigen boks per teikn og kan ikkje gjere dette.
+  //
+  // Løkka arbeider i premultiplisert rom, sjølv om u_board sjølv er
+  // u-premultiplisert (krit-på-gjennomsiktig): eit gjennomsnitt av rå,
+  // u-premultipliserte RGBA-verdiar er feil akkurat der alpha varierer –
+  // altså nett ved smittekanten, som er heile poenget med denne løkka.
+  // Difor premultipliserer vi kvar prøve før ho vert lagt til summen.
   vec4 acc = vec4(0.0);
   float wsum = 0.0;
   for (int k = 0; k < 6; k++) {
     float t = float(k) / 5.0;
     vec2 off = dir * s * t * u_texel * 7.0;
     float w = 1.0 - t * 0.7;
-    acc += texture(u_board, v_uv + off) * w;
+    vec4 c = texture(u_board, v_uv + off);
+    acc += vec4(c.rgb * c.a, c.a) * w;
     wsum += w;
   }
 
+  // col er premultiplisert. Blekninga må skalere BÅDE alpha og rgb med
+  // same faktor – å skalere alpha åleine etter premultiplisering ville la
+  // rgb stå att for lyst i høve til si eiga alpha, slik at sterkt smitta
+  // krit lyser opp i staden for å blekne mot tavla.
   vec4 col = acc / wsum;
-  col.a *= mix(1.0, 0.55, s);
-  // Bland mot tavla sin eigen bakgrunn i staden for å berre skru ned alpha:
-  // lågare alpha skal blekne kritet MOT tavla (som chalkOpacity i tier 1),
-  // ikkje lyse det opp slik premultipliert komposittering ville ha gjort
-  // om vi let det gjennomsiktige originalbiletet skine gjennom. Resultatet
-  // er alltid heilt ugjennomsiktig – tavla under vert aldri synleg.
-  outColor = vec4(mix(u_bg, col.rgb, col.a), 1.0);
+  float fade = mix(1.0, 0.55, s);
+  col.a *= fade;
+  col.rgb *= fade;
+  // col.rgb er alt premultiplisert (vekta med sin eigen alpha), difor lagt
+  // til direkte i staden for gjennom mix: bakgrunnen sitt bidrag er u_bg
+  // skalert med attverande dekning (1 - alpha), kritbidraget er alt vekta.
+  outColor = vec4(u_bg * (1.0 - col.a) + col.rgb, 1.0);
 }`;

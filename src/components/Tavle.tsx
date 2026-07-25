@@ -46,8 +46,11 @@ interface Props {
   className?: string;
   textClassName?: string;
   // Kall-staden kan trekkje lerretet attende sjølv om nettlesaren støttar
-  // tier 2 – t.d. det varme opplæringssteget i oppgåve 5, der eit nytt
-  // WebGL-kontekst er for dyrt til å skape kvart bilete.
+  // tier 2 – t.d. det varme opplæringssteget i oppgåve 5. Det er IKKJE eit
+  // nytt WebGL-kontekst som er dyrt: getContext("webgl2") på same lerret
+  // gjev same konteksten att kvar gong. Det som faktisk var dyrt å byggje på
+  // nytt kvart bilete, var sjølve GL-programmet, skuggarane, bufferet og
+  // teksturane.
   noCanvas?: boolean;
   children?: ReactNode;
 }
@@ -278,6 +281,12 @@ export default function Tavle({
     };
     boardTex = mkTex(0);
     smudgeTex = mkTex(1);
+    // Gjer premultipliseringstilstanden til opplasta pikslar kjent i staden
+    // for å lite på ein uobservert standardverdi: texElementImage2D er
+    // eksperimentelt, og ingen har enno sett kva han leverer som default.
+    // Blandingsmatematikken i shaderen (sjå tavle.glsl.ts) føreset
+    // u-premultipliserte pikslar frå u_board, difor sett eksplisitt til false.
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     gl.uniform1i(gl.getUniformLocation(prog, "u_board"), 0);
     gl.uniform1i(gl.getUniformLocation(prog, "u_smudge"), 1);
     const uTexel = gl.getUniformLocation(prog, "u_texel");
