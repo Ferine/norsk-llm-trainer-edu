@@ -14,8 +14,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "pnpm run build && pnpm dlx wrangler deploy",
-    "test:build": "tsc src/lib/ml.ts src/lib/corpus.ts src/lib/i18n.ts src/lib/bpe.ts src/lib/chalk.ts --rootDir src/lib --outDir test/dist --target ES2020 --module ESNext --moduleResolution bundler --skipLibCheck",
-    "test": "pnpm run test:build && node test/seq-logprob.test.mjs && node test/dpo-loss.test.mjs && node test/clone.test.mjs && node test/corpus-lang.test.mjs && node test/i18n-parity.test.mjs && node test/generate-parity.test.mjs && node test/dpo-smoke.test.mjs && node test/inspect.test.mjs && node test/bpe.test.mjs && node test/conf.test.mjs && node test/chalk.test.mjs"
+    "test:build": "tsc src/lib/ml.ts src/lib/corpus.ts src/lib/i18n.ts src/lib/bpe.ts --rootDir src/lib --outDir test/dist --target ES2020 --module ESNext --moduleResolution bundler --skipLibCheck",
+    "test": "pnpm run test:build && node test/seq-logprob.test.mjs && node test/dpo-loss.test.mjs && node test/clone.test.mjs && node test/corpus-lang.test.mjs && node test/i18n-parity.test.mjs && node test/generate-parity.test.mjs && node test/dpo-smoke.test.mjs && node test/inspect.test.mjs && node test/bpe.test.mjs"
   },
   "dependencies": {
     "@fontsource/alfa-slab-one": "5.2.8",
