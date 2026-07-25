@@ -4,9 +4,11 @@ import {
   Adam,
   Transformer,
   generate,
+  generateDetailed,
   mulberry32,
   trainStep,
 } from "@/lib/ml";
+import { lossToFocus, meanConf } from "@/lib/chalk";
 import { buildTokenizer, corpora } from "@/lib/corpus";
 import { STRINGS, SEEDS, LANGS, type Lang, type Seeds, type Strings } from "@/lib/i18n";
 import LossChart from "@/components/LossChart";
@@ -16,6 +18,7 @@ import Rlhf from "@/components/Rlhf";
 import BpeLab from "@/components/BpeLab";
 import Inspector from "@/components/Inspector";
 import Skruer from "@/components/Skruer";
+import Tavle from "@/components/Tavle";
 import { useRlhf } from "@/lib/useRlhf";
 
 const MAX_STEPS = 3500;
@@ -343,6 +346,8 @@ export default function App() {
   const [chatPrompt, setChatPrompt] = useState(seed.chatPrompt);
   const [chatFull, setChatFull] = useState("");
   const [chatShown, setChatShown] = useState("");
+  const [chatConf, setChatConf] = useState<Float32Array>(() => new Float32Array(0));
+  const [chatPromptLen, setChatPromptLen] = useState(0);
   const [genTemp, setGenTemp] = useState(0.7);
   const [genTopK, setGenTopK] = useState(8);
   const [genLen, setGenLen] = useState(120);
@@ -363,7 +368,7 @@ export default function App() {
         setGenLoading(false);
         return;
       }
-      const out = generate(
+      const out = generateDetailed(
         eng.model,
         eng.tokenizer.decode,
         eng.tokenizer.encode,
@@ -371,7 +376,9 @@ export default function App() {
         { temperature: genTemp, topK: genTopK, length: genLen },
         sampleRngRef.current
       );
-      setChatFull(out);
+      setChatFull(out.text);
+      setChatConf(out.conf);
+      setChatPromptLen(out.promptLen);
       setGenTick((t) => t + 1);
       setGenLoading(false);
     }, 20);
@@ -798,15 +805,28 @@ export default function App() {
             </Advanced>
 
             {/* live-eksempel: eleven skriv på tavla */}
-            <div className="tavle p-4">
-              <div className="mb-2 flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-kritt/70">
-                <span className={cn("h-2 w-2 rounded-full", running ? "animate-pulse bg-tusj" : "bg-kritt/30")} />
-                {s.train.liveLabel}
-              </div>
-              <p className="min-h-6 whitespace-pre-wrap font-mono text-sm text-kritt">
-                {currentSample || <span className="text-kritt/50">{s.train.livePlaceholder}</span>}
-              </p>
-            </div>
+            <Tavle
+              label={s.train.liveLabel}
+              text={currentSample}
+              placeholder={s.train.livePlaceholder}
+              legend={s.train.focusLegend}
+              summary={s.train.focusSummary(
+                Math.round(lossToFocus(stats.last, stats.vocab) * 100)
+              )}
+              // måleren gjeld berre når det finst eit ekte tap å måle mot
+              gauge={
+                losses.length > 0
+                  ? { kind: "loss", value: stats.last, vocab: stats.vocab }
+                  : undefined
+              }
+            >
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  running ? "animate-pulse bg-tusj" : "bg-kritt/30"
+                )}
+              />
+            </Tavle>
           </Card>
         </Section>
 
@@ -914,15 +934,18 @@ export default function App() {
             </button>
 
             {/* svaret kjem på tavla */}
-            <div className="tavle p-4">
-              <div className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-kritt/70">
-                {s.chat.answerLabel}
-              </div>
-              <p className="min-h-8 whitespace-pre-wrap font-mono text-sm leading-relaxed text-kritt">
-                {chatShown}
-                <span className="animate-pulse text-tusj">▍</span>
-              </p>
-            </div>
+            <Tavle
+              label={s.chat.answerLabel}
+              text={chatShown}
+              placeholder=""
+              legend={s.chat.confLegend}
+              summary={s.chat.confSummary(Math.round(meanConf(chatConf) * 100))}
+              gauge={
+                chatConf.length > 0
+                  ? { kind: "conf", conf: chatConf, promptLen: chatPromptLen }
+                  : undefined
+              }
+            />
           </Card>
         </Section>
 
