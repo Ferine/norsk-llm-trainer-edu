@@ -170,7 +170,14 @@ export interface Strings {
     axisLoss: string;
     count: (n: number) => string;
   };
-  footer: { line1: string; line2: string };
+  footer: {
+    line1: string;
+    line2: string;
+    excel: string;
+    excelHint: string;
+    excelBusy: string;
+    excelDone: string;
+  };
   docTitle: string;
 }
 
@@ -389,6 +396,11 @@ const bm: Strings = {
     line1:
       "Bygd med egenskrevet maskinlæringsmotor – transformer, autograd og Adam – helt i JavaScript.",
     line2: "All kode og all læring skjer lokalt i din egen nettleser. 🇳🇴",
+    excel: "Last ned modellen som regneark",
+    excelHint:
+      "Modellen du nettopp trente, som en Excel-fil som skriver tekst med vanlige formler – ingen makroer.",
+    excelBusy: "lager regneark …",
+    excelDone: "lastet ned",
   },
   docTitle: "Språkmodell-trener – bygg AI på bokmål",
 };
@@ -608,6 +620,11 @@ const nn: Strings = {
     line1:
       "Bygd med eigenskriven maskinlæringsmotor – transformer, autograd og Adam – heilt i JavaScript.",
     line2: "All kode og all læring skjer lokalt i din eigen nettlesar. 🇳🇴",
+    excel: "Last ned modellen som rekneark",
+    excelHint:
+      "Modellen du nettopp trena, som ei Excel-fil som skriv tekst med vanlege formlar – ingen makroar.",
+    excelBusy: "lagar rekneark …",
+    excelDone: "lasta ned",
   },
   docTitle: "Språkmodell-trenar – bygg AI på nynorsk",
 };
