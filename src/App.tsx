@@ -17,6 +17,8 @@ import BpeLab from "@/components/BpeLab";
 import Inspector from "@/components/Inspector";
 import Skruer from "@/components/Skruer";
 import { useRlhf } from "@/lib/useRlhf";
+import { buildModelWorkbook } from "@/lib/excel-model";
+import { downloadWorkbook } from "@/lib/xlsx-zip";
 
 const MAX_STEPS = 3500;
 const CHUNK = 6;
@@ -288,6 +290,44 @@ export default function App() {
     stop();
     buildEngine();
   }, [stop, buildEngine]);
+
+  // ---- last ned modellen som rekneark ----
+  // Ingen makroar, ingen VBA – arket gjer inferens med vanlege formlar.
+  // Sjå src/lib/excel-model.ts. Knappen ligg i botnteksten, og berre når det
+  // finst noko trent (ei tilfeldig modell ville berre skrive støy).
+  const [eggState, setEggState] = useState<"idle" | "working" | "done">("idle");
+
+  const onExcelClick = useCallback(() => {
+    if (eggState === "working") return;
+    const eng = engineRef.current;
+    if (!eng || stepRef.current === 0) return;
+
+    setEggState("working");
+    // Gje nettlesaren ein frame til å teikna «working» før vi blokkerer tråden.
+    window.setTimeout(async () => {
+      try {
+        const built = buildModelWorkbook({
+          model: eng.model,
+          tokenizer: eng.tokenizer,
+          prompt: seed.trainSeed,
+          nGen: 16,
+          step: stepRef.current,
+          loss: lossesRef.current.length ? lossesRef.current[lossesRef.current.length - 1] : 0,
+          presetName: preset,
+          lang,
+        });
+        await downloadWorkbook(
+          built.workbook,
+          `sprakmodell-${preset}-steg${stepRef.current}.xlsx`
+        );
+        setEggState("done");
+        window.setTimeout(() => setEggState("idle"), 6000);
+      } catch (err) {
+        console.error("regneark-eksport feila", err);
+        setEggState("idle");
+      }
+    }, 32);
+  }, [eggState, lang, preset, seed.trainSeed]);
 
   // Nullstilling kastar ei trena økt – krev to trykk når det finst noko å miste.
   const onResetClick = useCallback(() => {
@@ -930,6 +970,26 @@ export default function App() {
           {s.footer.line1}
           <br />
           {s.footer.line2}
+          {/* Dukkar opp så snart det finst noko trent, men ikkje midt i treninga:
+              eksporten blokkerer tråden ein augneblink, og vektene ville flytta seg. */}
+          {step > 0 && !running && (
+            <div className="mt-6">
+              <button
+                onClick={onExcelClick}
+                disabled={eggState === "working"}
+                className="knapp knapp-omriss knapp-sm"
+              >
+                {s.footer.excel}
+              </button>
+              <div className="mx-auto mt-2 max-w-md">
+                {eggState === "idle" && s.footer.excelHint}
+                {eggState === "working" && s.footer.excelBusy}
+                {eggState === "done" && (
+                  <span className="handnotat text-base">✓ {s.footer.excelDone}</span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </footer>
     </div>
