@@ -2,10 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/utils/cn";
 import {
   Adam,
+  Muon,
   Transformer,
+  cosineLr,
   generate,
   mulberry32,
   trainStep,
+  type Activation,
+  type Optimizer,
 } from "@/lib/ml";
 import { buildTokenizer, corpora } from "@/lib/corpus";
 import { STRINGS, SEEDS, LANGS, type Lang, type Seeds, type Strings } from "@/lib/i18n";
@@ -16,6 +20,8 @@ import Rlhf from "@/components/Rlhf";
 import BpeLab from "@/components/BpeLab";
 import Inspector from "@/components/Inspector";
 import Skruer from "@/components/Skruer";
+import Slankekur from "@/components/Slankekur";
+import Bekreft, { type Ask } from "@/components/Bekreft";
 import { useRlhf } from "@/lib/useRlhf";
 import { buildModelWorkbook } from "@/lib/excel-model";
 import { downloadWorkbook } from "@/lib/xlsx-zip";
@@ -34,11 +40,13 @@ const PRESETS: Record<
   stor: { dim: 96, nLayer: 4, nHead: 4, seqLen: 48, ffnMult: 4 },
 };
 
+type OptimKey = "adam" | "muon";
+
 interface Engine {
   tokenizer: ReturnType<typeof buildTokenizer>;
   data: number[];
   model: Transformer;
-  opt: Adam;
+  opt: Optimizer;
 }
 
 function charLabel(c: string): string {
@@ -139,6 +147,9 @@ export default function App() {
   const [preset, setPreset] = useState<PresetKey>("liten");
   const [batch, setBatch] = useState(4);
   const [lr, setLr] = useState(0.0008);
+  const [optim, setOptim] = useState<OptimKey>("adam");
+  const [act, setAct] = useState<Activation>("situ");
+  const [schedule, setSchedule] = useState(false);
   const [extraText, setExtraText] = useState("");
 
   const cfg = useMemo(
@@ -154,20 +165,20 @@ export default function App() {
   const rngRef = useRef(mulberry32(42));
   const sampleRngRef = useRef(mulberry32(7));
   const lrRef = useRef(lr);
+  const scheduleRef = useRef(schedule);
   const timerRef = useRef<number | null>(null);
   const generateTimerRef = useRef<number | null>(null);
   const activeExtraTextRef = useRef("");
   // Treningsfart (steg per ms, glidande snitt) for «ca. X s igjen»
   const rateRef = useRef(0);
   const lastTickRef = useRef<{ t: number; step: number } | null>(null);
-  const resetArmTimerRef = useRef<number | null>(null);
 
   const [running, setRunning] = useState(false);
   const [step, setStep] = useState(0);
   const [losses, setLosses] = useState<number[]>([]);
   const [currentSample, setCurrentSample] = useState("");
   const [paramCount, setParamCount] = useState(0);
-  const [resetArmed, setResetArmed] = useState(false);
+  const [ask, setAsk] = useState<Ask | null>(null);
   // Tel opp for kvar ny motor, så skrue-visualiseringa veit når ho må nullstille utvalet sitt.
   const [engineGen, setEngineGen] = useState(0);
 
@@ -185,10 +196,13 @@ export default function App() {
     const data = tokenizer.encode(fullText);
     const arch = PRESETS[preset];
     const model = new Transformer(
-      { vocab: tokenizer.vocab, dim: arch.dim, nLayer: arch.nLayer, nHead: arch.nHead, seqLen: arch.seqLen, ffnMult: arch.ffnMult },
+      { vocab: tokenizer.vocab, dim: arch.dim, nLayer: arch.nLayer, nHead: arch.nHead, seqLen: arch.seqLen, ffnMult: arch.ffnMult, act },
       mulberry32(1337)
     );
-    const opt = new Adam(model.params, lrRef.current);
+    const opt: Optimizer =
+      optim === "muon"
+        ? new Muon(model.optimGroups(), lrRef.current)
+        : new Adam(model.params, lrRef.current);
     engineRef.current = { tokenizer, data, model, opt };
     stepRef.current = 0;
     lossesRef.current = [];
@@ -200,18 +214,22 @@ export default function App() {
     setParamCount(model.paramCount());
     setEngineGen((g) => g + 1);
     rlhf.reset();
-    // berre arkitektur (preset) tvingar fram ein ny modell – ikkje lr/batch
-  }, [preset, rlhf.reset, activeCorpus]);
+    // arkitektur (preset, aktivering) og val av optimerar tvingar fram ein ny
+    // modell – ikkje lr/batch, som kan endrast midt i ei økt
+  }, [preset, act, optim, rlhf.reset, activeCorpus]);
 
   useEffect(() => {
     if (!runningRef.current) buildEngine();
   }, [buildEngine]);
 
   // Endra læringsrate utan å byggja modellen på nytt (mistar ikkje framdrift).
+  // Med nedtrapping på styrer treningsløkka raten steg for steg; når ho blir
+  // slått av, skal den flate raten gjelda med ein gong.
   useEffect(() => {
     lrRef.current = lr;
-    if (engineRef.current) engineRef.current.opt.lr = lr;
-  }, [lr]);
+    scheduleRef.current = schedule;
+    if (engineRef.current && !schedule) engineRef.current.opt.lr = lr;
+  }, [lr, schedule]);
 
   // ---- treningsløkke ----
   const loop = useCallback(() => {
@@ -222,6 +240,8 @@ export default function App() {
     const seqLen = eng.model.seqLen;
     const stepsThisChunk = Math.min(CHUNK, MAX_STEPS - stepRef.current);
     for (let i = 0; i < stepsThisChunk; i++) {
+      if (scheduleRef.current)
+        eng.opt.lr = cosineLr(stepRef.current, { peak: lrRef.current, total: MAX_STEPS });
       const l = trainStep(eng.model, eng.opt, eng.data, seqLen, cfg.batch, rngRef.current);
       lossesRef.current.push(l);
       stepRef.current++;
@@ -257,15 +277,45 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg.batch, seed.trainSeed]);
 
-  const start = useCallback(() => {
+  // Alt som kastar bort trening går gjennom denne: har eleven ikkje trent noko
+  // enno, er det ingenting å mista, og då spør vi ikkje.
+  const guard = useCallback(
+    (whatKey: keyof Strings["confirm"]["what"], run: () => void) => {
+      if (stepRef.current === 0) {
+        run();
+        return;
+      }
+      setAsk({
+        title: s.confirm.title,
+        what: s.confirm.what[whatKey],
+        note: s.confirm.steps(stepRef.current.toLocaleString(activeLocale)),
+        body: s.confirm.body,
+        yes: s.confirm.yes,
+        no: s.confirm.no,
+        onYes: run,
+      });
+    },
+    [s.confirm, activeLocale]
+  );
+
+  const beginTraining = useCallback(() => {
     rlhf.reset();
     if (!engineRef.current || stepRef.current >= MAX_STEPS) buildEngine();
     lastTickRef.current = null; // ikkje la pausetid forureine farten
-    setResetArmed(false);
     runningRef.current = true;
     setRunning(true);
     loop();
   }, [buildEngine, loop, rlhf.reset]);
+
+  // Å halda fram ei pausa økt er trygt. Å trykkja start når den førre økta er
+  // ferdig byggjer modellen på nytt – då må vi spørja først.
+  const start = useCallback(() => {
+    if (engineRef.current && stepRef.current >= MAX_STEPS) {
+      guard("restart", beginTraining);
+      return;
+    }
+    beginTraining();
+  }, [beginTraining, guard]);
 
   // Verkstedknappen i heroen: start treninga med ein gong og hopp til oppgåve 5,
   // så modellen lærer i bakgrunnen medan ein pratar seg gjennom oppgåve 1–2.
@@ -330,31 +380,39 @@ export default function App() {
   }, [eggState, lang, preset, seed.trainSeed]);
 
   // Nullstilling kastar ei trena økt – krev to trykk når det finst noko å miste.
-  const onResetClick = useCallback(() => {
-    if (resetArmTimerRef.current !== null) {
-      window.clearTimeout(resetArmTimerRef.current);
-      resetArmTimerRef.current = null;
-    }
-    if (stepRef.current === 0 || resetArmed) {
-      setResetArmed(false);
-      reset();
+  const onResetClick = useCallback(() => guard("reset", reset), [guard, reset]);
+
+  const rebuildWithExtraText = useCallback(
+    () =>
+      guard("text", () => {
+        stop();
+        buildEngine(extraText);
+      }),
+    [guard, stop, buildEngine, extraText]
+  );
+
+  // Finpussinga rullar vektene tilbake til referansemodellen, så ho har si eiga
+  // rute: sjølve treninga overlever, men vala til brukaren gjer det ikkje.
+  const onResetTuning = useCallback(() => {
+    if (rlhf.metrics.count === 0) {
+      rlhf.resetTuning();
       return;
     }
-    setResetArmed(true);
-    resetArmTimerRef.current = window.setTimeout(() => setResetArmed(false), 3000);
-  }, [resetArmed, reset]);
-
-  const rebuildWithExtraText = useCallback(() => {
-    stop();
-    buildEngine(extraText);
-  }, [stop, buildEngine, extraText]);
+    setAsk({
+      title: s.confirm.tuning.title,
+      what: s.confirm.tuning.what,
+      body: s.confirm.tuning.body,
+      yes: s.confirm.tuning.yes,
+      no: s.confirm.no,
+      onYes: rlhf.resetTuning,
+    });
+  }, [rlhf.metrics.count, rlhf.resetTuning, s.confirm]);
 
   useEffect(
     () => () => {
       runningRef.current = false;
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
       if (generateTimerRef.current !== null) window.clearTimeout(generateTimerRef.current);
-      if (resetArmTimerRef.current !== null) window.clearTimeout(resetArmTimerRef.current);
     },
     []
   );
@@ -433,6 +491,7 @@ export default function App() {
   const examples = seed.examples;
 
   const getParams = useCallback(() => engineRef.current?.model.params ?? null, []);
+  const getEngine = useCallback(() => engineRef.current, []);
 
   const trainedDone = step >= MAX_STEPS && !running;
   const eta = (() => {
@@ -461,6 +520,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
+      <Bekreft ask={ask} onClose={() => setAsk(null)} />
+
       {/* Header */}
       <header className="sticky top-0 z-20 border-b-2 border-blekk bg-papir/95 backdrop-blur">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-2.5 sm:px-4">
@@ -476,7 +537,10 @@ export default function App() {
               {LANGS.map((l) => (
                 <button
                   key={l.id}
-                  onClick={() => setLang(l.id)}
+                  // Å trykkja på språket ein alt står i skal ikkje spørja om noko.
+                  onClick={() => {
+                    if (l.id !== lang) guard("lang", () => setLang(l.id));
+                  }}
                   disabled={running || rlhf.dpoRunning}
                   className={cn(
                     "px-2 py-1 transition disabled:opacity-50 sm:px-2.5",
@@ -694,7 +758,10 @@ export default function App() {
               <select
                 value={preset}
                 disabled={running || rlhf.dpoRunning}
-                onChange={(e) => setPreset(e.target.value as PresetKey)}
+                onChange={(e) => {
+                  const v = e.target.value as PresetKey;
+                  guard("preset", () => setPreset(v));
+                }}
                 className="felt text-sm disabled:opacity-50"
               >
                 {(Object.keys(PRESETS) as PresetKey[]).map((k) => (
@@ -732,6 +799,60 @@ export default function App() {
                     className="w-full disabled:opacity-50"
                   />
                 </div>
+                <div>
+                  <label className="etikett mb-1 block" htmlFor="optim">
+                    {s.train.optimLabel}
+                  </label>
+                  <select
+                    id="optim"
+                    value={optim}
+                    disabled={running || rlhf.dpoRunning}
+                    onChange={(e) => {
+                      const v = e.target.value as OptimKey;
+                      guard("optim", () => setOptim(v));
+                    }}
+                    className="felt text-sm disabled:opacity-50"
+                  >
+                    <option value="adam">{s.train.optimAdam}</option>
+                    <option value="muon">{s.train.optimMuon}</option>
+                  </select>
+                  <p className="mt-1 text-xs leading-relaxed text-blyant">{s.train.optimHelp}</p>
+                </div>
+                <div>
+                  <label className="etikett mb-1 block" htmlFor="akt">
+                    {s.train.actLabel}
+                  </label>
+                  <select
+                    id="akt"
+                    value={act}
+                    disabled={running || rlhf.dpoRunning}
+                    onChange={(e) => {
+                      const v = e.target.value as Activation;
+                      guard("act", () => setAct(v));
+                    }}
+                    className="felt text-sm disabled:opacity-50"
+                  >
+                    <option value="gelu">{s.train.actGelu}</option>
+                    <option value="situ">{s.train.actSitu}</option>
+                  </select>
+                  <p className="mt-1 text-xs leading-relaxed text-blyant">{s.train.actHelp}</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="flex items-start gap-2 text-sm text-blekk">
+                    <input
+                      type="checkbox"
+                      checked={schedule}
+                      onChange={(e) => setSchedule(e.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      {s.train.scheduleLabel}
+                      <span className="mt-1 block text-xs leading-relaxed text-blyant">
+                        {s.train.scheduleHelp}
+                      </span>
+                    </span>
+                  </label>
+                </div>
               </div>
             </Advanced>
 
@@ -749,9 +870,9 @@ export default function App() {
               <button
                 onClick={onResetClick}
                 disabled={running}
-                className={cn("knapp", resetArmed ? "knapp-rettepenn" : "knapp-omriss")}
+                className="knapp knapp-omriss"
               >
-                {resetArmed ? s.train.resetConfirm : s.train.reset}
+                {s.train.reset}
               </button>
               {trainedDone && (
                 <span aria-hidden className="stempel">
@@ -793,6 +914,18 @@ export default function App() {
                 lr={lr}
                 help={s.train.screwsHelp}
                 idleText={s.train.screwsIdle}
+              />
+            </Advanced>
+
+            {/* fordypning: same krymping som dei store modellane gjer før drift */}
+            <Advanced label={s.train.slank.label}>
+              <Slankekur
+                getEngine={getEngine}
+                step={step}
+                engineGen={engineGen}
+                prompt={seed.trainSeed}
+                locale={activeLocale}
+                s={s.train.slank}
               />
             </Advanced>
 
@@ -932,7 +1065,7 @@ export default function App() {
           title={s.rlhf.sectionTitle}
           intro={s.rlhf.sectionIntro}
         >
-          <Rlhf rlhf={rlhf} examples={examples} s={s} />
+          <Rlhf rlhf={rlhf} examples={examples} s={s} onResetTuning={onResetTuning} />
         </Section>
 
         {/* Eigen tekst */}
