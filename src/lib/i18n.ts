@@ -80,10 +80,33 @@ export interface Strings {
     presets: { liten: string; mellom: string; stor: string };
     minibatch: (n: number) => string;
     learningRate: (x: string) => string;
+    optimLabel: string;
+    optimAdam: string;
+    optimMuon: string;
+    optimHelp: string;
+    scheduleLabel: string;
+    scheduleHelp: string;
+    actLabel: string;
+    actGelu: string;
+    actSitu: string;
+    actHelp: string;
+    slank: {
+      label: string;
+      help: string;
+      run: string;
+      busy: string;
+      idle: string;
+      colFull: string;
+      colQuant: string;
+      rowSize: string;
+      rowLoss: string;
+      shrink: (x: string) => string;
+      note: string;
+      measuredAt: (n: number) => string;
+    };
     start: string;
     stop: string;
     reset: string;
-    resetConfirm: string;
     stamp: string;
     etaSec: (n: number) => string;
     etaMin: (n: number) => string;
@@ -154,6 +177,23 @@ export interface Strings {
     statsLabel: string;
     dpoLossHeading: string;
     dpoHelp: string;
+  };
+  confirm: {
+    title: string;
+    steps: (n: string) => string;
+    body: string;
+    yes: string;
+    no: string;
+    what: {
+      preset: string;
+      optim: string;
+      act: string;
+      lang: string;
+      text: string;
+      restart: string;
+      reset: string;
+    };
+    tuning: { title: string; what: string; body: string; yes: string };
   };
   warning: { lead: string; body: string };
   extra: {
@@ -288,10 +328,38 @@ const bm: Strings = {
     presets: { liten: "Liten – rask, fin å starte med", mellom: "Mellom – god balanse", stor: "Stor – best resultat, tar lengst tid" },
     minibatch: (n) => `Tekstbiter per steg (minibatch): ${n}`,
     learningRate: (x) => `Skrittlengde (læringsrate): ${x}`,
+    optimLabel: "Måten skruene vris på",
+    optimAdam: "Én skrue om gangen (Adam)",
+    optimMuon: "Hele arket under ett (Muon)",
+    optimHelp:
+      "Adam vurderer hver skrue for seg. Muon ser på et helt ark med skruer samtidig og jevner ut vridningen, så ingen retning får dra fra. Det er nyere, og det er slik de største modellene trenes i dag – men hvert steg tar litt lengre tid.",
+    scheduleLabel: "Bremse ned mot slutten",
+    scheduleHelp:
+      "Start forsiktig, ta store steg i midten, og små steg mot slutten – som når du skriver penere jo nærmere du kommer linjen. Kurven heter kosinus, og de aller største modellene trenes slik. Her taper modellen som regel litt på det, fordi den går så mange runder over den samme lille teksten: da lønner det seg å holde farten helt inn. Prøv selv.",
+    actLabel: "Knekken i det brede laget",
+    actGelu: "Myk knekk (GELU)",
+    actSitu: "Port med tak (SiTU-GLU)",
+    actHelp:
+      "Med port bestemmer laget selv hvor mye som slipper gjennom, og et innebygd tak gjør at ingen enkelttall kan løpe løpsk. Det brede laget krymper til to tredjedeler, så modellen holder samme størrelse og sammenlikningen blir ærlig.",
+    slank: {
+      label: "Modellen på slankekur (4 bit)",
+      help:
+        "Vanligvis bruker hvert tall i modellen 32 bit. Her beholder vi bare 4 – ett fortegn og én av åtte størrelser – i den største delen av modellen. Modellen din blir ikke rørt: vi måler på en kopi.",
+      run: "Mål en 4-bits kopi",
+      busy: "Regner …",
+      idle: "Tren modellen først, så er det noe å måle.",
+      colFull: "32 bit (nå)",
+      colQuant: "4 bit",
+      rowSize: "Plass",
+      rowLoss: "Overraskelse",
+      shrink: (x) => `${x}× mindre`,
+      note:
+        "De store modellene gjør akkurat dette før de settes i drift, og trener med krympingen på hele veien, så modellen rekker å venne seg til den.",
+      measuredAt: (n) => `målt ved steg ${n}`,
+    },
     start: "▶ Start trening",
     stop: "⏸ Stopp",
     reset: "↺ Nullstill",
-    resetConfirm: "Sikker? Trykk igjen",
     stamp: "Godkjent ✓",
     etaSec: (n) => `ca. ${n} s igjen`,
     etaMin: (n) => `ca. ${n} min igjen`,
@@ -371,6 +439,30 @@ const bm: Strings = {
     dpoLossHeading: "Tap under preferansetreningen (DPO)",
     dpoHelp:
       "Margin = hvor mye modellen har flyttet seg mot valgene dine. Vinner-rate = hvor ofte den nå foretrekker det samme som deg. Høyere er bedre for begge.",
+  },
+  confirm: {
+    title: "Da må modellen begynne på nytt",
+    steps: (n) => `Du har trent i ${n} steg.`,
+    body:
+      "Endrer du dette, får modellen nye tilfeldige tall, og alt den har lært forsvinner. Du kan trene på nytt med en gang, men det du har nå kommer ikke tilbake.",
+    yes: "Ja, begynn på nytt",
+    no: "Nei, behold treningen",
+    what: {
+      preset: "Du er i ferd med å bytte modellstørrelse.",
+      optim: "Du er i ferd med å bytte måten skruene vris på.",
+      act: "Du er i ferd med å bytte knekken i det brede laget.",
+      lang: "Du er i ferd med å bytte språk. Da blir det nytt alfabet, ny tekst og dermed en helt ny modell.",
+      text: "Du er i ferd med å bygge modellen om med din egen tekst.",
+      restart: "Du er i ferd med å starte en helt ny treningsøkt.",
+      reset: "Du er i ferd med å nullstille modellen.",
+    },
+    tuning: {
+      title: "Da forsvinner finpussingen",
+      what: "Du er i ferd med å nullstille finpussingen (RLHF).",
+      body:
+        "Modellen går tilbake til slik den var før du begynte å velge svar. Selve treningen beholdes – det er bare valgene dine som blir borte.",
+      yes: "Ja, nullstill finpussingen",
+    },
   },
   warning: {
     lead: "Advarsel – ærlig om hva dette er:",
@@ -512,10 +604,38 @@ const nn: Strings = {
     presets: { liten: "Liten – rask, fin å starte med", mellom: "Mellom – god balanse", stor: "Stor – best resultat, tek lengst tid" },
     minibatch: (n) => `Tekstbitar per steg (minibatch): ${n}`,
     learningRate: (x) => `Skrittlengd (læringsrate): ${x}`,
+    optimLabel: "Måten skruane blir vridde på",
+    optimAdam: "Éin skrue om gongen (Adam)",
+    optimMuon: "Heile arket under eitt (Muon)",
+    optimHelp:
+      "Adam vurderer kvar skrue for seg. Muon ser på eit heilt ark med skruar samstundes og jamnar ut vridinga, så ingen retning får dra frå. Det er nyare, og det er slik dei største modellane blir trena i dag – men kvart steg tek litt lengre tid.",
+    scheduleLabel: "Bremse ned mot slutten",
+    scheduleHelp:
+      "Start varsamt, ta store steg i midten, og små steg mot slutten – som når du skriv penare jo nærare du kjem linja. Kurva heiter kosinus, og dei aller største modellane blir trena slik. Her taper modellen som regel litt på det, av di han går så mange rundar over den same vesle teksten: då lønner det seg å halda farten heilt inn. Prøv sjølv.",
+    actLabel: "Knekken i det breie laget",
+    actGelu: "Mjuk knekk (GELU)",
+    actSitu: "Port med tak (SiTU-GLU)",
+    actHelp:
+      "Med port avgjer laget sjølv kor mykje som slepp gjennom, og eit innebygd tak gjer at ingen einskildtal kan renna løpsk. Det breie laget krympar til to tredjedelar, så modellen held same storleik og samanlikninga blir ærleg.",
+    slank: {
+      label: "Modellen på slankekur (4 bit)",
+      help:
+        "Vanlegvis brukar kvart tal i modellen 32 bit. Her held vi berre 4 – eitt forteikn og éin av åtte storleikar – i den største delen av modellen. Modellen din blir ikkje rørt: vi måler på ein kopi.",
+      run: "Mål ein 4-bits kopi",
+      busy: "Reknar …",
+      idle: "Tren modellen først, så er det noko å måla.",
+      colFull: "32 bit (no)",
+      colQuant: "4 bit",
+      rowSize: "Plass",
+      rowLoss: "Overrasking",
+      shrink: (x) => `${x}× mindre`,
+      note:
+        "Dei store modellane gjer akkurat dette før dei blir sette i drift, og trenar med krympinga på heile vegen, så modellen rekk å venja seg til henne.",
+      measuredAt: (n) => `målt ved steg ${n}`,
+    },
     start: "▶ Start trening",
     stop: "⏸ Stopp",
     reset: "↺ Nullstill",
-    resetConfirm: "Sikker? Trykk ein gong til",
     stamp: "Godkjend ✓",
     etaSec: (n) => `ca. ${n} s att`,
     etaMin: (n) => `ca. ${n} min att`,
@@ -596,6 +716,30 @@ const nn: Strings = {
     dpoHelp:
       "Margin = kor mykje modellen har flytta seg mot vala dine. Vinnar-rate = kor ofte han no føretrekkjer det same som deg. Høgare er betre for begge.",
   },
+  confirm: {
+    title: "Då må modellen byrja på nytt",
+    steps: (n) => `Du har trent i ${n} steg.`,
+    body:
+      "Endrar du dette, får modellen nye tilfeldige tal, og alt han har lært forsvinn. Du kan trena på nytt med ein gong, men det du har no kjem ikkje att.",
+    yes: "Ja, byrj på nytt",
+    no: "Nei, behald treninga",
+    what: {
+      preset: "Du er i ferd med å byta modellstorleik.",
+      optim: "Du er i ferd med å byta måten skruane blir vridde på.",
+      act: "Du er i ferd med å byta knekken i det breie laget.",
+      lang: "Du er i ferd med å byta språk. Då blir det nytt alfabet, ny tekst og dermed ein heilt ny modell.",
+      text: "Du er i ferd med å byggja modellen om med din eigen tekst.",
+      restart: "Du er i ferd med å starta ei heilt ny treningsøkt.",
+      reset: "Du er i ferd med å nullstilla modellen.",
+    },
+    tuning: {
+      title: "Då forsvinn finpussinga",
+      what: "Du er i ferd med å nullstilla finpussinga (RLHF).",
+      body:
+        "Modellen går tilbake til slik han var før du byrja å velja svar. Sjølve treninga blir behalden – det er berre vala dine som blir borte.",
+      yes: "Ja, nullstill finpussinga",
+    },
+  },
   warning: {
     lead: "Åtvaring – ærleg om kva dette er:",
     body:
@@ -636,7 +780,14 @@ export interface Seeds {
   examples: string[];
   sampleSentence: string;
   trainSeed: string;
-  /** Ekte utskrifter fra en treningsøkt (frø 42/1337/7, preset «liten») til helte-stripen. */
+  /**
+   * Ekte utskrifter fra en treningsøkt til helte-stripen: preset «liten» med
+   * standardinnstillingene (SiTU-GLU, Adam, flat læringsrate), frø 1337 for
+   * modellen, 42 for treningen og 7 for skrivingen. Regenereres ved å simulere
+   * treningsløkken i App.tsx – bolker på 6 steg, ett tekstutdrag hver gang
+   * steget passerer 60, og én delt tilfeldig-generator som fortsetter mellom
+   * utdragene. Teksten er startteksten pluss 55 tegn, med ⏎ for linjeskift.
+   */
   strip: { step: number; text: string }[];
 }
 
@@ -647,10 +798,10 @@ export const SEEDS: Record<Lang, Seeds> = {
     sampleSentence: "Norge er et land",
     trainSeed: "Det var en gang",
     strip: [
-      { step: 0, text: "Det var en gangyvGRgfåÅypOgLyJ?biNsDsDngJØØgÅaÅasØIDngNÅFegNyJ.lFyDngf" },
-      { step: 300, text: "Det var en gang s lar stareter iskjet ser lelaneg amer i som lte var f" },
-      { step: 1200, text: "Det var en gangetr og sa sta det dlam havennt arsennet sti tarng en sn" },
-      { step: 3500, text: "Det var en gang snøi skye sammen vlar av havett andet havet.⏎⏎Om vanne" },
+      { step: 0, text: "Det var en gang,sBiLNdD,IfgKuiÅagDn.TmiNLlÅÅLllsydgvJIe.NeNLdeØiIeliDJ" },
+      { step: 300, text: "Det var en gange sog st.⏎⏎⏎Hvarer fr skomere fesarett. har før han har" },
+      { step: 1200, text: "Det var en gang av det havav. Jisen vienstter dammme. Om farog lk som " },
+      { step: 3500, text: "Det var en gang e kablen kker små gjøren stå det varsomt opp i båten o" },
     ],
   },
   nn: {
@@ -659,10 +810,10 @@ export const SEEDS: Record<Lang, Seeds> = {
     sampleSentence: "Noreg er eit land",
     trainSeed: "Det var ein gong",
     strip: [
-      { step: 0, text: "Det var ein gong ,aJ,hybrhUID.⏎djKLI.mKjOMÅÅjjåFåJFStnMjØØØbMLLfhkåjDot" },
-      { step: 300, text: "Det var ein gong svenein fr lein d meg stillame fleger d steti br var l" },
-      { step: 1200, text: "Det var ein gong olla tin soppå ilkvan sog ogenen, log sar sedaven vari" },
-      { step: 3500, text: "Det var ein gong eav t ilav havetner alti de havame frodskyr elysame fe" },
+      { step: 0, text: "Det var ein gongM,øIêuØ,JljDÅNêI.uØåfsJjOMtojueOOSUMkFtuØOfitåhLOJfØpOD" },
+      { step: 300, text: "Det var ein gong vat varsomeg st og varen stila id titnnen d og og ol s" },
+      { step: 1200, text: "Det var ein gong samen. Eiten skølg skar vilar belar las. let. Kvi ikkk" },
+      { step: 3500, text: "Det var ein gong ein fiskar som rodde ve hakgster. Folk har alltid levd" },
     ],
   },
 };

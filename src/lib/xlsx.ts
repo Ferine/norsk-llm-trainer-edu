@@ -41,6 +41,16 @@ export const STYLE_DEFAULT = 0;
 export const STYLE_BOLD = 1;
 export const STYLE_WRAP = 2;
 export const STYLE_MONO = 3;
+/** Den eine cella brukaren skal skriva i: gul som ein tusj, tjukk ramme. */
+export const STYLE_INPUT = 4;
+/** Eit svar rekna ut av modellen. */
+export const STYLE_RESULT = 5;
+/** Ein boks i flytskjemaet. */
+export const STYLE_BOX = 6;
+/** Overskrifta i ein slik boks. */
+export const STYLE_STEP = 7;
+/** Formelen i ein slik boks, med fast breidd. */
+export const STYLE_CODE = 8;
 
 const NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -163,21 +173,51 @@ function stylesXml(): string {
   return (
     HEAD +
     `<styleSheet xmlns="${NS}">` +
-    `<fonts count="3">` +
+    `<fonts count="5">` +
     `<font><sz val="11"/><name val="Calibri"/></font>` +
     `<font><b/><sz val="11"/><name val="Calibri"/></font>` +
     `<font><sz val="10"/><name val="Consolas"/></font>` +
+    `<font><b/><sz val="11"/><name val="Consolas"/></font>` +
+    `<font><b/><sz val="11"/><color rgb="FF1D3652"/><name val="Calibri"/></font>` +
     `</fonts>` +
-    `<fills count="2"><fill><patternFill patternType="none"/></fill>` +
-    `<fill><patternFill patternType="gray125"/></fill></fills>` +
-    `<borders count="1"><border/></borders>` +
+    // Fargane er dei same som i appen: tusj-gult for det du kan endra, papir for
+    // boksane i flytskjemaet, lys blå for eit svar.
+    `<fills count="5"><fill><patternFill patternType="none"/></fill>` +
+    `<fill><patternFill patternType="gray125"/></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFFFE68C"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFF4F1E8"/><bgColor indexed="64"/></patternFill></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FFE4ECF4"/><bgColor indexed="64"/></patternFill></fill>` +
+    `</fills>` +
+    `<borders count="3"><border/>` +
+    `<border><left style="thin"><color rgb="FF1D3652"/></left>` +
+    `<right style="thin"><color rgb="FF1D3652"/></right>` +
+    `<top style="thin"><color rgb="FF1D3652"/></top>` +
+    `<bottom style="thin"><color rgb="FF1D3652"/></bottom><diagonal/></border>` +
+    `<border><left style="medium"><color rgb="FF1D3652"/></left>` +
+    `<right style="medium"><color rgb="FF1D3652"/></right>` +
+    `<top style="medium"><color rgb="FF1D3652"/></top>` +
+    `<bottom style="medium"><color rgb="FF1D3652"/></bottom><diagonal/></border>` +
+    `</borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-    `<cellXfs count="4">` +
+    `<cellXfs count="9">` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
     `<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1">` +
     `<alignment vertical="top" wrapText="1"/></xf>` +
     `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
+    `<xf numFmtId="0" fontId="3" fillId="2" borderId="2" xfId="0" ` +
+    `applyFont="1" applyFill="1" applyBorder="1"/>` +
+    `<xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" ` +
+    `applyFont="1" applyFill="1" applyBorder="1"/>` +
+    `<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" ` +
+    `applyFill="1" applyBorder="1" applyAlignment="1">` +
+    `<alignment vertical="top" wrapText="1"/></xf>` +
+    `<xf numFmtId="0" fontId="4" fillId="3" borderId="1" xfId="0" ` +
+    `applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">` +
+    `<alignment vertical="top" wrapText="1"/></xf>` +
+    `<xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" ` +
+    `applyFont="1" applyBorder="1" applyAlignment="1">` +
+    `<alignment vertical="top" wrapText="1"/></xf>` +
     `</cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
     `</styleSheet>`
