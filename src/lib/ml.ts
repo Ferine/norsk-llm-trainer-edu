@@ -144,6 +144,59 @@ export function gelu(a: Tensor): Tensor {
   return out;
 }
 
+// Elementvis multiplikasjon (Hadamard). Brukt i porta nettverk (GLU).
+export function mul(a: Tensor, b: Tensor): Tensor {
+  const out = tensor(a.rows, a.cols, [a, b]);
+  for (let i = 0; i < a.d.length; i++) out.d[i] = a.d[i] * b.d[i];
+  out._back = () => {
+    for (let i = 0; i < a.d.length; i++) {
+      a.grad[i] += out.grad[i] * b.d[i];
+      b.grad[i] += out.grad[i] * a.d[i];
+    }
+  };
+  return out;
+}
+
+export function tanh(a: Tensor): Tensor {
+  const out = tensor(a.rows, a.cols, [a]);
+  for (let i = 0; i < a.d.length; i++) out.d[i] = Math.tanh(a.d[i]);
+  out._back = () => {
+    for (let i = 0; i < a.d.length; i++) {
+      const t = out.d[i];
+      a.grad[i] += out.grad[i] * (1 - t * t);
+    }
+  };
+  return out;
+}
+
+export function sigmoid(a: Tensor): Tensor {
+  const out = tensor(a.rows, a.cols, [a]);
+  for (let i = 0; i < a.d.length; i++) {
+    const x = a.d[i];
+    out.d[i] = x >= 0 ? 1 / (1 + Math.exp(-x)) : Math.exp(x) / (1 + Math.exp(x));
+  }
+  out._back = () => {
+    for (let i = 0; i < a.d.length; i++) {
+      const s = out.d[i];
+      a.grad[i] += out.grad[i] * s * (1 - s);
+    }
+  };
+  return out;
+}
+
+// SiTU-GLU (Sigmoid Tanh Unit GLU) frå Kimi K3, likning 12:
+//   [β₁·tanh(g/β₁) ⊙ σ(g)] ⊙ [β₂·tanh(u/β₂)]
+// Same form som SwiGLU nær null, men begge greinene har eit mjukt tak, så
+// utdata kan aldri bli større enn β₁·β₂ = 100. Det hindrar at enkelttal
+// eksploderer under trening.
+export const SITU_B1 = 4;
+export const SITU_B2 = 25;
+export function situGlu(g: Tensor, u: Tensor): Tensor {
+  const gate = mul(scale(tanh(scale(g, 1 / SITU_B1)), SITU_B1), sigmoid(g));
+  const up = scale(tanh(scale(u, 1 / SITU_B2)), SITU_B2);
+  return mul(gate, up);
+}
+
 // Softmax over kvar rad (numerisk stabil).
 export function softmaxRow(a: Tensor): Tensor {
   const n = a.rows,
@@ -496,6 +549,10 @@ function ones1(cols: number): Tensor {
 
 // ------------------------------ Transformator --------------------------------
 
+// Aktiveringsfunksjonen i det breie laget: den klassiske GELU, eller SiTU-GLU
+// slik Kimi K3 bruker (porta, med mjukt tak).
+export type Activation = "gelu" | "situ";
+
 export interface ModelConfig {
   vocab: number;
   dim: number;
@@ -503,6 +560,14 @@ export interface ModelConfig {
   nHead: number;
   seqLen: number;
   ffnMult: number;
+  act?: Activation;
+}
+
+// Breidda på det breie laget. GLU-varianten har tre matriser der GELU har to,
+// så vi krympar breidda til 2/3 og held talet på justeringsskruer om lag likt.
+export function ffnWidth(cfg: ModelConfig): number {
+  const wide = cfg.dim * cfg.ffnMult;
+  return cfg.act === "situ" ? Math.max(1, Math.round((wide * 2) / 3)) : wide;
 }
 
 interface Block {
@@ -514,10 +579,22 @@ interface Block {
   Wo: Tensor;
   ln2g: Tensor;
   ln2b: Tensor;
+  // GELU: W1/b1 er det breie laget. SiTU-GLU: W1/b1 er port-greina (W_g),
+  // og Wu/bu er opp-greina (W_u).
   W1: Tensor;
   b1: Tensor;
+  Wu?: Tensor;
+  bu?: Tensor;
   W2: Tensor;
   b2: Tensor;
+}
+
+// Parametrane delt i to: matriser som Muon ortogonaliserer (med tal på hovud
+// der matrisa er delt per hovud), og resten – bias, normaliseringar og
+// tabellar – som får vanleg Adam.
+export interface MuonGroups {
+  matrix: { p: Tensor; heads: number }[];
+  scalar: Tensor[];
 }
 
 // A single head's post-softmax attention matrix, captured for visualization.
@@ -552,10 +629,13 @@ export class Transformer {
       throw new RangeError("seqLen must be a positive integer");
     if (!Number.isInteger(cfg.ffnMult) || cfg.ffnMult < 1)
       throw new RangeError("ffnMult must be a positive integer");
+    if (cfg.act !== undefined && cfg.act !== "gelu" && cfg.act !== "situ")
+      throw new RangeError('act must be "gelu" or "situ"');
 
     this.cfg = cfg;
-    const { vocab, dim, nLayer, seqLen, ffnMult } = cfg;
-    const ffn = dim * ffnMult;
+    const { vocab, dim, nLayer, seqLen } = cfg;
+    const ffn = ffnWidth(cfg);
+    const situ = cfg.act === "situ";
     this.params = [];
     this.tokEmb = param(vocab, dim, rng, 0.02);
     this.posEmb = param(seqLen, dim, rng, 0.02);
@@ -575,17 +655,52 @@ export class Transformer {
         W2: param(ffn, dim, rng, 0.02),
         b2: zeros1(dim),
       };
+      if (situ) {
+        blk.Wu = param(dim, ffn, rng, 0.02);
+        blk.bu = zeros1(ffn);
+      }
       this.blocks.push(blk);
     }
     this.lnFg = ones1(dim);
     this.lnFb = zeros1(dim);
     this.head = param(dim, vocab, rng, 0.02);
-    for (const blk of this.blocks)
+    for (const blk of this.blocks) {
       this.params.push(
         blk.ln1g, blk.ln1b, blk.Wq, blk.Wk, blk.Wv, blk.Wo,
         blk.ln2g, blk.ln2b, blk.W1, blk.b1, blk.W2, blk.b2
       );
+      if (blk.Wu && blk.bu) this.params.push(blk.Wu, blk.bu);
+    }
     this.params.push(this.tokEmb, this.posEmb, this.lnFg, this.lnFb, this.head);
+  }
+
+  get act(): Activation {
+    return this.cfg.act ?? "gelu";
+  }
+
+  // Deler parametrane slik Muon vil ha dei: matrisene i nettverket blir
+  // ortogonaliserte (spørsmål/nøkkel/verdi eitt hovud om gongen, slik K3 gjer),
+  // medan tabellar, bias og normaliseringar går til Adam. Innebygging og
+  // utdata-hovudet er ikkje «indre» matriser og høyrer difor til Adam.
+  optimGroups(): MuonGroups {
+    const matrix: { p: Tensor; heads: number }[] = [];
+    const scalar: Tensor[] = [];
+    const nHead = this.cfg.nHead;
+    for (const blk of this.blocks) {
+      matrix.push(
+        { p: blk.Wq, heads: nHead },
+        { p: blk.Wk, heads: nHead },
+        { p: blk.Wv, heads: nHead },
+        { p: blk.Wo, heads: 1 },
+        { p: blk.W1, heads: 1 },
+        { p: blk.W2, heads: 1 }
+      );
+      if (blk.Wu) matrix.push({ p: blk.Wu, heads: 1 });
+      scalar.push(blk.ln1g, blk.ln1b, blk.ln2g, blk.ln2b, blk.b1, blk.b2);
+      if (blk.bu) scalar.push(blk.bu);
+    }
+    scalar.push(this.tokEmb, this.posEmb, this.lnFg, this.lnFb, this.head);
+    return { matrix, scalar };
   }
 
   get vocab() {
@@ -617,9 +732,15 @@ export class Transformer {
   }
 
   private ffn(blk: Block, x: Tensor): Tensor {
-    let h = matmul(x, blk.W1);
-    h = addRow(h, blk.b1);
-    h = gelu(h);
+    let h: Tensor;
+    if (blk.Wu && blk.bu) {
+      // SiTU-GLU: to greiner ut i det breie laget, gonga saman.
+      const g = addRow(matmul(x, blk.W1), blk.b1);
+      const u = addRow(matmul(x, blk.Wu), blk.bu);
+      h = situGlu(g, u);
+    } else {
+      h = gelu(addRow(matmul(x, blk.W1), blk.b1));
+    }
     h = matmul(h, blk.W2);
     h = addRow(h, blk.b2);
     return h;
@@ -675,6 +796,27 @@ export function cloneTransformer(src: Transformer): Transformer {
 
 // -------------------------------- Adam --------------------------------------
 
+// Alt treninga treng av ein optimerar. Både Adam og Muon oppfyller han, så
+// treningsløkka kan byta utan å vita kven ho snakkar med.
+export interface Optimizer {
+  lr: number;
+  zeroGrad(): void;
+  clipGradNorm(maxNorm: number): void;
+  step(): void;
+}
+
+// Klypp gradienten til ei fast norm (hindrar eksplosjon). Delt av alle
+// optimerarane, så dei ser nøyaktig same gradient.
+function clipGrads(params: Tensor[], maxNorm: number) {
+  let total = 0;
+  for (const p of params) for (let i = 0; i < p.grad.length; i++) total += p.grad[i] * p.grad[i];
+  const norm = Math.sqrt(total);
+  if (norm > maxNorm) {
+    const f = maxNorm / (norm + 1e-6);
+    for (const p of params) for (let i = 0; i < p.grad.length; i++) p.grad[i] *= f;
+  }
+}
+
 export class Adam {
   m: Float32Array[];
   v: Float32Array[];
@@ -694,15 +836,8 @@ export class Adam {
     for (const p of this.params) p.grad.fill(0);
   }
 
-  // Klypp gradienten til ei fast norm (hindrar eksplosjon).
   clipGradNorm(maxNorm: number) {
-    let total = 0;
-    for (const p of this.params) for (let i = 0; i < p.grad.length; i++) total += p.grad[i] * p.grad[i];
-    const norm = Math.sqrt(total);
-    if (norm > maxNorm) {
-      const f = maxNorm / (norm + 1e-6);
-      for (const p of this.params) for (let i = 0; i < p.grad.length; i++) p.grad[i] *= f;
-    }
+    clipGrads(this.params, maxNorm);
   }
 
   step() {
@@ -725,10 +860,272 @@ export class Adam {
   }
 }
 
+// -------------------------------- Muon --------------------------------------
+// Muon = «momentum ortogonalisert med Newton–Schulz». Adam skalerer kvart tal
+// for seg; Muon ser heile matrisa under eitt og gjer retninga så jamn som mogleg
+// før steget – ingen retning får dominera. Kimi K3 (§2.5) bruker han på alle
+// matrisene i nettverket, og for spørsmål/nøkkel/verdi eitt hovud om gongen.
+
+// C = A × B, der A er n×k og B er k×m. Rå Float32Array – ingen autograd.
+function mmRaw(A: Float32Array, n: number, k: number, B: Float32Array, m: number): Float32Array {
+  const out = new Float32Array(n * m);
+  for (let r = 0; r < n; r++)
+    for (let p = 0; p < k; p++) {
+      const a = A[r * k + p];
+      if (a === 0) continue;
+      for (let c = 0; c < m; c++) out[r * m + c] += a * B[p * m + c];
+    }
+  return out;
+}
+
+// A × Aᵀ (n×n) for A som er n×k.
+function mmTRaw(A: Float32Array, n: number, k: number): Float32Array {
+  const out = new Float32Array(n * n);
+  for (let r = 0; r < n; r++)
+    for (let c = 0; c <= r; c++) {
+      let s = 0;
+      for (let p = 0; p < k; p++) s += A[r * k + p] * A[c * k + p];
+      out[r * n + c] = s;
+      out[c * n + r] = s;
+    }
+  return out;
+}
+
+function transposeRaw(A: Float32Array, rows: number, cols: number): Float32Array {
+  const out = new Float32Array(rows * cols);
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) out[c * rows + r] = A[r * cols + c];
+  return out;
+}
+
+// Newton–Schulz-iterasjonen: ei femtegradspolynom-oppskrift som dyttar alle
+// singulærverdiane til matrisa mot 1 – altså mot ei ortogonal matrise – utan å
+// rekna ein einaste singulærverdi. Fem rundar er nok i praksis.
+const NS_A = 3.4445;
+const NS_B = -4.775;
+const NS_C = 2.0315;
+export function newtonSchulz(
+  G: Float32Array,
+  rows: number,
+  cols: number,
+  steps = 5
+): Float32Array {
+  if (G.length !== rows * cols) throw new RangeError("newtonSchulz: shape does not match data");
+  // Arbeid alltid med den låge sida ned: då er Gram-matrisa så lita som råd.
+  const tall = rows > cols;
+  const m = tall ? cols : rows;
+  const n = tall ? rows : cols;
+  let X = tall ? transposeRaw(G, rows, cols) : Float32Array.from(G);
+
+  let fro = 0;
+  for (let i = 0; i < X.length; i++) fro += X[i] * X[i];
+  fro = Math.sqrt(fro);
+  if (fro < 1e-12) return new Float32Array(rows * cols);
+  const inv = 1 / (fro + 1e-7);
+  for (let i = 0; i < X.length; i++) X[i] *= inv;
+
+  for (let s = 0; s < steps; s++) {
+    const A = mmTRaw(X, m, n); // m×m
+    const AA = mmRaw(A, m, m, A, m); // m×m
+    const B = new Float32Array(m * m);
+    for (let i = 0; i < B.length; i++) B[i] = NS_B * A[i] + NS_C * AA[i];
+    const BX = mmRaw(B, m, m, X, n); // m×n
+    for (let i = 0; i < X.length; i++) X[i] = NS_A * X[i] + BX[i];
+  }
+  return tall ? transposeRaw(X, m, n) : X;
+}
+
+export class Muon implements Optimizer {
+  params: Tensor[];
+  private mom: Float32Array[];
+  private adam: Adam;
+  private _lr: number;
+
+  constructor(
+    public groups: MuonGroups,
+    lr = 8e-4,
+    public momentum = 0.95,
+    public nsSteps = 5
+  ) {
+    this._lr = lr;
+    this.mom = groups.matrix.map((g) => new Float32Array(g.p.d.length));
+    this.adam = new Adam(groups.scalar, lr);
+    this.params = [...groups.matrix.map((g) => g.p), ...groups.scalar];
+  }
+
+  get lr() {
+    return this._lr;
+  }
+  set lr(v: number) {
+    this._lr = v;
+    this.adam.lr = v;
+  }
+
+  zeroGrad() {
+    for (const p of this.params) p.grad.fill(0);
+  }
+
+  clipGradNorm(maxNorm: number) {
+    clipGrads(this.params, maxNorm);
+  }
+
+  step() {
+    this.adam.step(); // bias, normaliseringar og tabellar
+    for (let i = 0; i < this.groups.matrix.length; i++) {
+      const { p, heads } = this.groups.matrix[i];
+      const buf = this.mom[i];
+      // Momentum med Nesterov-framblikk, som i Muon-referansen.
+      for (let j = 0; j < buf.length; j++) buf[j] = this.momentum * buf[j] + p.grad[j];
+      const rows = p.rows;
+      const cols = p.cols;
+      const hd = cols / heads;
+      if (!Number.isInteger(hd)) throw new RangeError("Muon: heads must divide the column count");
+      const blk = new Float32Array(rows * hd);
+      for (let h = 0; h < heads; h++) {
+        const c0 = h * hd;
+        for (let r = 0; r < rows; r++)
+          for (let c = 0; c < hd; c++) {
+            const j = r * cols + c0 + c;
+            blk[r * hd + c] = p.grad[j] + this.momentum * buf[j];
+          }
+        const o = newtonSchulz(blk, rows, hd, this.nsSteps);
+        // Ei ortogonal matrise har små tal (~1/√maks), så vi skalerer opp for
+        // at eit Muon-steg skal bli like stort som eit Adam-steg med same lr.
+        const sc = this._lr * 0.2 * Math.sqrt(Math.max(rows, hd));
+        for (let r = 0; r < rows; r++)
+          for (let c = 0; c < hd; c++) p.d[r * cols + c0 + c] -= sc * o[r * hd + c];
+      }
+    }
+  }
+}
+
+// ------------------------- læringsrate-plan (K3 §3.3) ------------------------
+// Kort oppvarming (1 % av stega) og så ei kosinuskurve ned mot ein botn. K3
+// gjorde eit eige skaleringsstudium og fann at dette slår ein flat rate.
+export interface LrSchedule {
+  peak: number;
+  total: number;
+  warmupFrac?: number;
+  minFrac?: number;
+}
+export function cosineLr(step: number, o: LrSchedule): number {
+  if (!(o.peak > 0)) throw new RangeError("peak learning rate must be positive");
+  if (!Number.isInteger(o.total) || o.total < 1)
+    throw new RangeError("total must be a positive integer");
+  const warmupFrac = o.warmupFrac ?? 0.01;
+  const minFrac = o.minFrac ?? 0.1;
+  const min = o.peak * minFrac;
+  const warm = Math.max(1, Math.floor(o.total * warmupFrac));
+  const t = Math.max(0, Math.min(o.total, step));
+  if (t < warm) return (o.peak * (t + 1)) / warm;
+  const p = Math.min(1, (t - warm) / Math.max(1, o.total - warm));
+  return min + (o.peak - min) * 0.5 * (1 + Math.cos(Math.PI * p));
+}
+
+// ---------------------- 4-bits vekter (MXFP4, K3 §4.1.4) ---------------------
+// Kvart tal får berre 4 bit: eitt forteikn og ein av åtte storleikar. Kvar
+// blokk på 32 tal deler ein felles todelt skala (ein toarpotens), som kostar
+// eitt byte. K3 krympar berre ekspert-vektene på denne måten – her tilsvarar
+// det det breie laget. Vi legg talet tilbake som float32 («fake quant»), akkurat
+// som når ein trenar med kvantisering på.
+const E2M1 = [0, 0.5, 1, 1.5, 2, 3, 4, 6];
+
+export interface QuantStats {
+  values: number;
+  blocks: number;
+  bytesBefore: number;
+  bytesAfter: number;
+  meanAbsErr: number;
+  maxAbsErr: number;
+}
+
+function quantizeArray(d: Float32Array, blockSize: number, acc: QuantStats) {
+  for (let start = 0; start < d.length; start += blockSize) {
+    const end = Math.min(d.length, start + blockSize);
+    let maxAbs = 0;
+    for (let i = start; i < end; i++) {
+      const a = Math.abs(d[i]);
+      if (a > maxAbs) maxAbs = a;
+    }
+    acc.blocks++;
+    acc.values += end - start;
+    if (maxAbs === 0) continue;
+    // Felles skala: største tal i blokka skal treffa toppen av skalaen (6).
+    const exp = Math.max(-127, Math.min(127, Math.floor(Math.log2(maxAbs)) - 2));
+    const scale = Math.pow(2, exp);
+    for (let i = start; i < end; i++) {
+      const v = d[i];
+      const a = Math.abs(v) / scale;
+      let best = 0;
+      let bestErr = Infinity;
+      for (let c = 0; c < E2M1.length; c++) {
+        const err = Math.abs(a - E2M1[c]);
+        if (err < bestErr) {
+          bestErr = err;
+          best = c;
+        }
+      }
+      const q = Math.sign(v) * E2M1[best] * scale;
+      const e = Math.abs(q - v);
+      acc.meanAbsErr += e;
+      if (e > acc.maxAbsErr) acc.maxAbsErr = e;
+      d[i] = q;
+    }
+  }
+}
+
+// Krympar det breie laget i alle blokkene til 4 bit, på plass. Merksemd,
+// normaliseringar og tabellar står att i full presisjon, slik K3 gjer det.
+export function quantizeFfnMxfp4(model: Transformer, blockSize = 32): QuantStats {
+  if (!Number.isInteger(blockSize) || blockSize < 1)
+    throw new RangeError("blockSize must be a positive integer");
+  const acc: QuantStats = {
+    values: 0,
+    blocks: 0,
+    bytesBefore: 0,
+    bytesAfter: 0,
+    meanAbsErr: 0,
+    maxAbsErr: 0,
+  };
+  for (const blk of model.blocks) {
+    quantizeArray(blk.W1.d, blockSize, acc);
+    if (blk.Wu) quantizeArray(blk.Wu.d, blockSize, acc);
+    quantizeArray(blk.W2.d, blockSize, acc);
+  }
+  acc.meanAbsErr = acc.values ? acc.meanAbsErr / acc.values : 0;
+  acc.bytesBefore = acc.values * 4;
+  acc.bytesAfter = Math.ceil(acc.values / 2) + acc.blocks;
+  return acc;
+}
+
+// Snitt-tap over nokre faste utdrag. Ingen baklengs propagasjon – berre måling.
+export function evalLoss(
+  model: Transformer,
+  data: number[],
+  seqLen: number,
+  batches: number,
+  rng: () => number
+): number {
+  if (data.length < 2) throw new RangeError("Evaluation data must contain at least two tokens");
+  const effectiveSeqLen = Math.min(seqLen, data.length - 1, model.seqLen);
+  const startCount = data.length - effectiveSeqLen;
+  let total = 0;
+  for (let b = 0; b < batches; b++) {
+    const start = Math.max(0, Math.min(startCount - 1, Math.floor(rng() * startCount)));
+    const x: number[] = [];
+    const y: number[] = [];
+    for (let i = 0; i < effectiveSeqLen; i++) {
+      x.push(data[start + i]);
+      y.push(data[start + i + 1]);
+    }
+    total += crossEntropyLoss(model.forward(x), y).d[0];
+  }
+  return total / batches;
+}
+
 // Eitt treningssteg over ein minibatch av tilfeldige utdrag. Returnerer snitt-tap.
 export function trainStep(
   model: Transformer,
-  opt: Adam,
+  opt: Optimizer,
   data: number[],
   seqLen: number,
   batchSize: number,
@@ -791,7 +1188,7 @@ function capSeq(promptIds: number[], contIds: number[], seqLen: number): { seq: 
 export function dpoStep(
   policy: Transformer,
   reference: Transformer,
-  opt: Adam,
+  opt: Optimizer,
   pairs: PrefPair[],
   batch: number,
   beta: number,
