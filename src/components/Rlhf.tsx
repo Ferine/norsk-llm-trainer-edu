@@ -29,7 +29,18 @@ function PrefCard({
   );
 }
 
-export default function Rlhf({ rlhf, examples, s }: { rlhf: RlhfApi; examples: string[]; s: Strings }) {
+export default function Rlhf({
+  rlhf,
+  examples,
+  s,
+  // Nullstillinga rullar vektene tilbake, så ho går gjennom App, som spør først.
+  onResetTuning,
+}: {
+  rlhf: RlhfApi;
+  examples: string[];
+  s: Strings;
+  onResetTuning: () => void;
+}) {
   const busy = rlhf.baseRunning || rlhf.dpoRunning || rlhf.generating;
 
   if (!rlhf.started) {
@@ -117,7 +128,7 @@ export default function Rlhf({ rlhf, examples, s }: { rlhf: RlhfApi; examples: s
             {s.rlhf.stop}
           </button>
         )}
-        <button onClick={rlhf.resetTuning} disabled={busy} className="knapp knapp-omriss knapp-sm">
+        <button onClick={onResetTuning} disabled={busy} className="knapp knapp-omriss knapp-sm">
           {s.rlhf.resetTuning}
         </button>
         {/* talet på val er synleg – det forklarer kvifor «Tren mer» er grått ved 0 */}
