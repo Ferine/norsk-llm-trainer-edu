@@ -1069,6 +1069,12 @@ export default function App() {
           <Rlhf rlhf={rlhf} examples={examples} s={s} onResetTuning={onResetTuning} />
         </Section>
 
+        {/* Ærlig note – lærerens rettepenn, etter at eleven har prøvd modellen */}
+        <section className="rounded-[3px] border-2 border-rettepenn bg-white p-5 text-sm leading-relaxed">
+          <b className="text-rettepenn">{s.warning.lead}</b>
+          {s.warning.body}
+        </section>
+
         {/* Eigen tekst */}
         <Section
           id="eigentekst"
@@ -1097,12 +1103,6 @@ export default function App() {
             </div>
           </Card>
         </Section>
-
-        {/* Ærlig note – lærerens rettepenn, siste ord etter at eleven har prøvd seg */}
-        <section className="rounded-[3px] border-2 border-rettepenn bg-white p-5 text-sm leading-relaxed">
-          <b className="text-rettepenn">{s.warning.lead}</b>
-          {s.warning.body}
-        </section>
       </main>
 
       <footer className="border-t-2 border-blekk py-8">
