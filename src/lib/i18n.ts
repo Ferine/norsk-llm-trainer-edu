@@ -119,6 +119,7 @@ export interface Strings {
     screwsIdle: string;
     liveLabel: string;
     livePlaceholder: string;
+    fanNote: string;
   };
   chat: {
     title: string;
@@ -374,6 +375,8 @@ const bm: Strings = {
     screwsIdle: "Start treningen for å se skruene i arbeid.",
     liveLabel: "Dette skriver modellen nå",
     livePlaceholder: "Trykk «Start trening» for å se eksempler underveis…",
+    fanNote:
+      "Nå kan viftene på maskinen din begynne å suse – helt normalt. All regningen skjer her på din egen maskin, ingenting sendes ut på nettet.",
   },
   chat: {
     title: "Prøv modellen",
@@ -650,6 +653,8 @@ const nn: Strings = {
     screwsIdle: "Start treninga for å sjå skruane i arbeid.",
     liveLabel: "Dette skriv modellen no",
     livePlaceholder: "Trykk «Start trening» for å sjå døme undervegs…",
+    fanNote:
+      "No kan viftene på maskina di byrje å suse – heilt normalt. All rekninga skjer her på di eiga maskin, ingenting blir sendt ut på nettet.",
   },
   chat: {
     title: "Prøv modellen",

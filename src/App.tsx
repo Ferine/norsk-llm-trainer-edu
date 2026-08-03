@@ -896,6 +896,13 @@ export default function App() {
               />
             </div>
 
+            {/* liten trøstemelding når maskina byrjar å jobbe */}
+            {running && (
+              <p className="text-xs leading-relaxed text-blyant" role="status">
+                {s.train.fanNote}
+              </p>
+            )}
+
             {/* tap-graf */}
             <div>
               <h3 className="mb-2 font-semibold text-blekk">{s.train.lossHeading}</h3>
