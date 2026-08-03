@@ -967,12 +967,6 @@ export default function App() {
           </Card>
         </Section>
 
-        {/* Ærlig note – lærerens rettepenn, plassert FØR eleven prøver seg */}
-        <section className="rounded-[3px] border-2 border-rettepenn bg-white p-5 text-sm leading-relaxed">
-          <b className="text-rettepenn">{s.warning.lead}</b>
-          {s.warning.body}
-        </section>
-
         {/* Chat / generering */}
         <Section
           id="chat"
@@ -1103,6 +1097,12 @@ export default function App() {
             </div>
           </Card>
         </Section>
+
+        {/* Ærlig note – lærerens rettepenn, siste ord etter at eleven har prøvd seg */}
+        <section className="rounded-[3px] border-2 border-rettepenn bg-white p-5 text-sm leading-relaxed">
+          <b className="text-rettepenn">{s.warning.lead}</b>
+          {s.warning.body}
+        </section>
       </main>
 
       <footer className="border-t-2 border-blekk py-8">
