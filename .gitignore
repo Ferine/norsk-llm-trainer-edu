@@ -3,3 +3,4 @@ dist/
 .pnpm-store/
 .DS_Store
 test/dist/
+k3_tech_report.pdf
