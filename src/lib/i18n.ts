@@ -218,6 +218,10 @@ export interface Strings {
     excelHint: string;
     excelBusy: string;
     excelDone: string;
+    gguf: string;
+    ggufHint: string;
+    ggufBusy: string;
+    ggufDone: string;
   };
   docTitle: string;
 }
@@ -496,6 +500,11 @@ const bm: Strings = {
       "Modellen du nettopp trente, som en Excel-fil som skriver tekst med vanlige formler – ingen makroer.",
     excelBusy: "lager regneark …",
     excelDone: "lastet ned",
+    gguf: "Last ned modellen som modellfil (GGUF)",
+    ggufHint:
+      "Samme filformat som de store modellene deles i. Du kan åpne den med vanlige GGUF-verktøy og se hver eneste skrue modellen har lært – men den er ikke laget for å kjøres av dem.",
+    ggufBusy: "lager modellfil …",
+    ggufDone: "lastet ned",
   },
   docTitle: "Språkmodell-trener – bygg AI på bokmål",
 };
@@ -774,6 +783,11 @@ const nn: Strings = {
       "Modellen du nettopp trena, som ei Excel-fil som skriv tekst med vanlege formlar – ingen makroar.",
     excelBusy: "lagar rekneark …",
     excelDone: "lasta ned",
+    gguf: "Last ned modellen som modellfil (GGUF)",
+    ggufHint:
+      "Same filformatet som dei store modellane blir delte i. Du kan opne henne med vanlege GGUF-verktøy og sjå kvar einaste skrue modellen har lært – men ho er ikkje laga for å køyrast av dei.",
+    ggufBusy: "lagar modellfil …",
+    ggufDone: "lasta ned",
   },
   docTitle: "Språkmodell-trenar – bygg AI på nynorsk",
 };

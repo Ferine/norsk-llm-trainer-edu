@@ -24,6 +24,7 @@ import Slankekur from "@/components/Slankekur";
 import Bekreft, { type Ask } from "@/components/Bekreft";
 import { useRlhf } from "@/lib/useRlhf";
 import { buildModelWorkbook } from "@/lib/excel-model";
+import { buildModelGguf, downloadGguf } from "@/lib/gguf";
 import { downloadWorkbook } from "@/lib/xlsx-zip";
 
 const MAX_STEPS = 3500;
@@ -378,6 +379,37 @@ export default function App() {
       }
     }, 32);
   }, [eggState, lang, preset, seed.trainSeed]);
+
+  // ---- last ned modellen som GGUF ----
+  // Same filformatet som Llama og Mistral blir delte i. Sjå src/lib/gguf.ts for
+  // kva vi kan og ikkje kan love om henne.
+  const [ggufState, setGgufState] = useState<"idle" | "working" | "done">("idle");
+
+  const onGgufClick = useCallback(() => {
+    if (ggufState === "working") return;
+    const eng = engineRef.current;
+    if (!eng || stepRef.current === 0) return;
+
+    setGgufState("working");
+    window.setTimeout(async () => {
+      try {
+        const built = buildModelGguf({
+          model: eng.model,
+          tokenizer: eng.tokenizer,
+          step: stepRef.current,
+          loss: lossesRef.current.length ? lossesRef.current[lossesRef.current.length - 1] : 0,
+          presetName: preset,
+          lang,
+        });
+        await downloadGguf(built.bytes, `sprakmodell-${preset}-steg${stepRef.current}.gguf`);
+        setGgufState("done");
+        window.setTimeout(() => setGgufState("idle"), 6000);
+      } catch (err) {
+        console.error("gguf-eksport feila", err);
+        setGgufState("idle");
+      }
+    }, 32);
+  }, [ggufState, lang, preset]);
 
   // Nullstilling kastar ei trena økt – krev to trykk når det finst noko å miste.
   const onResetClick = useCallback(() => guard("reset", reset), [guard, reset]);
@@ -1113,6 +1145,7 @@ export default function App() {
           {/* Dukkar opp så snart det finst noko trent, men ikkje midt i treninga:
               eksporten blokkerer tråden ein augneblink, og vektene ville flytta seg. */}
           {step > 0 && !running && (
+            <>
             <div className="mt-6">
               <button
                 onClick={onExcelClick}
@@ -1129,6 +1162,23 @@ export default function App() {
                 )}
               </div>
             </div>
+            <div className="mt-6">
+              <button
+                onClick={onGgufClick}
+                disabled={ggufState === "working"}
+                className="knapp knapp-omriss knapp-sm"
+              >
+                {s.footer.gguf}
+              </button>
+              <div className="mx-auto mt-2 max-w-md">
+                {ggufState === "idle" && s.footer.ggufHint}
+                {ggufState === "working" && s.footer.ggufBusy}
+                {ggufState === "done" && (
+                  <span className="handnotat text-base">✓ {s.footer.ggufDone}</span>
+                )}
+              </div>
+            </div>
+            </>
           )}
         </div>
       </footer>
