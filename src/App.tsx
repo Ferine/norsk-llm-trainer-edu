@@ -182,6 +182,10 @@ export default function App() {
   const [ask, setAsk] = useState<Ask | null>(null);
   // Tel opp for kvar ny motor, så skrue-visualiseringa veit når ho må nullstille utvalet sitt.
   const [engineGen, setEngineGen] = useState(0);
+  // Har eleven vore innom slankekuren? Då tek rekneark-eksporten med arket om
+  // 4 bit. Ein ny motor er ein ny start, så flagget følgjer engineGen.
+  const [slankRan, setSlankRan] = useState(false);
+  useEffect(() => setSlankRan(false), [engineGen]);
 
   const rlhf = useRlhf({
     getModel: () => engineRef.current?.model ?? null,
@@ -347,6 +351,7 @@ export default function App() {
   // Sjå src/lib/excel-model.ts. Knappen ligg i botnteksten, og berre når det
   // finst noko trent (ei tilfeldig modell ville berre skrive støy).
   const [eggState, setEggState] = useState<"idle" | "working" | "done">("idle");
+  const onSlankRan = useCallback(() => setSlankRan(true), []);
 
   const onExcelClick = useCallback(() => {
     if (eggState === "working") return;
@@ -366,6 +371,7 @@ export default function App() {
           loss: lossesRef.current.length ? lossesRef.current[lossesRef.current.length - 1] : 0,
           presetName: preset,
           lang,
+          includeQuant: slankRan,
         });
         await downloadWorkbook(
           built.workbook,
@@ -378,7 +384,7 @@ export default function App() {
         setEggState("idle");
       }
     }, 32);
-  }, [eggState, lang, preset, seed.trainSeed]);
+  }, [eggState, lang, preset, seed.trainSeed, slankRan]);
 
   // ---- last ned modellen som GGUF ----
   // Same filformatet som Llama og Mistral blir delte i. Sjå src/lib/gguf.ts for
@@ -965,6 +971,7 @@ export default function App() {
                 prompt={seed.trainSeed}
                 locale={activeLocale}
                 s={s.train.slank}
+                onRan={onSlankRan}
               />
             </Advanced>
 

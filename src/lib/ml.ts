@@ -1027,7 +1027,34 @@ export function cosineLr(step: number, o: LrSchedule): number {
 // eitt byte. K3 krympar berre ekspert-vektene på denne måten – her tilsvarar
 // det det breie laget. Vi legg talet tilbake som float32 («fake quant»), akkurat
 // som når ein trenar med kvantisering på.
-const E2M1 = [0, 0.5, 1, 1.5, 2, 3, 4, 6];
+// Dei åtte storleikane eit 4-bits tal kan ha. Fortegnet ligg i den fjerde biten,
+// så kodane 0–7 er positive og 8–15 negative – men ±0 er same talet, så det
+// finst 15 ulike verdiar, ikkje 16.
+export const E2M1 = [0, 0.5, 1, 1.5, 2, 3, 4, 6];
+
+// Den felles skalaen ei blokk får: største talet i blokka skal treffa toppen av
+// skalaen (6). Eksportert så rekneark-arket kan visa nøyaktig same tal som her.
+export function mxfp4Scale(maxAbs: number): number {
+  if (maxAbs === 0) return 0;
+  const exp = Math.max(-127, Math.min(127, Math.floor(Math.log2(maxAbs)) - 2));
+  return Math.pow(2, exp);
+}
+
+// Kva av dei åtte storleikane eit tal endar på, gjeve blokka si skala.
+export function mxfp4Code(v: number, scale: number): number {
+  if (scale === 0) return 0;
+  const a = Math.abs(v) / scale;
+  let best = 0;
+  let bestErr = Infinity;
+  for (let c = 0; c < E2M1.length; c++) {
+    const err = Math.abs(a - E2M1[c]);
+    if (err < bestErr) {
+      bestErr = err;
+      best = c;
+    }
+  }
+  return v < 0 ? best + 8 : best;
+}
 
 export interface QuantStats {
   values: number;
@@ -1049,22 +1076,10 @@ function quantizeArray(d: Float32Array, blockSize: number, acc: QuantStats) {
     acc.blocks++;
     acc.values += end - start;
     if (maxAbs === 0) continue;
-    // Felles skala: største tal i blokka skal treffa toppen av skalaen (6).
-    const exp = Math.max(-127, Math.min(127, Math.floor(Math.log2(maxAbs)) - 2));
-    const scale = Math.pow(2, exp);
+    const scale = mxfp4Scale(maxAbs);
     for (let i = start; i < end; i++) {
       const v = d[i];
-      const a = Math.abs(v) / scale;
-      let best = 0;
-      let bestErr = Infinity;
-      for (let c = 0; c < E2M1.length; c++) {
-        const err = Math.abs(a - E2M1[c]);
-        if (err < bestErr) {
-          bestErr = err;
-          best = c;
-        }
-      }
-      const q = Math.sign(v) * E2M1[best] * scale;
+      const q = Math.sign(v) * E2M1[mxfp4Code(v, scale) % 8] * scale;
       const e = Math.abs(q - v);
       acc.meanAbsErr += e;
       if (e > acc.maxAbsErr) acc.maxAbsErr = e;

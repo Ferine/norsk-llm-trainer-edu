@@ -3,7 +3,15 @@
 // Run for both activations — the sheet has to follow whatever the model does.
 
 import assert from "node:assert/strict";
-import { Transformer, Adam, mulberry32, trainStep } from "./dist/ml.js";
+import {
+  Transformer,
+  Adam,
+  mulberry32,
+  trainStep,
+  cloneTransformer,
+  quantizeFfnMxfp4,
+  E2M1,
+} from "./dist/ml.js";
 import { buildTokenizer } from "./dist/corpus.js";
 import { buildModelWorkbook } from "./dist/excel-model.js";
 import { buildXlsxParts, STYLE_INPUT } from "./dist/xlsx.js";
@@ -45,6 +53,7 @@ function check(act) {
     loss,
     presetName: "test",
     lang: "nn",
+    includeQuant: true,
   });
 
   const T = built.positions;
@@ -188,6 +197,102 @@ function check(act) {
       `a live value went non-finite: ${v}`
     );
   console.log(`  flow: ${steps} steps, ${liveValues.length} live values, 1 editable cell`);
+
+  // ---- 7b. the Slankekur sheet ---------------------------------------------
+  // The sheet claims to show what ml.ts's quantiser actually does. Rebuild that
+  // independently and hold the sheet to it, cell by cell.
+  const slank = built.workbook.sheets.at(-1);
+  assert.equal(slank.name, "Slankekur", "the 4-bit sheet should be the last tab");
+
+  const wantQuant = cloneTransformer(model);
+  const wantStats = quantizeFfnMxfp4(wantQuant, 32);
+  assert.deepEqual(built.quant, wantStats, "reported stats should match ml.ts");
+  assert.ok(wantStats.bytesAfter * 6 < wantStats.bytesBefore, "4 bit should shrink by ~7x");
+
+  // Pull the sheet apart by reading its own cells back, not by trusting layout.
+  const cellAt = (row, col) => slank.cells.get(row)?.get(col);
+  const evalAt = (row, col) => eng.cell(`Slankekur!$${colLetters(col)}$${row}`);
+
+  // The 16 codes: each row's value must be the signed E2M1 magnitude.
+  let codeRows = 0;
+  for (const [row, line] of slank.cells) {
+    const code = line.get(2);
+    const val = line.get(3);
+    const bits = line.get(1);
+    if (!code || typeof code.n !== "number" || code.n > 15) continue;
+    if (!bits || typeof bits.s !== "string" || !/^[01]{4}$/.test(bits.s)) continue;
+    if (!val || typeof val.n !== "number") continue;
+    if (Number(parseInt(bits.s, 2)) !== code.n) continue;
+    const want = code.n >= 8 ? -E2M1[code.n % 8] : E2M1[code.n % 8];
+    assert.equal(val.n, want, `code ${code.n} should be ${want}`);
+    codeRows++;
+  }
+  assert.equal(codeRows, 16, `expected 16 code rows, found ${codeRows}`);
+
+  // The sample rows: "etter" must be what ml.ts produced, "feil" must be the
+  // formula's own answer, and bits + magnitude must rebuild "etter" exactly.
+  const firstFfn = model.blocks[0].W1.d;
+  const quantFfn = wantQuant.blocks[0].W1.d;
+  let sampleRows = 0;
+  let sawClipped = false;
+  for (const [row, line] of slank.cells) {
+    const idx = line.get(1);
+    const before = line.get(2);
+    const after = line.get(3);
+    const err = line.get(4);
+    const bits = line.get(5);
+    const mag = line.get(6);
+    if (!idx || typeof idx.n !== "number") continue;
+    if (!before || typeof before.n !== "number") continue;
+    if (!after || typeof after.n !== "number" || !err?.f || !bits || !mag) continue;
+
+    assert.equal(before.n, firstFfn[idx.n], `row ${row}: "før" should be the real weight`);
+    assert.equal(after.n, quantFfn[idx.n], `row ${row}: "etter" should be what ml.ts produced`);
+
+    const gotErr = evalAt(row, 4);
+    assert.ok(
+      Math.abs(gotErr - Math.abs(after.n - before.n)) < 1e-12,
+      `row ${row}: the error formula should equal |etter − før|`
+    );
+
+    // bits → sign + magnitude → the quantised value, via the block's scale.
+    const code = parseInt(bits.s, 2);
+    assert.equal(mag.n, E2M1[code % 8], `row ${row}: magnitude should match the bits`);
+    const scaleRow = evalAt(row, 3);
+    assert.ok(Number.isFinite(scaleRow));
+    if (mag.n !== 0) {
+      const scale = Math.abs(after.n) / mag.n;
+      const rebuilt = (code >= 8 ? -1 : 1) * mag.n * scale;
+      assert.ok(
+        Math.abs(rebuilt - after.n) < 1e-9,
+        `row ${row}: bits and magnitude should rebuild "etter"`
+      );
+    }
+    if (Math.abs(before.n) > Math.abs(after.n) && mag.n === 6) sawClipped = true;
+    sampleRows++;
+  }
+  assert.ok(sampleRows >= 32, `expected at least one block of samples, got ${sampleRows}`);
+
+  // The sheet's closing note claims the biggest numbers lose the most. The top
+  // of the ladder is 6 with nothing above it, so the largest values get clipped
+  // — assert that rather than let the sheet say something it cannot back up.
+  assert.ok(sawClipped, "at least one value should sit at the top of the ladder and lose size");
+
+  // The shrink cell is a formula, not a number we worked out in advance.
+  let shrink;
+  for (const [row, line] of slank.cells) {
+    const c = line.get(2);
+    if (c?.f && /^B\d+\/B\d+$/.test(c.f)) shrink = evalAt(row, 2);
+  }
+  assert.ok(shrink !== undefined, "the shrink factor should be a formula");
+  assert.ok(
+    Math.abs(shrink - wantStats.bytesBefore / wantStats.bytesAfter) < 1e-9,
+    "the shrink formula should divide the two byte counts"
+  );
+  console.log(
+    `  slankekur: 16 codes, ${sampleRows} sampled weights, ` +
+      `${shrink.toFixed(1)}x smaller, mean error ${wantStats.meanAbsErr.toExponential(2)}`
+  );
 
   // ---- 8. the .xlsx parts are present and well-formed enough ----------------
   const parts = buildXlsxParts(built.workbook);

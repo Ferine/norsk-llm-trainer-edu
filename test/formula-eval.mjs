@@ -7,7 +7,7 @@
 
 const FUNCS = new Set([
   "SUMPRODUCT", "SUM", "MAX", "AVERAGE", "DEVSQ", "SQRT", "EXP", "TANH", "PI",
-  "INDEX", "MATCH", "LEN", "MID", "UNICODE", "IF", "IFERROR", "EXACT",
+  "INDEX", "MATCH", "LEN", "MID", "UNICODE", "IF", "IFERROR", "EXACT", "ABS",
 ]);
 
 // ------------------------------------------------------------------ tokenizer
@@ -118,6 +118,7 @@ function callFunc(name, args) {
     case "PI": return Math.PI;
     case "SQRT": return Math.sqrt(toNum(args[0]));
     case "EXP": return Math.exp(toNum(args[0]));
+    case "ABS": return Math.abs(toNum(args[0]));
     case "TANH": return Math.tanh(toNum(args[0]));
     case "LEN": return toStr(args[0]).length;
     case "UNICODE": {

@@ -40,8 +40,14 @@ import {
 import {
   SITU_B1,
   SITU_B2,
+  E2M1,
+  cloneTransformer,
   ffnWidth,
+  mxfp4Code,
+  mxfp4Scale,
+  quantizeFfnMxfp4,
   sampleTokens,
+  type QuantStats,
   type Tensor,
   type Transformer,
 } from "./ml.js";
@@ -168,6 +174,30 @@ interface Labels {
   sumRow: string;
   probs: string;
   conf: string;
+  slank: {
+    title: string;
+    intro: string;
+    levelsTitle: string;
+    levelsHelp: string;
+    levelsHead: [string, string, string];
+    negZero: string;
+    sizeTitle: string;
+    rowValues: string;
+    rowBlocks: (n: number) => string;
+    rowBefore: string;
+    rowAfter: string;
+    afterHow: string;
+    rowShrink: string;
+    errTitle: string;
+    rowMeanErr: string;
+    rowMaxErr: string;
+    sampleTitle: (name: string, n: number) => string;
+    sampleHelp: string;
+    sampleHead: [string, string, string, string, string, string];
+    blockLabel: (b: number) => string;
+    blockScale: string;
+    note: string;
+  };
 }
 
 const LABELS: Record<Lang, Labels> = {
@@ -215,6 +245,34 @@ const LABELS: Record<Lang, Labels> = {
     sumRow: "Sum av raden",
     probs: "Sannsynlighet per tegn (softmax) — summerer til 1",
     conf: "Hvor sikker modellen er på vinneren",
+    slank: {
+      title: "Modellen på slankekur: 4 bit per tall",
+      intro:
+        "De brede lagene er de tyngste delene av modellen. Her får hvert tall i dem bare 4 bit i stedet for 32 – og modellen skriver fortsatt norsk. Alt på dette arket gjelder de samme vektene som ligger i «Vekter».",
+      levelsTitle: "De 16 kodene",
+      levelsHelp:
+        "Med 4 bit finnes det nøyaktig 16 mønstre. Første bit er fortegnet, de tre siste peker på én av åtte størrelser. Alle tall i modellen må rundes til én av disse.",
+      levelsHead: ["bit", "kode", "verdi"],
+      negZero: "minus null er samme tall som null – derfor 15 ulike verdier, ikke 16",
+      sizeTitle: "Hva det koster og hva det sparer",
+      rowValues: "Tall i de brede lagene",
+      rowBlocks: (n) => `Blokker (${n} tall deler én skala)`,
+      rowBefore: "Før: byte",
+      rowAfter: "Etter: byte",
+      afterHow: "= én halv byte per tall + én byte skala per blokk",
+      rowShrink: "Krymping",
+      errTitle: "Hvor mye vi mister",
+      rowMeanErr: "Gjennomsnittlig feil per tall",
+      rowMaxErr: "Største feil",
+      sampleTitle: (name, n) => `Regnskap for de ${n} første blokkene i ${name}`,
+      sampleHelp:
+        "Hele det brede laget ville blitt titusenvis av rader. Her er de første blokkene, tall for tall. Feilkolonnen regner arket selv.",
+      sampleHead: ["nr", "før", "etter", "feil", "bit", "størrelse"],
+      blockLabel: (b) => `Blokk ${b}`,
+      blockScale: "delt skala",
+      note:
+        "Skalaen er valgt slik at det største tallet i blokka lander nær toppen av stigen. Da blir hele stigen brukt – med en for stor skala ville alt klumpet seg sammen rundt null. Legg merke til at det er de største tallene som taper mest: stigen har store sprang på toppen og fine trinn nede ved null.",
+    },
   },
   nn: {
     weightsIntro:
@@ -260,6 +318,34 @@ const LABELS: Record<Lang, Labels> = {
     sumRow: "Sum av rada",
     probs: "Sannsyn per teikn (softmax) — summerer til 1",
     conf: "Kor sikker modellen er på vinnaren",
+    slank: {
+      title: "Modellen på slankekur: 4 bit per tal",
+      intro:
+        "Dei breie laga er dei tyngste delane av modellen. Her får kvart tal i dei berre 4 bit i staden for 32 – og modellen skriv framleis norsk. Alt på dette arket gjeld dei same vektene som ligg i «Vekter».",
+      levelsTitle: "Dei 16 kodane",
+      levelsHelp:
+        "Med 4 bit finst det nøyaktig 16 mønster. Første bit er forteiknet, dei tre siste peikar på ein av åtte storleikar. Alle tal i modellen må rundast til ein av desse.",
+      levelsHead: ["bit", "kode", "verdi"],
+      negZero: "minus null er same talet som null – difor 15 ulike verdiar, ikkje 16",
+      sizeTitle: "Kva det kostar og kva det sparer",
+      rowValues: "Tal i dei breie laga",
+      rowBlocks: (n) => `Blokker (${n} tal deler éi skala)`,
+      rowBefore: "Før: byte",
+      rowAfter: "Etter: byte",
+      afterHow: "= ein halv byte per tal + éin byte skala per blokk",
+      rowShrink: "Krymping",
+      errTitle: "Kor mykje vi mistar",
+      rowMeanErr: "Gjennomsnittleg feil per tal",
+      rowMaxErr: "Største feil",
+      sampleTitle: (name, n) => `Rekneskap for dei ${n} første blokkene i ${name}`,
+      sampleHelp:
+        "Heile det breie laget ville blitt titusenvis av rader. Her er dei første blokkene, tal for tal. Feilkolonnen reknar arket sjølv.",
+      sampleHead: ["nr", "før", "etter", "feil", "bit", "storleik"],
+      blockLabel: (b) => `Blokk ${b}`,
+      blockScale: "delt skala",
+      note:
+        "Skalaen er vald slik at det største talet i blokka landar nær toppen av stigen. Då blir heile stigen brukt – med ein for stor skala ville alt klumpa seg saman rundt null. Legg merke til at det er dei største tala som taper mest: stigen har store sprang på toppen og fine trinn nede ved null.",
+    },
   },
 };
 
@@ -337,6 +423,128 @@ function writeWeights(model: Transformer, L: Labels): Weights {
   const headT = values(sh, cur, `head transponert (${vocab}×${dim})`, vocab, dim, T_(model.head));
 
   return { sheet: sh, tokEmb, posEmb, layers, lnFg, lnFb, headT };
+}
+
+// -------------------------------------------------------------- slankekur ----
+
+// Kor mange blokker vi viser rekneskap for. Heile det breie laget ville vore
+// titusenvis av rader; poenget står like klart med dei første.
+const SLANK_BLOCKS = 2;
+const SLANK_BLOCK = 32;
+
+/** Namn og tal for kvar matrise som blir krympa, i same rekkjefølgje som ml.ts. */
+function ffnMatrices(model: Transformer): { name: string; d: Float32Array }[] {
+  const out: { name: string; d: Float32Array }[] = [];
+  const situ = model.act === "situ";
+  model.blocks.forEach((blk, l) => {
+    out.push({ name: `L${l} ${situ ? "Wg" : "W1"}`, d: blk.W1.d });
+    if (blk.Wu) out.push({ name: `L${l} Wu`, d: blk.Wu.d });
+    out.push({ name: `L${l} W2`, d: blk.W2.d });
+  });
+  return out;
+}
+
+// Arket som viser kva som skjer når dei breie matrisene blir pressa ned i 4 bit.
+// Vi kvantiserer ein kopi her, så tala står alltid til vektene i same arbeidsbok
+// – uansett kva Slankekur-panelet i nettlesaren måtte ha målt tidlegare.
+function writeSlank(
+  model: Transformer,
+  L: Labels
+): { sheet: SheetSpec; stats: QuantStats } {
+  const sh = newSheet("Slankekur");
+  sh.cols = [
+    { min: 1, max: 1, width: 26 },
+    { min: 2, max: 7, width: 13 },
+  ];
+  const S = L.slank;
+
+  const copy = cloneTransformer(model);
+  const stats = quantizeFfnMxfp4(copy, SLANK_BLOCK);
+  const before = ffnMatrices(model);
+  const after = ffnMatrices(copy);
+
+  let r = 1;
+  put(sh, r++, 1, { s: S.title, st: STYLE_BOLD });
+  put(sh, r++, 1, { s: S.intro, st: STYLE_WRAP });
+  r += 1;
+
+  // --- dei 16 kodane ---
+  put(sh, r++, 1, { s: S.levelsTitle, st: STYLE_BOLD });
+  put(sh, r++, 1, { s: S.levelsHelp, st: STYLE_WRAP });
+  for (const [i, h] of S.levelsHead.entries()) put(sh, r, 1 + i, { s: h, st: STYLE_BOLD });
+  r += 1;
+  for (let code = 0; code < 16; code++) {
+    const mag = E2M1[code % 8];
+    put(sh, r, 1, { s: code.toString(2).padStart(4, "0"), st: STYLE_CODE });
+    put(sh, r, 2, { n: code });
+    put(sh, r, 3, { n: code >= 8 ? -mag : mag });
+    if (code === 8) put(sh, r, 4, { s: S.negZero, st: STYLE_WRAP });
+    r += 1;
+  }
+  r += 1;
+
+  // --- storleiken ---
+  put(sh, r++, 1, { s: S.sizeTitle, st: STYLE_BOLD });
+  put(sh, r, 1, { s: S.rowValues });
+  put(sh, r++, 2, { n: stats.values });
+  put(sh, r, 1, { s: S.rowBlocks(SLANK_BLOCK) });
+  put(sh, r++, 2, { n: stats.blocks });
+  const beforeRow = r;
+  put(sh, r, 1, { s: S.rowBefore });
+  put(sh, r++, 2, { n: stats.bytesBefore });
+  const afterRow = r;
+  put(sh, r, 1, { s: S.rowAfter });
+  put(sh, r, 2, { n: stats.bytesAfter });
+  put(sh, r++, 3, { s: S.afterHow, st: STYLE_WRAP });
+  put(sh, r, 1, { s: S.rowShrink });
+  // Arket reknar krympinga sjølv, slik resten av arbeidsboka gjer.
+  put(sh, r++, 2, { f: `B${beforeRow}/B${afterRow}`, st: STYLE_RESULT });
+  r += 1;
+
+  put(sh, r++, 1, { s: S.errTitle, st: STYLE_BOLD });
+  put(sh, r, 1, { s: S.rowMeanErr });
+  put(sh, r++, 2, { n: stats.meanAbsErr });
+  put(sh, r, 1, { s: S.rowMaxErr });
+  put(sh, r++, 2, { n: stats.maxAbsErr });
+  r += 1;
+
+  // --- rekneskap for dei første blokkene i den første breie matrisa ---
+  put(sh, r++, 1, { s: S.sampleTitle(before[0].name, SLANK_BLOCKS), st: STYLE_BOLD });
+  put(sh, r++, 1, { s: S.sampleHelp, st: STYLE_WRAP });
+  for (const [i, h] of S.sampleHead.entries()) put(sh, r, 1 + i, { s: h, st: STYLE_BOLD });
+  r += 1;
+
+  const src = before[0].d;
+  const dst = after[0].d;
+  const nBlocks = Math.min(SLANK_BLOCKS, Math.ceil(src.length / SLANK_BLOCK));
+  for (let b = 0; b < nBlocks; b++) {
+    const start = b * SLANK_BLOCK;
+    const end = Math.min(src.length, start + SLANK_BLOCK);
+    let maxAbs = 0;
+    for (let i = start; i < end; i++) maxAbs = Math.max(maxAbs, Math.abs(src[i]));
+    const scale = mxfp4Scale(maxAbs);
+
+    put(sh, r, 1, { s: S.blockLabel(b), st: STYLE_BOLD });
+    put(sh, r, 2, { s: S.blockScale });
+    put(sh, r++, 3, { n: scale });
+
+    for (let i = start; i < end; i++) {
+      const code = mxfp4Code(src[i], scale);
+      put(sh, r, 1, { n: i });
+      put(sh, r, 2, { n: src[i] });
+      put(sh, r, 3, { n: dst[i] });
+      // Feilen er ei formel, ikkje eit svar vi har rekna ut på førehand.
+      put(sh, r, 4, { f: `ABS(C${r}-B${r})` });
+      put(sh, r, 5, { s: code.toString(2).padStart(4, "0"), st: STYLE_CODE });
+      put(sh, r, 6, { n: E2M1[code % 8] });
+      r += 1;
+    }
+    r += 1;
+  }
+
+  put(sh, r++, 1, { s: S.note, st: STYLE_WRAP });
+
+  return { sheet: sh, stats };
 }
 
 // -------------------------------------------------------------------- lag ----
@@ -704,6 +912,8 @@ interface FrontCopy {
   shInn: string;
   shLag: string;
   shUt: string;
+  /** Berre med når arbeidsboka har eit Slankekur-ark. */
+  shSlank: string;
   attnTitle: string;
   attnBody: string;
   metaTitle: string;
@@ -851,6 +1061,7 @@ const COPY: Record<Lang, FrontCopy> = {
     shInn: "Innebygging — hvert tegn blir en vektor, pluss en vektor for hvor i teksten det står.",
     shLag: "Lag_0, Lag_1 … — selve modellen. Én blokk per steg: normalisering, oppmerksomhet, det brede nettverket.",
     shUt: "Utdata — poeng per tegn, og vinneren.",
+    shSlank: "Slankekur — hva som skjer når hvert tall får bare 4 bit.",
     attnTitle: "Tips",
     attnBody: "Oppmerksomhet-blokkene i Lag-arkene er fargelagt. Trekantformen er meningen: en posisjon får aldri se framover.",
     metaTitle: "Om denne filen",
@@ -993,6 +1204,7 @@ const COPY: Record<Lang, FrontCopy> = {
     shInn: "Innebygging — kvart teikn blir ein vektor, pluss ein vektor for kvar i teksten det står.",
     shLag: "Lag_0, Lag_1 … — sjølve modellen. Éi blokk per steg: normalisering, merksemd, det breie nettverket.",
     shUt: "Utdata — poeng per teikn, og vinnaren.",
+    shSlank: "Slankekur — kva som skjer når kvart tal får berre 4 bit.",
     attnTitle: "Tips",
     attnBody: "Merksemd-blokkene i Lag-arka er fargelagde. Trekantforma er meininga: ein posisjon får aldri sjå framover.",
     metaTitle: "Om denne fila",
@@ -1073,6 +1285,11 @@ export interface ExcelModelOpts {
   loss: number;
   presetName: string;
   lang: Lang;
+  /**
+   * Ta med Slankekur-arket. Vekttala blir kvantiserte her og no, så arket
+   * står alltid til modellen i same arbeidsbok – ikkje til ei tidlegare måling.
+   */
+  includeQuant?: boolean;
 }
 
 export interface ExcelModelResult {
@@ -1085,6 +1302,8 @@ export interface ExcelModelResult {
   reference: string;
   formulaCells: number;
   valueCells: number;
+  /** Måltala frå Slankekur-arket, når det er med. */
+  quant?: QuantStats;
   /** Adresser testane brukar for å rekna ut arket utan Excel. */
   probe: {
     /** Cella som held den ferdige teksten. */
@@ -1138,6 +1357,9 @@ export function buildModelWorkbook(o: ExcelModelOpts): ExcelModelResult {
 
   // --- vekter ---
   const W = writeWeights(model, L);
+
+  // --- slankekur (valfritt) ---
+  const slank = o.includeQuant ? writeSlank(model, L) : null;
 
   // --- innebygging (id-formlane blir fylte til slutt) ---
   const emb = newSheet("Innebygging");
@@ -1248,6 +1470,7 @@ export function buildModelWorkbook(o: ExcelModelOpts): ExcelModelResult {
   put(front, r++, 1, { s: C.sheetsTitle, st: STYLE_BOLD });
   for (const key of SHEET_KEYS)
     put(front, r++, 2, { s: C[key], st: STYLE_WRAP });
+  if (slank) put(front, r++, 2, { s: C.shSlank, st: STYLE_WRAP });
   r += 1;
 
   put(front, r, 1, { s: C.attnTitle, st: STYLE_BOLD });
@@ -1299,6 +1522,8 @@ export function buildModelWorkbook(o: ExcelModelOpts): ExcelModelResult {
   const flow = writeFlow(C, live, nLayer);
 
   const sheets = [front, flow, vocabSheet, W.sheet, emb, ...layerSheets, out.sheet];
+  // Bakerst: det er ei fordjuping, ikkje ein del av vegen fram til teksten.
+  if (slank) sheets.push(slank.sheet);
 
   // Tel celler, både for «Les_meg» og for testane.
   let formulaCells = 0;
@@ -1331,6 +1556,7 @@ export function buildModelWorkbook(o: ExcelModelOpts): ExcelModelResult {
     reference,
     formulaCells,
     valueCells,
+    ...(slank ? { quant: slank.stats } : {}),
     probe: {
       output: `Les_meg!${outRef}`,
       ids: Array.from({ length: T }, (_, t) => `Innebygging!$B$${3 + t}`),

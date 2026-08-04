@@ -28,6 +28,8 @@ interface Props {
   prompt: string;
   locale: string;
   s: Strings["train"]["slank"];
+  /** Seier frå når slankekuren er køyrd, så rekneark-eksporten kan ta med arket. */
+  onRan?: () => void;
 }
 
 interface Result {
@@ -43,7 +45,15 @@ const EVAL_BATCHES = 16;
 const EVAL_SEED = 4711;
 const SAMPLE_LEN = 60;
 
-export default function Slankekur({ getEngine, step, engineGen, prompt, locale, s }: Props) {
+export default function Slankekur({
+  getEngine,
+  step,
+  engineGen,
+  prompt,
+  locale,
+  s,
+  onRan,
+}: Props) {
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<Result | null>(null);
 
@@ -85,8 +95,9 @@ export default function Slankekur({ getEngine, step, engineGen, prompt, locale, 
 
       setRes({ stats, lossFull, lossQuant, textFull, textQuant, at: step });
       setBusy(false);
+      onRan?.();
     }, 32);
-  }, [busy, getEngine, prompt, step]);
+  }, [busy, getEngine, onRan, prompt, step]);
 
   const kb = (bytes: number) =>
     `${(bytes / 1024).toLocaleString(locale, { maximumFractionDigits: 1 })} kB`;
