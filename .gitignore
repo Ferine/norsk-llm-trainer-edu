@@ -3,4 +3,9 @@ dist/
 .pnpm-store/
 .DS_Store
 test/dist/
+
+# Ikke til offentlig repo: tredjeparts rapport, NEAS-merket presentasjon og
+# interne planleggingsdokumenter. Ligger lokalt i docs/, aldri i git.
 k3_tech_report.pdf
+docs/*.pptx
+docs/superpowers/

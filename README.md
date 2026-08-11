@@ -320,5 +320,7 @@ and it gets noticeably better.
 
 ## 📜 License
 
-No license file is included yet. Add one (e.g. MIT) before distributing if you intend others to
-reuse the code.
+[MIT](LICENSE) — © 2026 Atle Strand. Use it, fork it, teach with it.
+
+The Norwegian corpus in `src/lib/corpus.ts` is original text written for this project and is
+covered by the same license.
