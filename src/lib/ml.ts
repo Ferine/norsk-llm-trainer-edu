@@ -353,6 +353,60 @@ export function gatherRows(E: Tensor, idx: number[]): Tensor {
   return out;
 }
 
+// ---- Byggjeklossar for ekspertane ------------------------------------------
+// Med mange små ekspertar går kvart teikn berre til nokre av dei. Då må vi
+// kunna plukka ut nokre rader, rekna på dei, og leggja svaret tilbake der det
+// høyrer heime. Desse tre gjer nettopp det – og har gradientar, så rutaren
+// lærer kven han skal senda kva til.
+
+// Plukkar ut eit utval rader (token). Baklengs legg gradienten tilbake på same
+// rad, så eit teikn som gjekk til fleire ekspertar samlar bidraga sine.
+export function takeRows(a: Tensor, idx: number[]): Tensor {
+  const C = a.cols;
+  const out = tensor(idx.length, C, [a]);
+  for (let r = 0; r < idx.length; r++) {
+    if (!Number.isInteger(idx[r]) || idx[r] < 0 || idx[r] >= a.rows)
+      throw new RangeError(`Row index ${idx[r]} is outside the tensor`);
+    for (let c = 0; c < C; c++) out.d[r * C + c] = a.d[idx[r] * C + c];
+  }
+  out._back = () => {
+    for (let r = 0; r < idx.length; r++)
+      for (let c = 0; c < C; c++) a.grad[idx[r] * C + c] += out.grad[r * C + c];
+  };
+  return out;
+}
+
+// Motstykket til takeRows: legg radene tilbake i ein større tensor, null i resten.
+export function scatterRows(a: Tensor, idx: number[], rows: number): Tensor {
+  const C = a.cols;
+  const out = tensor(rows, C, [a]);
+  for (let r = 0; r < idx.length; r++)
+    for (let c = 0; c < C; c++) out.d[idx[r] * C + c] += a.d[r * C + c];
+  out._back = () => {
+    for (let r = 0; r < idx.length; r++)
+      for (let c = 0; c < C; c++) a.grad[r * C + c] += out.grad[idx[r] * C + c];
+  };
+  return out;
+}
+
+// Gonger kvar rad med sin eigen skalar, henta frå ei søyle [rader, 1]. Dette
+// er leddet rutaren lærer gjennom: vekta er ein tensor, ikkje ein konstant.
+export function mulCol(a: Tensor, w: Tensor): Tensor {
+  const C = a.cols;
+  const out = tensor(a.rows, C, [a, w]);
+  for (let r = 0; r < a.rows; r++)
+    for (let c = 0; c < C; c++) out.d[r * C + c] = a.d[r * C + c] * w.d[r];
+  out._back = () => {
+    for (let r = 0; r < a.rows; r++)
+      for (let c = 0; c < C; c++) {
+        const i = r * C + c;
+        a.grad[i] += out.grad[i] * w.d[r];
+        w.grad[r] += out.grad[i] * a.d[i];
+      }
+  };
+  return out;
+}
+
 // Kryss-entropi-tap for neste-teikn-prediksjon. Logits: [T, V], mål: [T].
 export function crossEntropyLoss(logits: Tensor, targets: number[]): Tensor {
   const T = logits.rows,
@@ -553,6 +607,22 @@ function ones1(cols: number): Tensor {
 // slik Kimi K3 bruker (porta, med mjukt tak).
 export type Activation = "gelu" | "situ";
 
+// Mange små ekspertar i staden for eitt breitt lag (DeepSeekMoE / DeepSeek-V3).
+// Det breie laget blir delt i «experts + 1» like breie skiver: éin skiv står
+// alltid på (den delte eksperten), resten blir valde av ein rutar. Talet på
+// skruer er difor det same som før – berre nokre av dei er i bruk om gongen.
+export interface MoeConfig {
+  experts: number; // ruta ekspertar per blokk
+  topK: number; // kor mange av dei eitt teikn får vekkja
+  bias: number; // γ: dytten som jamnar lasta kvart steg (0 = av)
+}
+
+// Målt på bokmål-korpuset, preset «liten», 3500 steg: topK 1 og 2 gjev same
+// tap (0,374 mot 0,372 – innanfor støyen), men topK 1 reknar berre 40 % av det
+// breie laget og går 22 ms mot 28 ms per steg. Eitt teikn som vekkjer éin
+// ekspert er dessutan det klaraste biletet i «Sjå inni modellen».
+export const MOE_DEFAULT: MoeConfig = { experts: 4, topK: 1, bias: 0.001 };
+
 export interface ModelConfig {
   vocab: number;
   dim: number;
@@ -561,24 +631,32 @@ export interface ModelConfig {
   seqLen: number;
   ffnMult: number;
   act?: Activation;
+  moe?: MoeConfig;
 }
 
 // Breidda på det breie laget. GLU-varianten har tre matriser der GELU har to,
 // så vi krympar breidda til 2/3 og held talet på justeringsskruer om lag likt.
+// Dette er totalbreidda: med ekspertar blir ho delt, ikkje utvida.
 export function ffnWidth(cfg: ModelConfig): number {
   const wide = cfg.dim * cfg.ffnMult;
   return cfg.act === "situ" ? Math.max(1, Math.round((wide * 2) / 3)) : wide;
 }
 
-interface Block {
-  ln1g: Tensor;
-  ln1b: Tensor;
-  Wq: Tensor;
-  Wk: Tensor;
-  Wv: Tensor;
-  Wo: Tensor;
-  ln2g: Tensor;
-  ln2b: Tensor;
+// Breidda på éin ekspert: totalbreidda delt på (ruta ekspertar + den delte).
+// Same rekneskap som 2/3-regelen over – vi flyttar skruer, vi legg ikkje til.
+export function expertWidth(cfg: ModelConfig): number {
+  if (!cfg.moe) return ffnWidth(cfg);
+  return Math.max(1, Math.round(ffnWidth(cfg) / (cfg.moe.experts + 1)));
+}
+
+// Kor stor del av det breie laget som faktisk reknar for eitt teikn.
+export function moeActiveFraction(cfg: ModelConfig): number {
+  if (!cfg.moe) return 1;
+  return (cfg.moe.topK + 1) / (cfg.moe.experts + 1);
+}
+
+// Eitt breitt lag: port-grein, opp-grein (berre SiTU-GLU) og vegen ned igjen.
+export interface Expert {
   // GELU: W1/b1 er det breie laget. SiTU-GLU: W1/b1 er port-greina (W_g),
   // og Wu/bu er opp-greina (W_u).
   W1: Tensor;
@@ -587,6 +665,30 @@ interface Block {
   bu?: Tensor;
   W2: Tensor;
   b2: Tensor;
+}
+
+// Rutaren og ekspertane som står ved sida av den delte. Skeivfordelings-leddet
+// `bias` er med vilje ikkje ein parameter: det styrer berre kven som blir vald,
+// aldri kor mykje dei tel, og blir dytta for hand kvart steg (V3 §2.1.2).
+interface Router {
+  W: Tensor;
+  bias: Float32Array;
+  load: Float32Array;
+}
+
+interface Block extends Expert {
+  ln1g: Tensor;
+  ln1b: Tensor;
+  Wq: Tensor;
+  Wk: Tensor;
+  Wv: Tensor;
+  Wo: Tensor;
+  ln2g: Tensor;
+  ln2b: Tensor;
+  // Med ekspertar er blokka sitt eige breie lag (W1/W2) den delte eksperten,
+  // og `routed` er dei rutaren vel mellom.
+  routed?: Expert[];
+  router?: Router;
 }
 
 // Parametrane delt i to: matriser som Muon ortogonaliserer (med tal på hovud
@@ -606,6 +708,17 @@ export interface AttnView {
   weights: Float32Array;
 }
 
+// Kven rutaren sende kvart teikn til, fanga for visualisering.
+// gates er T*experts (rutaren si fordeling), chosen er T*topK ekspert-nummer.
+export interface RouteView {
+  layer: number;
+  T: number;
+  experts: number;
+  topK: number;
+  gates: Float32Array;
+  chosen: Int32Array;
+}
+
 export class Transformer {
   cfg: ModelConfig;
   params: Tensor[];
@@ -615,6 +728,9 @@ export class Transformer {
   lnFg: Tensor;
   lnFb: Tensor;
   head: Tensor;
+  // Berre treningssteg skal telja last for rutaren; måling og generering
+  // undervegs skal ikkje flytta på balansen.
+  countRouting = false;
 
   constructor(cfg: ModelConfig, rng: () => number) {
     if (!Number.isInteger(cfg.vocab) || cfg.vocab < 1)
@@ -631,11 +747,34 @@ export class Transformer {
       throw new RangeError("ffnMult must be a positive integer");
     if (cfg.act !== undefined && cfg.act !== "gelu" && cfg.act !== "situ")
       throw new RangeError('act must be "gelu" or "situ"');
+    if (cfg.moe !== undefined) {
+      const m = cfg.moe;
+      if (!Number.isInteger(m.experts) || m.experts < 1)
+        throw new RangeError("moe.experts must be a positive integer");
+      if (!Number.isInteger(m.topK) || m.topK < 1 || m.topK > m.experts)
+        throw new RangeError("moe.topK must be between 1 and moe.experts");
+      if (!Number.isFinite(m.bias) || m.bias < 0)
+        throw new RangeError("moe.bias must be a non-negative number");
+    }
 
     this.cfg = cfg;
     const { vocab, dim, nLayer, seqLen } = cfg;
-    const ffn = ffnWidth(cfg);
     const situ = cfg.act === "situ";
+    // Med ekspertar er kvar skive smalare; utan er eksperten heile det breie laget.
+    const ffn = expertWidth(cfg);
+    const mkExpert = (): Expert => {
+      const e: Expert = {
+        W1: param(dim, ffn, rng, 0.02),
+        b1: zeros1(ffn),
+        W2: param(ffn, dim, rng, 0.02),
+        b2: zeros1(dim),
+      };
+      if (situ) {
+        e.Wu = param(dim, ffn, rng, 0.02);
+        e.bu = zeros1(ffn);
+      }
+      return e;
+    };
     this.params = [];
     this.tokEmb = param(vocab, dim, rng, 0.02);
     this.posEmb = param(seqLen, dim, rng, 0.02);
@@ -650,32 +789,44 @@ export class Transformer {
         Wo: param(dim, dim, rng, 0.02),
         ln2g: ones1(dim),
         ln2b: zeros1(dim),
-        W1: param(dim, ffn, rng, 0.02),
-        b1: zeros1(ffn),
-        W2: param(ffn, dim, rng, 0.02),
-        b2: zeros1(dim),
+        ...mkExpert(),
       };
-      if (situ) {
-        blk.Wu = param(dim, ffn, rng, 0.02);
-        blk.bu = zeros1(ffn);
+      if (cfg.moe) {
+        blk.routed = [];
+        for (let e = 0; e < cfg.moe.experts; e++) blk.routed.push(mkExpert());
+        blk.router = {
+          W: param(dim, cfg.moe.experts, rng, 0.02),
+          bias: new Float32Array(cfg.moe.experts),
+          load: new Float32Array(cfg.moe.experts),
+        };
       }
       this.blocks.push(blk);
     }
     this.lnFg = ones1(dim);
     this.lnFb = zeros1(dim);
     this.head = param(dim, vocab, rng, 0.02);
+    const pushExpert = (e: Expert) => {
+      this.params.push(e.W1, e.b1, e.W2, e.b2);
+      if (e.Wu && e.bu) this.params.push(e.Wu, e.bu);
+    };
     for (const blk of this.blocks) {
       this.params.push(
         blk.ln1g, blk.ln1b, blk.Wq, blk.Wk, blk.Wv, blk.Wo,
-        blk.ln2g, blk.ln2b, blk.W1, blk.b1, blk.W2, blk.b2
+        blk.ln2g, blk.ln2b
       );
-      if (blk.Wu && blk.bu) this.params.push(blk.Wu, blk.bu);
+      pushExpert(blk);
+      if (blk.router) this.params.push(blk.router.W);
+      for (const e of blk.routed ?? []) pushExpert(e);
     }
     this.params.push(this.tokEmb, this.posEmb, this.lnFg, this.lnFb, this.head);
   }
 
   get act(): Activation {
     return this.cfg.act ?? "gelu";
+  }
+
+  get moe(): MoeConfig | undefined {
+    return this.cfg.moe;
   }
 
   // Deler parametrane slik Muon vil ha dei: matrisene i nettverket blir
@@ -686,18 +837,26 @@ export class Transformer {
     const matrix: { p: Tensor; heads: number }[] = [];
     const scalar: Tensor[] = [];
     const nHead = this.cfg.nHead;
+    const addExpert = (e: Expert) => {
+      matrix.push({ p: e.W1, heads: 1 }, { p: e.W2, heads: 1 });
+      if (e.Wu) matrix.push({ p: e.Wu, heads: 1 });
+      scalar.push(e.b1, e.b2);
+      if (e.bu) scalar.push(e.bu);
+    };
     for (const blk of this.blocks) {
       matrix.push(
         { p: blk.Wq, heads: nHead },
         { p: blk.Wk, heads: nHead },
         { p: blk.Wv, heads: nHead },
-        { p: blk.Wo, heads: 1 },
-        { p: blk.W1, heads: 1 },
-        { p: blk.W2, heads: 1 }
+        { p: blk.Wo, heads: 1 }
       );
-      if (blk.Wu) matrix.push({ p: blk.Wu, heads: 1 });
-      scalar.push(blk.ln1g, blk.ln1b, blk.ln2g, blk.ln2b, blk.b1, blk.b2);
-      if (blk.bu) scalar.push(blk.bu);
+      addExpert(blk);
+      for (const e of blk.routed ?? []) addExpert(e);
+      scalar.push(blk.ln1g, blk.ln1b, blk.ln2g, blk.ln2b);
+      // Rutaren er ein tabell over retningar, ikkje ei indre matrise: å presa
+      // søylene hans fra kvarandre ville flytta valet, ikkje berre steget.
+      // Difor Adam, same handsaming som innebygginga og utdata-hovudet.
+      if (blk.router) scalar.push(blk.router.W);
     }
     scalar.push(this.tokEmb, this.posEmb, this.lnFg, this.lnFb, this.head);
     return { matrix, scalar };
@@ -731,30 +890,114 @@ export class Transformer {
     return matmul(concatCols(heads), blk.Wo);
   }
 
-  private ffn(blk: Block, x: Tensor): Tensor {
+  private ffn(e: Expert, x: Tensor): Tensor {
     let h: Tensor;
-    if (blk.Wu && blk.bu) {
+    if (e.Wu && e.bu) {
       // SiTU-GLU: to greiner ut i det breie laget, gonga saman.
-      const g = addRow(matmul(x, blk.W1), blk.b1);
-      const u = addRow(matmul(x, blk.Wu), blk.bu);
+      const g = addRow(matmul(x, e.W1), e.b1);
+      const u = addRow(matmul(x, e.Wu), e.bu);
       h = situGlu(g, u);
     } else {
-      h = gelu(addRow(matmul(x, blk.W1), blk.b1));
+      h = gelu(addRow(matmul(x, e.W1), e.b1));
     }
-    h = matmul(h, blk.W2);
-    h = addRow(h, blk.b2);
+    h = matmul(h, e.W2);
+    h = addRow(h, e.b2);
     return h;
   }
 
-  private blockForward(blk: Block, x: Tensor, layer = 0, sink?: AttnView[]): Tensor {
+  // Det breie laget som mange små. Den delte eksperten køyrer for alle teikn;
+  // rutaren vel topK av dei andre per teikn og vektar svaret deira.
+  private moeFfn(blk: Block, x: Tensor, layer: number, sink?: RouteView[]): Tensor {
+    const cfg = this.cfg.moe!;
+    const router = blk.router!;
+    const routed = blk.routed!;
+    const E = cfg.experts;
+    const T = x.rows;
+
+    // Rutaren fordeler éin heil porsjon merksemd over ekspertane per teikn.
+    const gates = softmaxRow(matmul(x, router.W));
+
+    // Valet blir gjort på poengsum + skeivfordelings-ledd, men vekta som blir
+    // brukt er poengsummen åleine. Difor kan leddet dytta lasta jamn utan å
+    // dra i gradienten – det er heile trikset i V3 §2.1.2.
+    const rowsFor: number[][] = Array.from({ length: E }, () => []);
+    const chosen = new Int32Array(T * cfg.topK);
+    const order = new Int32Array(E);
+    for (let t = 0; t < T; t++) {
+      for (let e = 0; e < E; e++) order[e] = e;
+      const rank = (e: number) => gates.d[t * E + e] + router.bias[e];
+      // E er lite (4–8), så eit enkelt utval-sortering held.
+      for (let k = 0; k < cfg.topK; k++) {
+        let best = k;
+        for (let j = k + 1; j < E; j++) if (rank(order[j]) > rank(order[best])) best = j;
+        const tmp = order[k];
+        order[k] = order[best];
+        order[best] = tmp;
+        const e = order[k];
+        rowsFor[e].push(t);
+        chosen[t * cfg.topK + k] = e;
+      }
+    }
+    if (this.countRouting) for (let e = 0; e < E; e++) router.load[e] += rowsFor[e].length;
+    if (sink)
+      sink.push({ layer, T, experts: E, topK: cfg.topK, gates: gates.d.slice(), chosen });
+
+    let out = this.ffn(blk, x);
+    for (let e = 0; e < E; e++) {
+      const idx = rowsFor[e];
+      if (idx.length === 0) continue;
+      const ye = this.ffn(routed[e], takeRows(x, idx));
+      const w = takeRows(sliceCols(gates, e, e + 1), idx);
+      out = add(out, scatterRows(mulCol(ye, w), idx, T));
+    }
+    return out;
+  }
+
+  private blockForward(
+    blk: Block,
+    x: Tensor,
+    layer = 0,
+    sink?: AttnView[],
+    routeSink?: RouteView[]
+  ): Tensor {
     const a = this.attention(blk, layernorm(x, blk.ln1g, blk.ln1b), layer, sink);
     x = add(x, a);
-    const f = this.ffn(blk, layernorm(x, blk.ln2g, blk.ln2b));
+    const n = layernorm(x, blk.ln2g, blk.ln2b);
+    const f = blk.router ? this.moeFfn(blk, n, layer, routeSink) : this.ffn(blk, n);
     return add(x, f);
   }
 
+  // Dyttar skeivfordelings-leddet mot jamn last: den som fekk meir enn sin del
+  // blir litt mindre attraktiv, den som fekk mindre litt meir. Ingen hjelpe-tap,
+  // ingen gradient – berre eit lite dytt, slik V3 gjer det.
+  rebalanceRouters(): void {
+    const gamma = this.cfg.moe?.bias ?? 0;
+    for (const blk of this.blocks) {
+      const r = blk.router;
+      if (!r) continue;
+      let total = 0;
+      for (const v of r.load) total += v;
+      if (total > 0 && gamma > 0) {
+        const mean = total / r.load.length;
+        for (let e = 0; e < r.load.length; e++) {
+          if (r.load[e] > mean) r.bias[e] -= gamma;
+          else if (r.load[e] < mean) r.bias[e] += gamma;
+        }
+      }
+      r.load.fill(0);
+    }
+  }
+
+  // Kor mange teikn kvar ekspert har fått sidan sist utjamning, per lag.
+  routerLoad(): { bias: Float32Array; load: Float32Array }[] {
+    const out: { bias: Float32Array; load: Float32Array }[] = [];
+    for (const blk of this.blocks)
+      if (blk.router) out.push({ bias: blk.router.bias.slice(), load: blk.router.load.slice() });
+    return out;
+  }
+
   // Føreveg: tek token-id-ar og returnerer logits [T, vocab].
-  forward(ids: number[], sink?: AttnView[]): Tensor {
+  forward(ids: number[], sink?: AttnView[], routeSink?: RouteView[]): Tensor {
     const Tt = ids.length;
     if (Tt < 1 || Tt > this.seqLen)
       throw new RangeError(`Expected between 1 and ${this.seqLen} token IDs, got ${Tt}`);
@@ -766,17 +1009,20 @@ export class Transformer {
     const posIdx: number[] = [];
     for (let i = 0; i < Tt; i++) posIdx[i] = i;
     let x = add(x0, gatherRows(this.posEmb, posIdx));
-    for (let l = 0; l < this.blocks.length; l++) x = this.blockForward(this.blocks[l], x, l, sink);
+    for (let l = 0; l < this.blocks.length; l++)
+      x = this.blockForward(this.blocks[l], x, l, sink, routeSink);
     x = layernorm(x, this.lnFg, this.lnFb);
     return matmul(x, this.head);
   }
 
-  // Forward pass that also records every head's post-softmax attention.
+  // Forward pass that also records every head's post-softmax attention, and —
+  // when the model has experts — which of them each character woke.
   // For visualization only — no backward pass is run on the result.
-  inspect(ids: number[]): { logits: Tensor; attn: AttnView[] } {
+  inspect(ids: number[]): { logits: Tensor; attn: AttnView[]; routes: RouteView[] } {
     const attn: AttnView[] = [];
-    const logits = this.forward(ids, attn);
-    return { logits, attn };
+    const routes: RouteView[] = [];
+    const logits = this.forward(ids, attn, routes);
+    return { logits, attn, routes };
   }
 
   paramCount(): number {
@@ -791,6 +1037,13 @@ export class Transformer {
 export function cloneTransformer(src: Transformer): Transformer {
   const dst = new Transformer(src.cfg, mulberry32(0));
   for (let i = 0; i < src.params.length; i++) dst.params[i].d.set(src.params[i].d);
+  // Skeivfordelings-leddet er ingen parameter, men det avgjer kven rutaren vel.
+  // Utan det ville referansemodellen i DPO rutta annleis enn den han skal måla.
+  for (let i = 0; i < src.blocks.length; i++) {
+    const s = src.blocks[i].router;
+    const d = dst.blocks[i].router;
+    if (s && d) d.bias.set(s.bias);
+  }
   return dst;
 }
 
@@ -1102,9 +1355,14 @@ export function quantizeFfnMxfp4(model: Transformer, blockSize = 32): QuantStats
     maxAbsErr: 0,
   };
   for (const blk of model.blocks) {
-    quantizeArray(blk.W1.d, blockSize, acc);
-    if (blk.Wu) quantizeArray(blk.Wu.d, blockSize, acc);
-    quantizeArray(blk.W2.d, blockSize, acc);
+    // Alle ekspertane er «det breie laget» og blir krympa; rutaren er ein liten
+    // tabell som avgjer vegval, og står att i full presisjon saman med
+    // merksemda og normaliseringane.
+    for (const e of [blk, ...(blk.routed ?? [])]) {
+      quantizeArray(e.W1.d, blockSize, acc);
+      if (e.Wu) quantizeArray(e.Wu.d, blockSize, acc);
+      quantizeArray(e.W2.d, blockSize, acc);
+    }
   }
   acc.meanAbsErr = acc.values ? acc.meanAbsErr / acc.values : 0;
   acc.bytesBefore = acc.values * 4;
@@ -1156,6 +1414,7 @@ export function trainStep(
   const effectiveSeqLen = Math.min(seqLen, data.length - 1, model.seqLen);
   const startCount = data.length - effectiveSeqLen;
   let total = 0;
+  model.countRouting = true;
   for (let b = 0; b < batchSize; b++) {
     const start = Math.max(0, Math.min(startCount - 1, Math.floor(rng() * startCount)));
     const x: number[] = [];
@@ -1169,11 +1428,14 @@ export function trainStep(
     backward(loss);
     total += loss.d[0];
   }
+  model.countRouting = false;
   if (batchSize > 1)
     for (const p of model.params)
       for (let i = 0; i < p.grad.length; i++) p.grad[i] /= batchSize;
   opt.clipGradNorm(1.0);
   opt.step();
+  // Etter steget: dytt lasta jamn ut frå det denne minibatchen faktisk gjorde.
+  model.rebalanceRouters();
   return total / batchSize;
 }
 
@@ -1210,6 +1472,9 @@ export function dpoStep(
   rng: () => number
 ): { loss: number; margin: number; winRate: number } {
   if (pairs.length === 0) return { loss: 0, margin: 0, winRate: 0 };
+  // Merk: her blir ikkje skeivfordelings-leddet dytta. Under finpussinga er
+  // referansemodellen frosen, og då skal rutinga liggja i ro òg – elles ville
+  // dei to modellane sakte drifta frå kvarandre i kven dei spør om råd.
   opt.zeroGrad();
   const seqLen = policy.seqLen;
   const n = Math.min(batch, pairs.length);

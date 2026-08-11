@@ -87,6 +87,7 @@ export interface Strings {
     boxBlock: { title: (i: number) => string; sub: string };
     boxAttn: { title: string; sub: (heads: number) => string };
     boxFfn: { title: string; sub: string };
+    boxMoe: { title: string; sub: (experts: number, topK: number) => string };
     residualNote: string;
     boxFinalNorm: { title: string; sub: string };
     boxOutHead: { title: string; sub: string };
@@ -111,6 +112,10 @@ export interface Strings {
     actGelu: string;
     actSitu: string;
     actHelp: string;
+    moeLabel: string;
+    moeOff: string;
+    moeOn: string;
+    moeHelp: string;
     slank: {
       label: string;
       help: string;
@@ -168,6 +173,10 @@ export interface Strings {
     headLabel: string;
     probHeading: string;
     probHelp: string;
+    expertHeading: string;
+    expertHelp: string;
+    expertLabel: (n: number) => string;
+    expertShared: string;
     fasitLabel: string;
     fasitNext: (ch: string) => string;
     correct: string;
@@ -210,6 +219,7 @@ export interface Strings {
       preset: string;
       optim: string;
       act: string;
+      moe: string;
       lang: string;
       text: string;
       restart: string;
@@ -252,6 +262,7 @@ export interface Strings {
     excelHint: string;
     excelBusy: string;
     excelDone: string;
+    excelMoe: string;
     gguf: string;
     ggufHint: string;
     ggufBusy: string;
@@ -347,6 +358,10 @@ const bm: Strings = {
     boxBlock: { title: (i) => `Transformer-blokk ${i}`, sub: "ser på sammenhengen + tenker videre" },
     boxAttn: { title: "Ser på sammenhengen", sub: (heads) => `multi-head oppmerksomhet, ${heads} hoder` },
     boxFfn: { title: "Tenker videre", sub: "et lite nevralt nett (feed-forward)" },
+    boxMoe: {
+      title: "Tenker videre – hver sin spesialitet",
+      sub: (experts, topK) => `${experts} eksperter + én fast, ${topK} våkner per tegn`,
+    },
     residualNote: "+ snarveier forbi hvert ledd, så ingenting går tapt (residual)",
     boxFinalNorm: { title: "Siste opprydding i tallene", sub: "LayerNorm" },
     boxOutHead: { title: "Poengsum for hvert tegn", sub: "utgangshodet (logits)" },
@@ -381,6 +396,11 @@ const bm: Strings = {
     actSitu: "Port med tak (SiTU-GLU)",
     actHelp:
       "Med port bestemmer laget selv hvor mye som slipper gjennom, og et innebygd tak gjør at ingen enkelttall kan løpe løpsk. Det brede laget krymper til to tredjedeler, så modellen holder samme størrelse og sammenlikningen blir ærlig.",
+    moeLabel: "Mange små i stedet for ett stort",
+    moeOff: "Ett bredt lag",
+    moeOn: "Fire eksperter + én fast (MoE)",
+    moeHelp:
+      "Det brede laget deles i fem like smale skiver. Én er alltid på, og en liten portner (ruter) slipper hvert tegn inn til én av de fire andre. Modellen har like mange skruer som før – men bare to femtedeler av dem jobber om gangen, så hvert steg går merkbart raskere. Portneren får et lite dytt hvert steg, slik at ingen ekspert blir gående ledig. Det er slik de største åpne modellene er bygd i dag. Se hvem som tok seg av hvilke tegn under «Se inni modellen».",
     slank: {
       label: "Modellen på slankekur (4 bit)",
       help:
@@ -446,6 +466,11 @@ const bm: Strings = {
     headLabel: "Hode",
     probHeading: "Hvilket tegn tror modellen kommer nå?",
     probHelp: "Lengre søyle = mer sikker. Dette er det modellen faktisk gjetter på.",
+    expertHeading: "Hvem tok seg av hvert tegn?",
+    expertHelp:
+      "Hver rad er ett tegn, hver kolonne en ekspert. Mørkere rute = mer av portnerens oppmerksomhet. Rutene med ramme er de som faktisk ble vekket. Se etter mønstre: vokaler, mellomrom og æøå havner gjerne hos hver sine.",
+    expertLabel: (n) => `Ekspert ${n}`,
+    expertShared: "Den faste eksperten er med på hvert eneste tegn, så den står ikke i tabellen.",
     fasitLabel: "Fasit:",
     fasitNext: (ch) => `det virkelige neste tegnet er «${ch}».`,
     correct: "✓ modellen gjettet riktig!",
@@ -493,6 +518,7 @@ const bm: Strings = {
       preset: "Du er i ferd med å bytte modellstørrelse.",
       optim: "Du er i ferd med å bytte måten skruene vris på.",
       act: "Du er i ferd med å bytte knekken i det brede laget.",
+      moe: "Du er i ferd med å bytte mellom ett bredt lag og mange eksperter.",
       lang: "Du er i ferd med å bytte språk. Da blir det nytt alfabet, ny tekst og dermed en helt ny modell.",
       text: "Du er i ferd med å bygge modellen om med din egen tekst.",
       restart: "Du er i ferd med å starte en helt ny treningsøkt.",
@@ -580,6 +606,8 @@ const bm: Strings = {
       "Modellen du nettopp trente, som en Excel-fil som skriver tekst med vanlige formler – ingen makroer.",
     excelBusy: "lager regneark …",
     excelDone: "lastet ned",
+    excelMoe:
+      "Regnearket kan ennå ikke regne med eksperter. Vi lar heller være å tilby det enn å gi deg en fil som regner på noe annet enn modellen din. Slå av «mange små» over og tren på nytt, så er knappen tilbake – GGUF-fila under tar med ekspertene som de er.",
     gguf: "Last ned modellen som modellfil (GGUF)",
     ggufHint:
       "Samme filformat som de store modellene deles i. Du kan åpne den med vanlige GGUF-verktøy og se hver eneste skrue modellen har lært – men den er ikke laget for å kjøres av dem.",
@@ -676,6 +704,10 @@ const nn: Strings = {
     boxBlock: { title: (i) => `Transformer-blokk ${i}`, sub: "ser på samanhengen + tenkjer vidare" },
     boxAttn: { title: "Ser på samanhengen", sub: (heads) => `multi-head merksemd, ${heads} hovud` },
     boxFfn: { title: "Tenkjer vidare", sub: "eit lite nevralt nett (feed-forward)" },
+    boxMoe: {
+      title: "Tenkjer vidare – kvar sin spesialitet",
+      sub: (experts, topK) => `${experts} ekspertar + éin fast, ${topK} vaknar per teikn`,
+    },
     residualNote: "+ snarvegar forbi kvart ledd, så ingenting går tapt (residual)",
     boxFinalNorm: { title: "Siste opprydding i tala", sub: "LayerNorm" },
     boxOutHead: { title: "Poengsum for kvart teikn", sub: "utgangshovudet (logits)" },
@@ -710,6 +742,11 @@ const nn: Strings = {
     actSitu: "Port med tak (SiTU-GLU)",
     actHelp:
       "Med port avgjer laget sjølv kor mykje som slepp gjennom, og eit innebygd tak gjer at ingen einskildtal kan renna løpsk. Det breie laget krympar til to tredjedelar, så modellen held same storleik og samanlikninga blir ærleg.",
+    moeLabel: "Mange små i staden for eitt stort",
+    moeOff: "Eitt breitt lag",
+    moeOn: "Fire ekspertar + éin fast (MoE)",
+    moeHelp:
+      "Det breie laget blir delt i fem like smale skiver. Éi står alltid på, og ein liten portnar (rutar) slepp kvart teikn inn til éin av dei fire andre. Modellen har like mange skruer som før – men berre to femtedelar av dei jobbar om gongen, så kvart steg går merkbart raskare. Portnaren får eit lite dytt kvart steg, slik at ingen ekspert blir gåande ledig. Det er slik dei største opne modellane er bygde i dag. Sjå kven som tok seg av kva teikn under «Sjå inni modellen».",
     slank: {
       label: "Modellen på slankekur (4 bit)",
       help:
@@ -775,6 +812,11 @@ const nn: Strings = {
     headLabel: "Hovud",
     probHeading: "Kva teikn trur modellen kjem no?",
     probHelp: "Lengre søyle = meir sikker. Dette er det modellen faktisk gjettar på.",
+    expertHeading: "Kven tok seg av kvart teikn?",
+    expertHelp:
+      "Kvar rad er eitt teikn, kvar kolonne ein ekspert. Mørkare rute = meir av merksemda til portnaren. Rutene med ramme er dei som faktisk vart vekte. Sjå etter mønster: vokalar, mellomrom og æøå hamnar gjerne hos kvar sine.",
+    expertLabel: (n) => `Ekspert ${n}`,
+    expertShared: "Den faste eksperten er med på kvart einaste teikn, så han står ikkje i tabellen.",
     fasitLabel: "Fasit:",
     fasitNext: (ch) => `det verkelege neste teiknet er «${ch}».`,
     correct: "✓ modellen gjetta rett!",
@@ -822,6 +864,7 @@ const nn: Strings = {
       preset: "Du er i ferd med å byta modellstorleik.",
       optim: "Du er i ferd med å byta måten skruane blir vridde på.",
       act: "Du er i ferd med å byta knekken i det breie laget.",
+      moe: "Du er i ferd med å byta mellom eitt breitt lag og mange ekspertar.",
       lang: "Du er i ferd med å byta språk. Då blir det nytt alfabet, ny tekst og dermed ein heilt ny modell.",
       text: "Du er i ferd med å byggja modellen om med din eigen tekst.",
       restart: "Du er i ferd med å starta ei heilt ny treningsøkt.",
@@ -909,6 +952,8 @@ const nn: Strings = {
       "Modellen du nettopp trena, som ei Excel-fil som skriv tekst med vanlege formlar – ingen makroar.",
     excelBusy: "lagar rekneark …",
     excelDone: "lasta ned",
+    excelMoe:
+      "Rekneark-modellen kan enno ikkje rekna med ekspertar. Vi lèt heller vera å tilby det enn å gje deg ei fil som reknar på noko anna enn modellen din. Slå av «mange små» over og tren på nytt, så er knappen attende – GGUF-fila under tek med ekspertane som dei er.",
     gguf: "Last ned modellen som modellfil (GGUF)",
     ggufHint:
       "Same filformatet som dei store modellane blir delte i. Du kan opne henne med vanlege GGUF-verktøy og sjå kvar einaste skrue modellen har lært – men ho er ikkje laga for å køyrast av dei.",

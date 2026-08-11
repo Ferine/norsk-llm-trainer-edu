@@ -34,8 +34,8 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
     let ids = tokenizer.encode(text);
     if (ids.length === 0) ids = [0];
     if (ids.length > model.seqLen) ids = ids.slice(ids.length - model.seqLen);
-    const { logits, attn } = model.inspect(ids);
-    return { ids, logits, attn };
+    const { logits, attn, routes } = model.inspect(ids);
+    return { ids, logits, attn, routes };
   }, [text, model, step, tokenizer]);
 
   if (!model || !tokenizer || !result) {
@@ -52,6 +52,7 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
 
   const view =
     result.attn.find((v) => v.layer === layerSel && v.head === headSel) ?? result.attn[0];
+  const route = result.routes.find((v) => v.layer === layerSel) ?? result.routes[0];
 
   const probs = rowProbs(result.logits, sel);
   const ranking = Array.from(probs, (p, id) => ({ id, p })).sort((a, b) => b.p - a.p);
@@ -203,6 +204,60 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
           </p>
         </div>
       </div>
+
+      {/* kven rutaren sende kvart teikn til – berre når modellen har ekspertar */}
+      {route && (
+        <div>
+          <h3 className="text-sm font-semibold text-blekk">{s.expertHeading}</h3>
+          <p className="mb-3 text-[11px] text-blyant">{s.expertHelp}</p>
+          <div className="overflow-x-auto">
+            <div
+              className="inline-grid gap-0.5"
+              style={{ gridTemplateColumns: `auto repeat(${route.experts}, 3rem)` }}
+            >
+              <div />
+              {Array.from({ length: route.experts }, (_, e) => (
+                <div key={`eh${e}`} className="text-center font-mono text-[10px] text-blyant">
+                  {s.expertLabel(e + 1)}
+                </div>
+              ))}
+              {result.ids.map((rid, r) => (
+                <Fragment key={`er${r}`}>
+                  <button
+                    onClick={() => setPos(r)}
+                    className={`pr-1 text-right font-mono text-[10px] ${
+                      r === sel ? "font-bold text-blekk" : "text-blyant"
+                    }`}
+                  >
+                    {charLabel(itos, rid)}
+                  </button>
+                  {Array.from({ length: route.experts }, (_, e) => {
+                    const g = route.gates[r * route.experts + e] ?? 0;
+                    let woke = false;
+                    for (let k = 0; k < route.topK; k++)
+                      if (route.chosen[r * route.topK + k] === e) woke = true;
+                    return (
+                      <div
+                        key={`ec${r}-${e}`}
+                        title={`${charLabel(itos, rid)} → ${s.expertLabel(e + 1)}: ${(
+                          g * 100
+                        ).toFixed(0)}%`}
+                        className={`flex h-[1.1rem] items-center justify-center rounded-[2px] font-mono text-[9px] tabular-nums ${
+                          woke ? "border-2 border-blekk" : "border border-blekk/15"
+                        } ${g > 0.5 ? "text-white" : "text-blyant"}`}
+                        style={{ backgroundColor: `rgba(29,54,82,${(0.06 + 0.94 * g).toFixed(3)})` }}
+                      >
+                        {(g * 100).toFixed(0)}
+                      </div>
+                    );
+                  })}
+                </Fragment>
+              ))}
+            </div>
+          </div>
+          <p className="mt-2 text-[11px] text-blyant">{s.expertShared}</p>
+        </div>
+      )}
     </div>
   );
 }

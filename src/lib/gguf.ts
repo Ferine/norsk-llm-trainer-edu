@@ -24,7 +24,7 @@
 // er til å kjenne att for eit trent auge.
 // ============================================================================
 
-import { ffnWidth, type Tensor, type Transformer } from "./ml.js";
+import { expertWidth, ffnWidth, type Expert, type Tensor, type Transformer } from "./ml.js";
 import type { Tokenizer } from "./corpus.js";
 
 // ---------------------------- GGUF-primitivar -------------------------------
@@ -304,8 +304,10 @@ export interface GgufBuild {
 }
 
 // Arkitekturnamnet fila melder om seg sjølv. GELU-modellen ER ein gpt2; SiTU
-// er noko anna, og då seier vi det.
+// er noko anna, og då seier vi det. Ekspertar er eit endå større avvik, og
+// vinn over aktiveringa i namnet – aktiveringa står uansett i ein eigen nøkkel.
 export function archName(model: Transformer): string {
+  if (model.moe) return "sprakmodell-moe";
   return model.act === "situ" ? "sprakmodell-situ" : "gpt2";
 }
 
@@ -330,25 +332,36 @@ export function buildModelGguf(o: GgufBuildOpts): GgufBuild {
       vecTensor(`${p}.ffn_norm.weight`, blk.ln2g),
       vecTensor(`${p}.ffn_norm.bias`, blk.ln2b)
     );
-    if (situ && blk.Wu && blk.bu) {
-      // W1 er portgreina, Wu er oppgreina – same rollefordeling som llama.cpp
-      // gjev ffn_gate og ffn_up i dei gata modellane sine.
+    // Eitt breitt lag, skrive ut med sitt eige namneprefiks. Den delte
+    // eksperten er blokka sitt eige lag og held namna frå før; dei ruta får
+    // eit nummer, slik at ei fil med ekspertar ikkje kan forvekslast med ei utan.
+    const pushFfn = (q: string, e: Expert) => {
+      if (situ && e.Wu && e.bu) {
+        // W1 er portgreina, Wu er oppgreina – same rollefordeling som llama.cpp
+        // gjev ffn_gate og ffn_up i dei gata modellane sine.
+        tensors.push(
+          linearTensor(`${q}.ffn_gate.weight`, e.W1),
+          vecTensor(`${q}.ffn_gate.bias`, e.b1),
+          linearTensor(`${q}.ffn_up.weight`, e.Wu),
+          vecTensor(`${q}.ffn_up.bias`, e.bu)
+        );
+      } else {
+        tensors.push(
+          linearTensor(`${q}.ffn_up.weight`, e.W1),
+          vecTensor(`${q}.ffn_up.bias`, e.b1)
+        );
+      }
       tensors.push(
-        linearTensor(`${p}.ffn_gate.weight`, blk.W1),
-        vecTensor(`${p}.ffn_gate.bias`, blk.b1),
-        linearTensor(`${p}.ffn_up.weight`, blk.Wu),
-        vecTensor(`${p}.ffn_up.bias`, blk.bu)
+        linearTensor(`${q}.ffn_down.weight`, e.W2),
+        vecTensor(`${q}.ffn_down.bias`, e.b2)
       );
-    } else {
-      tensors.push(
-        linearTensor(`${p}.ffn_up.weight`, blk.W1),
-        vecTensor(`${p}.ffn_up.bias`, blk.b1)
-      );
+    };
+    pushFfn(p, blk);
+    if (blk.router) {
+      // ffn_gate_inp er llama.cpp sitt namn på nettopp rutar-matrisa.
+      tensors.push(linearTensor(`${p}.ffn_gate_inp.weight`, blk.router.W));
+      (blk.routed ?? []).forEach((e, n) => pushFfn(`${p}.exp${n}`, e));
     }
-    tensors.push(
-      linearTensor(`${p}.ffn_down.weight`, blk.W2),
-      vecTensor(`${p}.ffn_down.bias`, blk.b2)
-    );
   });
 
   tensors.push(
@@ -372,14 +385,29 @@ export function buildModelGguf(o: GgufBuildOpts): GgufBuild {
           "Trena i nettlesaren av den norske språkmodell-treneren. Ekte GGUF, " +
           "men lastar ikkje i llama.cpp: tokenisatoren er på teiknnivå og " +
           "merksemda har ingen bias." +
-          (situ ? " Det breie laget bruker SiTU-GLU, ikkje GELU." : ""),
+          (situ ? " Det breie laget bruker SiTU-GLU, ikkje GELU." : "") +
+          (cfg.moe
+            ? ` Det breie laget er delt i ${cfg.moe.experts} ruta ekspertar` +
+              ` pluss éin delt; ${cfg.moe.topK} av dei ruta reknar per token.`
+            : ""),
       },
     },
 
     { key: `${arch}.context_length`, val: { t: "u32", v: cfg.seqLen } },
     { key: `${arch}.embedding_length`, val: { t: "u32", v: cfg.dim } },
     { key: `${arch}.block_count`, val: { t: "u32", v: cfg.nLayer } },
-    { key: `${arch}.feed_forward_length`, val: { t: "u32", v: ffnWidth(cfg) } },
+    // Med ekspertar er breidda per ekspert det tala i tensorane faktisk er.
+    { key: `${arch}.feed_forward_length`, val: { t: "u32", v: expertWidth(cfg) } },
+    ...(cfg.moe
+      ? ([
+          { key: `${arch}.expert_count`, val: { t: "u32", v: cfg.moe.experts } },
+          { key: `${arch}.expert_used_count`, val: { t: "u32", v: cfg.moe.topK } },
+          { key: `${arch}.expert_shared_count`, val: { t: "u32", v: 1 } },
+          { key: `${arch}.expert_feed_forward_length`, val: { t: "u32", v: expertWidth(cfg) } },
+          // Totalbreidda før delinga – slik at ein kan sjå at ingen skruer kom til.
+          { key: "sprakmodell.ffn_total_width", val: { t: "u32", v: ffnWidth(cfg) } },
+        ] as GgufKv[])
+      : []),
     { key: `${arch}.attention.head_count`, val: { t: "u32", v: cfg.nHead } },
     { key: `${arch}.attention.layer_norm_epsilon`, val: { t: "f32", v: 1e-5 } },
 

@@ -1,9 +1,11 @@
 import type { Strings } from "@/lib/i18n";
+import type { MoeConfig } from "@/lib/ml";
 
 interface Props {
   layers: number;
   heads: number;
   dim: number;
+  moe?: MoeConfig;
   s: Strings;
 }
 
@@ -45,7 +47,7 @@ function Arrow() {
 }
 
 // Skjematisk teikning av transformer-arkitekturen (GPT-stil).
-export default function Architecture({ layers, heads, dim, s }: Props) {
+export default function Architecture({ layers, heads, dim, moe, s }: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto_1fr]">
       {/* Hovudstraum (venstre/sentralt) */}
@@ -59,7 +61,14 @@ export default function Architecture({ layers, heads, dim, s }: Props) {
             <Box title={s.arch.boxBlock.title(i + 1)} sub={s.arch.boxBlock.sub} tone="rute">
               <div className="mt-2 space-y-1">
                 <Box title={s.arch.boxAttn.title} sub={s.arch.boxAttn.sub(heads)} />
-                <Box title={s.arch.boxFfn.title} sub={s.arch.boxFfn.sub} />
+                {moe ? (
+                  <Box
+                    title={s.arch.boxMoe.title}
+                    sub={s.arch.boxMoe.sub(moe.experts, moe.topK)}
+                  />
+                ) : (
+                  <Box title={s.arch.boxFfn.title} sub={s.arch.boxFfn.sub} />
+                )}
                 <div className="font-mono text-[10px] text-blyant">{s.arch.residualNote}</div>
               </div>
             </Box>

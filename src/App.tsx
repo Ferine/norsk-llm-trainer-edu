@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/utils/cn";
 import {
   Adam,
+  MOE_DEFAULT,
   Muon,
   Transformer,
   cosineLr,
@@ -160,6 +161,7 @@ export default function App() {
   const [lr, setLr] = useState(0.0008);
   const [optim, setOptim] = useState<OptimKey>("adam");
   const [act, setAct] = useState<Activation>("situ");
+  const [moe, setMoe] = useState(false);
   const [schedule, setSchedule] = useState(false);
   const [extraText, setExtraText] = useState("");
 
@@ -211,7 +213,16 @@ export default function App() {
     const data = tokenizer.encode(fullText);
     const arch = PRESETS[preset];
     const model = new Transformer(
-      { vocab: tokenizer.vocab, dim: arch.dim, nLayer: arch.nLayer, nHead: arch.nHead, seqLen: arch.seqLen, ffnMult: arch.ffnMult, act },
+      {
+        vocab: tokenizer.vocab,
+        dim: arch.dim,
+        nLayer: arch.nLayer,
+        nHead: arch.nHead,
+        seqLen: arch.seqLen,
+        ffnMult: arch.ffnMult,
+        act,
+        moe: moe ? MOE_DEFAULT : undefined,
+      },
       mulberry32(1337)
     );
     const opt: Optimizer =
@@ -229,9 +240,9 @@ export default function App() {
     setParamCount(model.paramCount());
     setEngineGen((g) => g + 1);
     rlhf.reset();
-    // arkitektur (preset, aktivering) og val av optimerar tvingar fram ein ny
-    // modell – ikkje lr/batch, som kan endrast midt i ei økt
-  }, [preset, act, optim, rlhf.reset, activeCorpus]);
+    // arkitektur (preset, aktivering, ekspertar) og val av optimerar tvingar
+    // fram ein ny modell – ikkje lr/batch, som kan endrast midt i ei økt
+  }, [preset, act, moe, optim, rlhf.reset, activeCorpus]);
 
   useEffect(() => {
     if (!runningRef.current) buildEngine();
@@ -784,7 +795,13 @@ export default function App() {
           fold={s.fold}
         >
           <Card>
-            <Architecture layers={cfg.nLayer} heads={cfg.nHead} dim={cfg.dim} s={s} />
+            <Architecture
+              layers={cfg.nLayer}
+              heads={cfg.nHead}
+              dim={cfg.dim}
+              moe={moe ? MOE_DEFAULT : undefined}
+              s={s}
+            />
             <div className="mt-5 grid grid-cols-1 gap-3 text-sm leading-relaxed text-blyant sm:grid-cols-2">
               <div className="rounded-[2px] border border-blekk/25 bg-papir/70 p-3">
                 <b className="text-blekk">{s.arch.causalTitle}</b> {s.arch.causalBody}
@@ -888,6 +905,25 @@ export default function App() {
                     <option value="situ">{s.train.actSitu}</option>
                   </select>
                   <p className="mt-1 text-xs leading-relaxed text-blyant">{s.train.actHelp}</p>
+                </div>
+                <div>
+                  <label className="etikett mb-1 block" htmlFor="moe">
+                    {s.train.moeLabel}
+                  </label>
+                  <select
+                    id="moe"
+                    value={moe ? "on" : "off"}
+                    disabled={running || rlhf.dpoRunning}
+                    onChange={(e) => {
+                      const v = e.target.value === "on";
+                      guard("moe", () => setMoe(v));
+                    }}
+                    className="felt text-sm disabled:opacity-50"
+                  >
+                    <option value="off">{s.train.moeOff}</option>
+                    <option value="on">{s.train.moeOn}</option>
+                  </select>
+                  <p className="mt-1 text-xs leading-relaxed text-blyant">{s.train.moeHelp}</p>
                 </div>
                 <div className="sm:col-span-2">
                   <label className="flex items-start gap-2 text-sm text-blekk">
@@ -1182,21 +1218,30 @@ export default function App() {
               eksporten blokkerer tråden ein augneblink, og vektene ville flytta seg. */}
           {step > 0 && !running && (
             <>
+            {/* Rekneark-modellen reknar eitt breitt lag, ikkje ein rutar med
+                ekspertar. Då tilbyr vi han ikkje, i staden for å lasta ned ei
+                fil som reknar på ein annan modell enn den som står på skjermen. */}
             <div className="mt-6">
-              <button
-                onClick={onExcelClick}
-                disabled={eggState === "working"}
-                className="knapp knapp-omriss knapp-sm"
-              >
-                {s.footer.excel}
-              </button>
-              <div className="mx-auto mt-2 max-w-md">
-                {eggState === "idle" && s.footer.excelHint}
-                {eggState === "working" && s.footer.excelBusy}
-                {eggState === "done" && (
-                  <span className="handnotat text-base">✓ {s.footer.excelDone}</span>
-                )}
-              </div>
+              {moe ? (
+                <div className="mx-auto max-w-md">{s.footer.excelMoe}</div>
+              ) : (
+                <>
+                  <button
+                    onClick={onExcelClick}
+                    disabled={eggState === "working"}
+                    className="knapp knapp-omriss knapp-sm"
+                  >
+                    {s.footer.excel}
+                  </button>
+                  <div className="mx-auto mt-2 max-w-md">
+                    {eggState === "idle" && s.footer.excelHint}
+                    {eggState === "working" && s.footer.excelBusy}
+                    {eggState === "done" && (
+                      <span className="handnotat text-base">✓ {s.footer.excelDone}</span>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
             <div className="mt-6">
               <button

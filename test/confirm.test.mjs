@@ -12,9 +12,9 @@ const i18n = readFileSync(new URL("../src/lib/i18n.ts", import.meta.url), "utf8"
 
 // ---- 1. state setters that force a rebuild are always guarded --------------
 // buildEngine's dependency list decides what discards the model. Keep this list
-// in step with it: preset, act and optim rebuild directly, lang rebuilds through
-// activeCorpus.
-const DESTRUCTIVE = ["setPreset", "setOptim", "setAct", "setLang"];
+// in step with it: preset, act, moe and optim rebuild directly, lang rebuilds
+// through activeCorpus.
+const DESTRUCTIVE = ["setPreset", "setOptim", "setAct", "setMoe", "setLang"];
 for (const setter of DESTRUCTIVE) {
   const calls = [...app.matchAll(new RegExp(`\\b${setter}\\(`, "g"))];
   assert.ok(calls.length > 0, `${setter} should be called somewhere`);
@@ -30,7 +30,7 @@ for (const setter of DESTRUCTIVE) {
 // ---- 2. buildEngine's deps have not grown a new rebuild trigger ------------
 // If this fails, something new discards the model and needs a guard + a key in
 // DESTRUCTIVE above.
-const deps = app.match(/\}, \[preset, act, optim, rlhf\.reset, activeCorpus\]\);/);
+const deps = app.match(/\}, \[preset, act, moe, optim, rlhf\.reset, activeCorpus\]\);/);
 assert.ok(
   deps,
   "buildEngine's dependency list changed — check whether the new dependency discards training, and guard it"
@@ -83,7 +83,7 @@ assert.ok(
 // ---- 6. the copy exists in both languages ---------------------------------
 // i18n-parity checks the shape; this checks the keys are actually the ones the
 // dialog reads, so a rename cannot leave the dialog blank.
-for (const key of ["preset", "optim", "act", "lang", "text", "restart", "reset"]) {
+for (const key of ["preset", "optim", "act", "moe", "lang", "text", "restart", "reset"]) {
   const uses = [...i18n.matchAll(new RegExp(`^\\s{6}${key}: "`, "gm"))];
   assert.equal(uses.length, 2, `confirm.what.${key} should exist in both bm and nn`);
 }

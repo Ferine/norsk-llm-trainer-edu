@@ -1326,6 +1326,13 @@ export function buildModelWorkbook(o: ExcelModelOpts): ExcelModelResult {
     throw new RangeError(
       `tokenizer (${tokenizer.vocab}) og modell (${vocab}) har ulikt vokabular`
     );
+  // Formlane her reknar eitt breitt lag per blokk. Ein modell med rutar og
+  // ekspertar ville fått eit ark som reknar noko anna enn modellen sjølv – og
+  // heile poenget med arket er at det ER modellen. Difor nektar vi heller.
+  if (model.moe)
+    throw new RangeError(
+      "rekneark-eksporten støttar ikkje ekspertar (MoE) enno – arket ville rekna feil modell"
+    );
 
   // Arket slår opp teikn i vokabularet. Fjern det det ikkje kan slå opp, så
   // referansen frå nettlesaren og arket startar på same tekst.
