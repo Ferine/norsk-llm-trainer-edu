@@ -8,6 +8,7 @@ import {
   type QuantStats,
   type Transformer,
 } from "@/lib/ml";
+import { Utskrift } from "@/components/ui";
 import type { buildTokenizer } from "@/lib/corpus";
 import type { Strings } from "@/lib/i18n";
 
@@ -38,6 +39,8 @@ interface Result {
   lossQuant: number;
   textFull: string;
   textQuant: string;
+  // startteksten desse to utskriftene faktisk vart skrivne frå
+  seed: string;
   at: number;
 }
 
@@ -93,7 +96,7 @@ export default function Slankekur({
         mulberry32(EVAL_SEED)
       );
 
-      setRes({ stats, lossFull, lossQuant, textFull, textQuant, at: step });
+      setRes({ stats, lossFull, lossQuant, textFull, textQuant, seed: prompt, at: step });
       setBusy(false);
       onRan?.();
     }, 32);
@@ -157,11 +160,15 @@ export default function Slankekur({
           <div className="tavle space-y-2 p-4">
             <div>
               <div className="etikett text-kritt/70">{s.colFull}</div>
-              <p className="whitespace-pre-wrap font-mono text-sm text-kritt">{res.textFull}</p>
+              <p className="whitespace-pre-wrap font-mono text-sm text-kritt">
+                <Utskrift text={res.textFull} seed={res.seed} />
+              </p>
             </div>
             <div>
               <div className="etikett text-kritt/70">{s.colQuant}</div>
-              <p className="whitespace-pre-wrap font-mono text-sm text-kritt">{res.textQuant}</p>
+              <p className="whitespace-pre-wrap font-mono text-sm text-kritt">
+                <Utskrift text={res.textQuant} seed={res.seed} />
+              </p>
             </div>
           </div>
 

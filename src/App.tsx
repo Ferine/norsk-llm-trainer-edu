@@ -15,7 +15,7 @@ import { buildTokenizer, corpora } from "@/lib/corpus";
 import { STRINGS, SEEDS, LANGS, type Lang, type Seeds, type Strings } from "@/lib/i18n";
 import LossChart from "@/components/LossChart";
 import Architecture from "@/components/Architecture";
-import { Section, Card, Advanced } from "@/components/ui";
+import { Section, Card, Advanced, Utskrift } from "@/components/ui";
 import Rlhf from "@/components/Rlhf";
 import BpeLab from "@/components/BpeLab";
 import Inspector from "@/components/Inspector";
@@ -57,8 +57,17 @@ function charLabel(c: string): string {
 }
 
 // Lærestripa: ekte utskrifter frå ei treningsøkt, skrivne fram teikn for teikn
-// på linjert papir. Dei to første radene får lærarens raude bølgjestrek.
-function LearningStrip({ rows, t }: { rows: Seeds["strip"]; t: Strings["hero"]["strip"] }) {
+// på linjert papir. Startteksten står dempa, og dei to første radene får
+// lærarens raude bølgjestrek – berre under det modellen skreiv sjølv.
+function LearningStrip({
+  rows,
+  seedText,
+  t,
+}: {
+  rows: Seeds["strip"];
+  seedText: string;
+  t: Strings["hero"]["strip"];
+}) {
   const total = useMemo(() => rows.reduce((n, r) => n + r.text.length, 0), [rows]);
   const [visible, setVisible] = useState(0);
 
@@ -95,12 +104,12 @@ function LearningStrip({ rows, t }: { rows: Seeds["strip"]; t: Strings["hero"]["
           <span className="w-16 flex-none text-right font-mono text-[10px] text-blyant sm:w-20">
             {t.step(r.step)}
           </span>
-          <span
-            className={`min-w-0 flex-1 truncate font-mono text-[13px] text-blekk ${
-              i < 2 ? "rettelinje" : ""
-            }`}
-          >
-            {shown[i]}
+          <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-blekk">
+            <Utskrift
+              text={shown[i]}
+              seed={seedText}
+              restClassName={i < 2 ? "rettelinje" : undefined}
+            />
           </span>
         </div>
       ))}
@@ -457,6 +466,9 @@ export default function App() {
 
   // ---- generering / "chat" ----
   const [chatPrompt, setChatPrompt] = useState(seed.chatPrompt);
+  // startteksten som faktisk vart brukt: feltet over kan redigerast medan svaret
+  // står, og då skal markeringa i svaret ikkje flytta seg
+  const [chatSeed, setChatSeed] = useState("");
   const [chatFull, setChatFull] = useState("");
   const [chatShown, setChatShown] = useState("");
   const [genTemp, setGenTemp] = useState(0.7);
@@ -488,6 +500,7 @@ export default function App() {
         sampleRngRef.current
       );
       setChatFull(out);
+      setChatSeed(chatPrompt);
       setGenTick((t) => t + 1);
       setGenLoading(false);
     }, 20);
@@ -646,9 +659,9 @@ export default function App() {
               </span>
             ))}
           </p>
-          <LearningStrip rows={seed.strip} t={s.hero.strip} />
+          <LearningStrip rows={seed.strip} seedText={seed.trainSeed} t={s.hero.strip} />
           <p className="mt-3 max-w-3xl font-mono text-[11px] leading-relaxed text-blyant">
-            {s.hero.strip.caption}
+            {s.hero.strip.caption} {s.seedLegend}
           </p>
         </div>
       </div>
@@ -982,8 +995,15 @@ export default function App() {
                 {s.train.liveLabel}
               </div>
               <p className="min-h-6 whitespace-pre-wrap font-mono text-sm text-kritt">
-                {currentSample || <span className="text-kritt/50">{s.train.livePlaceholder}</span>}
+                {currentSample ? (
+                  <Utskrift text={currentSample} seed={seed.trainSeed} />
+                ) : (
+                  <span className="text-kritt/50">{s.train.livePlaceholder}</span>
+                )}
               </p>
+              {currentSample && (
+                <p className="mt-2 text-[11px] leading-relaxed text-kritt/55">{s.seedLegend}</p>
+              )}
             </div>
           </Card>
         </Section>
@@ -1091,9 +1111,12 @@ export default function App() {
                 {s.chat.answerLabel}
               </div>
               <p className="min-h-8 whitespace-pre-wrap font-mono text-sm leading-relaxed text-kritt">
-                {chatShown}
+                <Utskrift text={chatShown} seed={chatSeed} />
                 <span className="animate-pulse text-tusj">▍</span>
               </p>
+              {chatShown && (
+                <p className="mt-2 text-[11px] leading-relaxed text-kritt/55">{s.seedLegend}</p>
+              )}
             </div>
           </Card>
         </Section>

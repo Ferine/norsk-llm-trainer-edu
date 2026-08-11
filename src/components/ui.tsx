@@ -63,6 +63,29 @@ export function Card({ className, children }: { className?: string; children: Re
   return <div className={cn("panel p-5 sm:p-6", className)}>{children}</div>;
 }
 
+// Ei utskrift frå modellen er alltid starttekst + framhald. Her blir starten
+// merkt med `.starttekst`, så det er råd å sjå kva modellen fekk servert og kva
+// han fann på sjølv. Under skriveeffekten er teksten kortare enn startteksten;
+// då er heile det synlege stykket framleis starttekst.
+export function Utskrift({
+  text,
+  seed,
+  restClassName,
+}: {
+  text: string;
+  seed: string;
+  restClassName?: string;
+}) {
+  const n = text.startsWith(seed) ? seed.length : seed.startsWith(text) ? text.length : 0;
+  const rest = text.slice(n);
+  return (
+    <>
+      {n > 0 && <span className="starttekst">{text.slice(0, n)}</span>}
+      {rest && (restClassName ? <span className={restClassName}>{rest}</span> : rest)}
+    </>
+  );
+}
+
 // Samanfalda blokk for kontrollar/tal folk flest ikkje treng sjå.
 export function Advanced({
   label,

@@ -263,6 +263,18 @@
     -webkit-box-decoration-break: clone;
   }
 
+  /* Startteksten (frøet) modellen fikk servert, ikke noe den skrev selv: dempet,
+     med prikket strek under – som den forhåndstrykte delen av en fyll-ut-oppgave.
+     Arver farge fra teksten rundt, så samme klasse virker på papir og på tavla. */
+  .starttekst {
+    opacity: 0.62;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: color-mix(in srgb, currentColor 75%, transparent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+  }
+
   /* Lærerens røde bølgestrek under feil */
   .rettelinje {
     text-decoration: underline;

@@ -9,6 +9,8 @@ export interface Strings {
   header: { title: string; subtitle: string; jump: string };
   fold: { tag: string; show: string; hide: string };
   advanced: string;
+  /** Forklarer den dempa, prikka startteksten der modellen skriv. */
+  seedLegend: string;
   hero: {
     badge: string;
     h1Pre: string;
@@ -234,6 +236,7 @@ const bm: Strings = {
   },
   fold: { tag: "Fordypning – valgfritt", show: "+ vis", hide: "− skjul" },
   advanced: "Flere innstillinger",
+  seedLegend: "Dempet tekst med prikket strek er starten modellen fikk servert – resten har den skrevet selv.",
   hero: {
     badge: "Ekte trening fra null – ingen ferdig modell",
     h1Pre: "Bygg din egen språkmodell på",
@@ -517,6 +520,7 @@ const nn: Strings = {
   },
   fold: { tag: "Fordjuping – valfritt", show: "+ vis", hide: "− skjul" },
   advanced: "Fleire innstillingar",
+  seedLegend: "Dempa tekst med prikka strek er starten modellen fekk servert – resten har den skrive sjølv.",
   hero: {
     badge: "Ekte trening frå null – ingen ferdig modell",
     h1Pre: "Bygg din eigen språkmodell på",
