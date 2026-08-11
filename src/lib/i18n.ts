@@ -5,6 +5,25 @@ export const LANGS: { id: Lang; label: string; htmlLang: string; locale: string 
   { id: "nn", label: "Nynorsk", htmlLang: "nn", locale: "nn-NO" },
 ];
 
+/* --- Leselista (steg 10) ------------------------------------------------
+   Adresser, namn og opphav er språknøytrale og bur i LESELISTE nedst i fila.
+   Berre notatlinja er omsett, og id-ane er ein union: gløymer du eit notat på
+   det eine språket, kompilerer det ikkje. */
+export type LesShelf = "original" | "sjaa" | "kode" | "norsk" | "grunnlag";
+export type LesKind = "papir" | "video" | "kode" | "leik" | "nett" | "data";
+export type LesLevel = "lett" | "middels" | "tung";
+export type LesId =
+  | "attention"
+  | "gpt3b1b"
+  | "explainer"
+  | "llmviz"
+  | "nanogpt"
+  | "zerotohero"
+  | "denneappen"
+  | "nbailab"
+  | "sprakbanken"
+  | "k3";
+
 export interface Strings {
   header: { title: string; subtitle: string; jump: string };
   fold: { tag: string; show: string; hide: string };
@@ -205,6 +224,19 @@ export interface Strings {
     placeholder: string;
     charsNote: (n: number) => string;
     rebuild: string;
+  };
+  readMore: {
+    title: string;
+    intro: string;
+    /** Ærleg note: appen er lokal, desse lenkjene er det ikkje. */
+    note: string;
+    startHere: string;
+    newTab: string;
+    shelves: Record<LesShelf, string>;
+    kinds: Record<LesKind, string>;
+    levels: Record<LesLevel, string>;
+    /** Éi linje per lenkje. Manglar ein, seier tsc frå. */
+    items: Record<LesId, string>;
   };
   loss: {
     last: string;
@@ -486,6 +518,51 @@ const bm: Strings = {
     placeholder: "Lim inn bokmålstekst her… (gjerne flere avsnitt)",
     charsNote: (n) => `Tatt med i tillegg til ${n} faste tegn.`,
     rebuild: "Bygg modell på nytt",
+  },
+  readMore: {
+    title: "Les mer",
+    intro:
+      "Du har trent en modell selv. Herfra går det an å gå videre – hyllene er sortert etter hva du er ute etter: se det, lese koden eller prøve selv.",
+    note: "Alt annet i appen kjører lokalt – disse lenkene går ut på nettet. Det du har vært innom, blir grått.",
+    startHere: "Start her",
+    newTab: "(åpnes i ny fane)",
+    shelves: {
+      original: "Originalen",
+      sjaa: "Se det skje",
+      kode: "Kode du kan lese",
+      norsk: "På norsk",
+      grunnlag: "Hva denne appen bygger på",
+    },
+    kinds: {
+      papir: "papir",
+      video: "video",
+      kode: "kode",
+      leik: "lek",
+      nett: "nettsted",
+      data: "data",
+    },
+    levels: { lett: "lett", middels: "middels", tung: "tung" },
+    items: {
+      attention:
+        "Åtte sider fra 2017 som hele bransjen står på. Du trenger ikke matten – se på figur 1, så kjenner du igjen tegningen fra steg 4.",
+      gpt3b1b:
+        "Den peneste forklaringen som finnes. Bruk 27 minutter her før du bruker dem noe annet sted.",
+      explainer:
+        "En ekte GPT-2 kjører i nettleseren din, og du kan klikke deg inn i oppmerksomheten. Det er steg 6 her, men på en modell som faktisk kan språk.",
+      llmviz:
+        "Hele modellen i 3D, hver eneste gange og pluss. Den der har 85 000 skruer å stille på – din har rundt 60 000.",
+      nanogpt:
+        "Rundt 300 linjer Python som gjør akkurat det denne appen gjør. Karpathy skrev den for at folk skulle lese den.",
+      zerotohero:
+        "Hele kurset, fra ett enkelt nevron til en GPT. Kapittelet «Let's build GPT» bygger nøyaktig denne modellen, i to timer.",
+      denneappen:
+        "Kildekoden til det du står i. Modellen, treningen og eksporten ligger i src/lib – ingen ferdige bibliotek, bare matte.",
+      nbailab:
+        "Norske modeller trent på Nasjonalbibliotekets samling – 200 år med bokmål og nynorsk. Samme oppskrift som her, bare ufattelig mye større.",
+      sprakbanken:
+        "Der ekte norske treningsdata kommer fra. Korpuset i steg 2 er noen få avsnitt; dette er hyllemeter.",
+      k3: "Paragrafhenvisningene i steg 5 og slankekuren peker hit. Fire triks derfra kjører i modellen din, krympet fra 2,8 billioner tall til 60 000.",
+    },
   },
   loss: {
     last: "Siste tap:",
@@ -771,6 +848,51 @@ const nn: Strings = {
     charsNote: (n) => `Teken med i tillegg til ${n} faste teikn.`,
     rebuild: "Bygg modell på nytt",
   },
+  readMore: {
+    title: "Les meir",
+    intro:
+      "Du har trena ein modell sjølv. Herfrå går det an å gå vidare – hyllene er sorterte etter kva du er ute etter: sjå det, lesa koden eller prøva sjølv.",
+    note: "Alt anna i appen køyrer lokalt – desse lenkjene går ut på nettet. Det du har vore innom, blir grått.",
+    startHere: "Start her",
+    newTab: "(opnar i ny fane)",
+    shelves: {
+      original: "Originalen",
+      sjaa: "Sjå det skje",
+      kode: "Kode du kan lesa",
+      norsk: "På norsk",
+      grunnlag: "Kva denne appen byggjer på",
+    },
+    kinds: {
+      papir: "papir",
+      video: "video",
+      kode: "kode",
+      leik: "leik",
+      nett: "nettstad",
+      data: "data",
+    },
+    levels: { lett: "lett", middels: "middels", tung: "tung" },
+    items: {
+      attention:
+        "Åtte sider frå 2017 som heile bransjen står på. Du treng ikkje matten – sjå på figur 1, så kjenner du att teikninga frå steg 4.",
+      gpt3b1b:
+        "Den finaste forklaringa som finst. Bruk 27 minutt her før du brukar dei nokon annan stad.",
+      explainer:
+        "Ein ekte GPT-2 køyrer i nettlesaren din, og du kan klikka deg inn i merksemda. Det er steg 6 her, men på ein modell som faktisk kan språk.",
+      llmviz:
+        "Heile modellen i 3D, kvar einaste gonging og pluss. Den der har 85 000 skruar å stilla på – din har kring 60 000.",
+      nanogpt:
+        "Kring 300 linjer Python som gjer akkurat det denne appen gjer. Karpathy skreiv han for at folk skulle lesa han.",
+      zerotohero:
+        "Heile kurset, frå eitt enkelt nevron til ein GPT. Kapittelet «Let's build GPT» byggjer nøyaktig denne modellen, på to timar.",
+      denneappen:
+        "Kjeldekoden til det du står i. Modellen, treninga og eksporten ligg i src/lib – ingen ferdige bibliotek, berre matte.",
+      nbailab:
+        "Norske modellar trena på samlinga til Nasjonalbiblioteket – 200 år med bokmål og nynorsk. Same oppskrift som her, berre ufatteleg mykje større.",
+      sprakbanken:
+        "Der ekte norske treningsdata kjem frå. Korpuset i steg 2 er nokre få avsnitt; dette er hyllemeter.",
+      k3: "Paragrafvisingane i steg 5 og slankekuren peikar hit. Fire triks derifrå køyrer i modellen din, krympa frå 2,8 billionar tal til 60 000.",
+    },
+  },
   loss: {
     last: "Siste tap:",
     empty: "Start treninga for å sjå tapet gå ned her.",
@@ -797,6 +919,132 @@ const nn: Strings = {
 };
 
 export const STRINGS: Record<Lang, Strings> = { bm, nn };
+
+export interface LesLenke {
+  id: LesId;
+  url: string;
+  /** Eigennamn – blir ikkje omsett. */
+  name: string;
+  /** Kven som står bak. Namn på institusjonar og folk, så språknøytralt nok. */
+  by: string;
+  kind: LesKind;
+  level: LesLevel;
+  /** Tidsbruk der det finst eit tal å oppgje. */
+  meta?: string;
+  /** Éin – og berre éin – peikepinn om kvar ein bør byrja. */
+  start?: boolean;
+}
+
+export const LESELISTE: { id: LesShelf; items: LesLenke[] }[] = [
+  {
+    id: "original",
+    items: [
+      {
+        id: "attention",
+        url: "https://arxiv.org/abs/1706.03762",
+        name: "Attention Is All You Need",
+        by: "Vaswani m.fl., 2017",
+        kind: "papir",
+        level: "tung",
+      },
+    ],
+  },
+  {
+    id: "sjaa",
+    items: [
+      {
+        id: "gpt3b1b",
+        url: "https://www.youtube.com/watch?v=yMQPQuz5WpA",
+        name: "But what is a GPT?",
+        by: "3Blue1Brown",
+        kind: "video",
+        level: "lett",
+        meta: "27 min",
+        start: true,
+      },
+      {
+        id: "explainer",
+        url: "https://poloclub.github.io/transformer-explainer/",
+        name: "Transformer Explainer",
+        by: "Polo Club, Georgia Tech",
+        kind: "leik",
+        level: "lett",
+      },
+      {
+        id: "llmviz",
+        url: "https://bbycroft.net/llm",
+        name: "LLM Visualization",
+        by: "Brendan Bycroft",
+        kind: "leik",
+        level: "middels",
+      },
+    ],
+  },
+  {
+    id: "kode",
+    items: [
+      {
+        id: "nanogpt",
+        url: "https://github.com/karpathy/nanoGPT",
+        name: "nanoGPT",
+        by: "Andrej Karpathy",
+        kind: "kode",
+        level: "middels",
+      },
+      {
+        id: "zerotohero",
+        url: "https://karpathy.ai/zero-to-hero.html",
+        name: "Neural Networks: Zero to Hero",
+        by: "Andrej Karpathy",
+        kind: "video",
+        level: "tung",
+        meta: "~10 t",
+      },
+      {
+        id: "denneappen",
+        url: "https://github.com/Ferine/norsk-llm-trainer-edu",
+        name: "norsk-llm-trainer-edu",
+        by: "Språkmodell-trener",
+        kind: "kode",
+        level: "middels",
+      },
+    ],
+  },
+  {
+    id: "norsk",
+    items: [
+      {
+        id: "nbailab",
+        url: "https://ai.nb.no/",
+        name: "AI-lab",
+        by: "Nasjonalbiblioteket",
+        kind: "nett",
+        level: "lett",
+      },
+      {
+        id: "sprakbanken",
+        url: "https://www.nb.no/sprakbanken/",
+        name: "Språkbanken",
+        by: "Nasjonalbiblioteket",
+        kind: "data",
+        level: "lett",
+      },
+    ],
+  },
+  {
+    id: "grunnlag",
+    items: [
+      {
+        id: "k3",
+        url: "https://huggingface.co/moonshotai/Kimi-K3",
+        name: "Kimi K3 technical report",
+        by: "Moonshot AI",
+        kind: "papir",
+        level: "tung",
+      },
+    ],
+  },
+];
 
 export interface Seeds {
   chatPrompt: string;

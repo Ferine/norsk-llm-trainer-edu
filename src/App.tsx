@@ -21,6 +21,7 @@ import BpeLab from "@/components/BpeLab";
 import Inspector from "@/components/Inspector";
 import Skruer from "@/components/Skruer";
 import Slankekur from "@/components/Slankekur";
+import Leseliste from "@/components/Leseliste";
 import Bekreft, { type Ask } from "@/components/Bekreft";
 import { useRlhf } from "@/lib/useRlhf";
 import { buildModelWorkbook } from "@/lib/excel-model";
@@ -1164,6 +1165,11 @@ export default function App() {
               </button>
             </div>
           </Card>
+        </Section>
+
+        {/* Les meir: baksida av kladdeboka */}
+        <Section id="lesmer" step={10} title={s.readMore.title} intro={s.readMore.intro}>
+          <Leseliste s={s.readMore} />
         </Section>
       </main>
 

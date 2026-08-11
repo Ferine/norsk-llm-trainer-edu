@@ -321,6 +321,52 @@
     }
   }
 
+  /* Skolebiblioteket bakerst i boka: ett bokkort per rad. Tittelen får gul tusj
+     når du peker på den – du markerer det du skal lese – og blir blyantgrå når
+     du har vært innom. :visited kan bare endre farge, og det er akkurat nok til
+     at lista krysser seg av selv. */
+  .lesekort {
+    display: block;
+    border-radius: 2px;
+    padding: 0.75rem 0.5rem;
+    transition: background-color 0.15s;
+  }
+  .lesekort:hover {
+    background: var(--color-papir);
+  }
+  .lesetittel {
+    color: var(--color-blekk);
+    background-image: linear-gradient(
+      105deg,
+      transparent 1%,
+      var(--color-tusj) 6%,
+      var(--color-tusj) 94%,
+      transparent 99%
+    );
+    background-repeat: no-repeat;
+    background-size: 0% 100%;
+    padding: 0 0.12em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    transition: background-size 0.25s ease-out;
+  }
+  .lesekort:hover .lesetittel,
+  .lesekort:focus-visible .lesetittel {
+    background-size: 100% 100%;
+  }
+  .lesekort:visited .lesetittel {
+    color: var(--color-blyant);
+  }
+
+  /* Prikket føringslinje, som i en innholdsliste */
+  .leder {
+    flex: 1 1 auto;
+    min-width: 1.5rem;
+    align-self: flex-end;
+    margin-bottom: 0.32rem;
+    border-bottom: 1px dotted color-mix(in srgb, var(--color-blyant) 55%, transparent);
+  }
+
   /* Bokstavbrikke: løs typografi, som settekassen på trykkeriet */
   .brikke {
     display: inline-flex;
