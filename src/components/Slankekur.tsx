@@ -9,6 +9,7 @@ import {
   type Transformer,
 } from "@/lib/ml";
 import { Utskrift } from "@/components/ui";
+import { Gloss } from "@/components/Gloss";
 import type { buildTokenizer } from "@/lib/corpus";
 import type { Strings } from "@/lib/i18n";
 
@@ -107,7 +108,7 @@ export default function Slankekur({
 
   return (
     <div className="space-y-3">
-      <p className="text-xs leading-relaxed text-blyant">{s.help}</p>
+      <p className="text-xs leading-relaxed text-blyant"><Gloss text={s.help} /></p>
 
       <div className="flex flex-wrap items-center gap-3">
         <button
@@ -172,7 +173,7 @@ export default function Slankekur({
             </div>
           </div>
 
-          <p className="text-xs leading-relaxed text-blyant">{s.note}</p>
+          <p className="text-xs leading-relaxed text-blyant"><Gloss text={s.note} /></p>
         </>
       )}
     </div>

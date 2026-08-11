@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import type { Strings } from "@/lib/i18n";
+import { Gloss } from "@/components/Gloss";
 
 // Ei «oppgave» i kladdeboka: nummeret står ute i margen, venstre for margstreken.
 // Med `fold` blir oppgava valfri fordjuping – samanfalda som standard, slik at
@@ -40,7 +41,11 @@ export function Section({
                 {fold.hide}
               </span>
             </div>
-            {intro && <p className="mt-2 max-w-2xl leading-relaxed text-blyant">{intro}</p>}
+            {intro && (
+              <p className="mt-2 max-w-2xl leading-relaxed text-blyant">
+                <Gloss text={intro} />
+              </p>
+            )}
           </summary>
           <div className="mt-5">{children}</div>
         </details>
@@ -53,7 +58,11 @@ export function Section({
         {step}.
       </span>
       <h2 className="text-2xl font-bold tracking-tight text-blekk">{title}</h2>
-      {intro && <p className="mt-2 max-w-2xl leading-relaxed text-blyant">{intro}</p>}
+      {intro && (
+        <p className="mt-2 max-w-2xl leading-relaxed text-blyant">
+          <Gloss text={intro} />
+        </p>
+      )}
       <div className="mt-5">{children}</div>
     </section>
   );

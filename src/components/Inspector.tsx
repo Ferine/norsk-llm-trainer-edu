@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { rowProbs, type Transformer } from "@/lib/ml";
 import type { Tokenizer } from "@/lib/corpus";
 import type { Strings } from "@/lib/i18n";
+import { Gloss } from "@/components/Gloss";
 
 interface Props {
   model: Transformer | null;
@@ -104,7 +105,7 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
         {/* attention heatmap */}
         <div>
           <h3 className="text-sm font-semibold text-blekk">{s.attnHeading}</h3>
-          <p className="mb-3 text-[11px] text-blyant">{s.attnHelp}</p>
+          <p className="mb-3 text-[11px] text-blyant"><Gloss text={s.attnHelp} /></p>
           <div className="mb-3 flex flex-wrap items-center gap-1">
             <span className="mr-1 font-mono text-xs text-blyant">{s.layerLabel}</span>
             {Array.from({ length: nLayer }, (_, i) => (
@@ -169,7 +170,7 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
         {/* next-character probabilities */}
         <div>
           <h3 className="text-sm font-semibold text-blekk">{s.probHeading}</h3>
-          <p className="mb-3 text-[11px] text-blyant">{s.probHelp}</p>
+          <p className="mb-3 text-[11px] text-blyant"><Gloss text={s.probHelp} /></p>
           <div className="space-y-1">
             {top.map(({ id, p }, rank) => (
               <div key={id} className="flex items-center gap-2">
@@ -209,7 +210,7 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
       {route && (
         <div>
           <h3 className="text-sm font-semibold text-blekk">{s.expertHeading}</h3>
-          <p className="mb-3 text-[11px] text-blyant">{s.expertHelp}</p>
+          <p className="mb-3 text-[11px] text-blyant"><Gloss text={s.expertHelp} /></p>
           <div className="overflow-x-auto">
             <div
               className="inline-grid gap-0.5"

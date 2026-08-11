@@ -14,6 +14,7 @@ import {
 } from "@/lib/ml";
 import { buildTokenizer, corpora } from "@/lib/corpus";
 import { STRINGS, SEEDS, LANGS, type Lang, type Seeds, type Strings } from "@/lib/i18n";
+import { Gloss, GlossLang } from "@/components/Gloss";
 import LossChart from "@/components/LossChart";
 import Architecture from "@/components/Architecture";
 import { Section, Card, Advanced, Utskrift } from "@/components/ui";
@@ -582,6 +583,7 @@ export default function App() {
   }, [lang]);
 
   return (
+    <GlossLang.Provider value={lang}>
     <div className="min-h-screen">
       <Bekreft ask={ask} onClose={() => setAsk(null)} />
 
@@ -650,7 +652,9 @@ export default function App() {
           <h1 className="max-w-3xl font-display text-[2.35rem] leading-[1.18] text-blekk sm:text-[3.25rem] sm:leading-[1.14]">
             {s.hero.h1Pre} <span className="tusj-strek">{s.hero.h1Lang}</span>
           </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-blyant">{s.hero.para}</p>
+          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-blyant">
+            <Gloss text={s.hero.para} />
+          </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <button
               onClick={startFromHero}
@@ -693,7 +697,9 @@ export default function App() {
                   {i + 1}.
                 </div>
                 <div className="mt-2 font-semibold text-blekk">{c.t}</div>
-                <p className="mt-1 text-sm leading-relaxed text-blyant">{c.d}</p>
+                <p className="mt-1 text-sm leading-relaxed text-blyant">
+                  <Gloss text={c.d} />
+                </p>
               </Card>
             ))}
           </div>
@@ -734,7 +740,9 @@ export default function App() {
 
             <div>
               <h3 className="mb-2 font-semibold text-blekk">{s.data.originHeading}</h3>
-              <p className="max-w-2xl text-sm leading-relaxed text-blyant">{s.data.originPara}</p>
+              <p className="max-w-2xl text-sm leading-relaxed text-blyant">
+                <Gloss text={s.data.originPara} />
+              </p>
             </div>
 
             <div>
@@ -804,10 +812,10 @@ export default function App() {
             />
             <div className="mt-5 grid grid-cols-1 gap-3 text-sm leading-relaxed text-blyant sm:grid-cols-2">
               <div className="rounded-[2px] border border-blekk/25 bg-papir/70 p-3">
-                <b className="text-blekk">{s.arch.causalTitle}</b> {s.arch.causalBody}
+                <b className="text-blekk">{s.arch.causalTitle}</b> <Gloss text={s.arch.causalBody} />
               </div>
               <div className="rounded-[2px] border border-blekk/25 bg-papir/70 p-3">
-                <b className="text-blekk">{s.arch.headsTitle}</b> {s.arch.headsBody}
+                <b className="text-blekk">{s.arch.headsTitle}</b> <Gloss text={s.arch.headsBody} />
               </div>
             </div>
           </Card>
@@ -844,7 +852,7 @@ export default function App() {
             <Advanced label={s.advanced}>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="etikett mb-1 block">{s.train.minibatch(cfg.batch)}</label>
+                  <label className="etikett mb-1 block"><Gloss text={s.train.minibatch(cfg.batch)} /></label>
                   <input
                     type="range"
                     min={1}
@@ -856,7 +864,7 @@ export default function App() {
                   />
                 </div>
                 <div>
-                  <label className="etikett mb-1 block">{s.train.learningRate(lr.toFixed(4))}</label>
+                  <label className="etikett mb-1 block"><Gloss text={s.train.learningRate(lr.toFixed(4))} /></label>
                   <input
                     type="range"
                     min={0.0001}
@@ -885,7 +893,7 @@ export default function App() {
                     <option value="adam">{s.train.optimAdam}</option>
                     <option value="muon">{s.train.optimMuon}</option>
                   </select>
-                  <p className="mt-1 text-xs leading-relaxed text-blyant">{s.train.optimHelp}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-blyant"><Gloss text={s.train.optimHelp} /></p>
                 </div>
                 <div>
                   <label className="etikett mb-1 block" htmlFor="akt">
@@ -904,7 +912,7 @@ export default function App() {
                     <option value="gelu">{s.train.actGelu}</option>
                     <option value="situ">{s.train.actSitu}</option>
                   </select>
-                  <p className="mt-1 text-xs leading-relaxed text-blyant">{s.train.actHelp}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-blyant"><Gloss text={s.train.actHelp} /></p>
                 </div>
                 <div>
                   <label className="etikett mb-1 block" htmlFor="moe">
@@ -923,7 +931,7 @@ export default function App() {
                     <option value="off">{s.train.moeOff}</option>
                     <option value="on">{s.train.moeOn}</option>
                   </select>
-                  <p className="mt-1 text-xs leading-relaxed text-blyant">{s.train.moeHelp}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-blyant"><Gloss text={s.train.moeHelp} /></p>
                 </div>
                 <div className="sm:col-span-2">
                   <label className="flex items-start gap-2 text-sm text-blekk">
@@ -936,7 +944,7 @@ export default function App() {
                     <span>
                       {s.train.scheduleLabel}
                       <span className="mt-1 block text-xs leading-relaxed text-blyant">
-                        {s.train.scheduleHelp}
+                        <Gloss text={s.train.scheduleHelp} />
                       </span>
                     </span>
                   </label>
@@ -971,7 +979,7 @@ export default function App() {
                 <div className="font-mono text-sm font-semibold text-blekk">
                   {s.train.step(step, MAX_STEPS)}
                 </div>
-                <div className="font-mono text-xs text-blyant">{stats.params.toLocaleString(activeLocale)} {s.train.params}</div>
+                <div className="font-mono text-xs text-blyant">{stats.params.toLocaleString(activeLocale)} <Gloss text={s.train.params} /></div>
                 {eta && <div className="font-mono text-[11px] text-blyant">{eta}</div>}
               </div>
             </div>
@@ -996,7 +1004,7 @@ export default function App() {
               <h3 className="mb-2 font-semibold text-blekk">{s.train.lossHeading}</h3>
               <LossChart data={losses} loss={s.loss} />
               <p className="mt-2 text-xs leading-relaxed text-blyant">
-                {s.train.lossHelp}
+                <Gloss text={s.train.lossHelp} />
               </p>
             </div>
 
@@ -1095,7 +1103,7 @@ export default function App() {
 
             {/* temperatur er den eine morosame brytaren – resten er fordjuping */}
             <div className="max-w-sm">
-              <label className="etikett mb-1 block">{s.chat.temp(genTemp.toFixed(2))}</label>
+              <label className="etikett mb-1 block"><Gloss text={s.chat.temp(genTemp.toFixed(2))} /></label>
               <input
                 type="range"
                 min={0}
@@ -1111,7 +1119,7 @@ export default function App() {
             <Advanced label={s.advanced}>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="etikett mb-1 block">{s.chat.topK(genTopK)}</label>
+                  <label className="etikett mb-1 block"><Gloss text={s.chat.topK(genTopK)} /></label>
                   <input
                     type="range"
                     min={1}
@@ -1171,7 +1179,7 @@ export default function App() {
         {/* Ærlig note – lærerens rettepenn, etter at eleven har prøvd modellen */}
         <section className="rounded-[3px] border-2 border-rettepenn bg-white p-5 text-sm leading-relaxed">
           <b className="text-rettepenn">{s.warning.lead}</b>
-          {s.warning.body}
+          <Gloss text={s.warning.body} />
         </section>
 
         {/* Eigen tekst */}
@@ -1211,7 +1219,7 @@ export default function App() {
 
       <footer className="border-t-2 border-blekk py-8">
         <div className="mx-auto max-w-4xl px-4 text-center font-mono text-[11px] leading-relaxed text-blyant">
-          {s.footer.line1}
+          <Gloss text={s.footer.line1} />
           <br />
           {s.footer.line2}
           {/* Dukkar opp så snart det finst noko trent, men ikkje midt i treninga:
@@ -1223,7 +1231,7 @@ export default function App() {
                 fil som reknar på ein annan modell enn den som står på skjermen. */}
             <div className="mt-6">
               {moe ? (
-                <div className="mx-auto max-w-md">{s.footer.excelMoe}</div>
+                <div className="mx-auto max-w-md"><Gloss text={s.footer.excelMoe} /></div>
               ) : (
                 <>
                   <button
@@ -1252,7 +1260,7 @@ export default function App() {
                 {s.footer.gguf}
               </button>
               <div className="mx-auto mt-2 max-w-md">
-                {ggufState === "idle" && s.footer.ggufHint}
+                {ggufState === "idle" && <Gloss text={s.footer.ggufHint} />}
                 {ggufState === "working" && s.footer.ggufBusy}
                 {ggufState === "done" && (
                   <span className="handnotat text-base">✓ {s.footer.ggufDone}</span>
@@ -1264,5 +1272,6 @@ export default function App() {
         </div>
       </footer>
     </div>
+    </GlossLang.Provider>
   );
 }

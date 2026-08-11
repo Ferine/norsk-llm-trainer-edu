@@ -1,5 +1,6 @@
 import LossChart from "@/components/LossChart";
 import { Card, Advanced } from "@/components/ui";
+import { Gloss } from "@/components/Gloss";
 import type { useRlhf } from "@/lib/useRlhf";
 import type { Strings } from "@/lib/i18n";
 
@@ -46,7 +47,7 @@ export default function Rlhf({
   if (!rlhf.started) {
     return (
       <Card className="space-y-4">
-        <p className="text-sm leading-relaxed text-blyant">{s.rlhf.introCard}</p>
+        <p className="text-sm leading-relaxed text-blyant"><Gloss text={s.rlhf.introCard} /></p>
         <button onClick={rlhf.start} disabled={rlhf.baseRunning} className="knapp knapp-blekk">
           {s.rlhf.startBtn}
         </button>
@@ -150,7 +151,7 @@ export default function Rlhf({
           <div>
             <h3 className="mb-2 font-semibold text-blekk">{s.rlhf.dpoLossHeading}</h3>
             <LossChart data={rlhf.losses} loss={s.loss} />
-            <p className="mt-2 text-xs leading-relaxed text-blyant">{s.rlhf.dpoHelp}</p>
+            <p className="mt-2 text-xs leading-relaxed text-blyant"><Gloss text={s.rlhf.dpoHelp} /></p>
           </div>
         </div>
       </Advanced>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { learnBpe, tokenizeSentence } from "@/lib/bpe";
 import type { Strings } from "@/lib/i18n";
+import { Gloss } from "@/components/Gloss";
 
 interface Props {
   corpus: string;
@@ -133,10 +134,10 @@ export default function BpeLab({ corpus, sampleSentence, s }: Props) {
       </div>
 
       {/* vocab tally + payoff */}
-      <p className="font-mono text-xs text-blyant">{s.vocabLine(baseVocab.length, k, vocabSize)}</p>
+      <p className="font-mono text-xs text-blyant"><Gloss text={s.vocabLine(baseVocab.length, k, vocabSize)} /></p>
       <p className="border-l-4 border-rettepenn bg-white px-3 py-2 text-sm leading-relaxed">
         <b className="font-mono text-xs font-semibold uppercase tracking-wider text-rettepenn">NB! </b>
-        {s.payoff}
+        <Gloss text={s.payoff} />
       </p>
     </div>
   );

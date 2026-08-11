@@ -1,5 +1,6 @@
 import type { Strings } from "@/lib/i18n";
 import type { MoeConfig } from "@/lib/ml";
+import { Gloss } from "@/components/Gloss";
 
 interface Props {
   layers: number;
@@ -29,8 +30,8 @@ function Box({
   };
   return (
     <div className={`rounded-[3px] border-2 border-blekk px-3 py-2 text-center text-blekk ${tones[tone]}`}>
-      <div className="text-xs font-semibold sm:text-sm">{title}</div>
-      {sub && <div className="font-mono text-[10px] text-blyant sm:text-[11px]">{sub}</div>}
+      <div className="text-xs font-semibold sm:text-sm"><Gloss text={title} /></div>
+      {sub && <div className="font-mono text-[10px] text-blyant sm:text-[11px]"><Gloss text={sub} /></div>}
       {children}
     </div>
   );
@@ -69,7 +70,7 @@ export default function Architecture({ layers, heads, dim, moe, s }: Props) {
                 ) : (
                   <Box title={s.arch.boxFfn.title} sub={s.arch.boxFfn.sub} />
                 )}
-                <div className="font-mono text-[10px] text-blyant">{s.arch.residualNote}</div>
+                <div className="font-mono text-[10px] text-blyant"><Gloss text={s.arch.residualNote} /></div>
               </div>
             </Box>
             <Arrow />
@@ -89,7 +90,7 @@ export default function Architecture({ layers, heads, dim, moe, s }: Props) {
           <ul className="space-y-2">
             {s.arch.explain.map((e, i) => (
               <li key={i}>
-                <b className="text-blekk">{e.b}</b> {e.t}
+                <b className="text-blekk"><Gloss text={e.b} /></b> <Gloss text={e.t} />
               </li>
             ))}
           </ul>

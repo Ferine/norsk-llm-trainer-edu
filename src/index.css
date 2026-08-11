@@ -358,6 +358,53 @@
     color: var(--color-blyant);
   }
 
+  /* Fagord i løpende tekst: prikket blyantstrek under, og en håndskrevet
+     gloselapp som dukker opp ved peking eller fokus. Lappen er med vilje
+     blekk på hvitt – rettepennen (rød) er reservert for vurdering. */
+  .fagord {
+    position: relative;
+    cursor: help;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: color-mix(in srgb, var(--color-blyant) 70%, transparent);
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 3px;
+  }
+  .fagord-lapp {
+    position: absolute;
+    bottom: calc(100% + 0.5rem);
+    left: 50%;
+    width: max-content;
+    max-width: min(19rem, 78vw);
+    transform: translateX(-50%) rotate(-1.2deg);
+    background: #fff;
+    border: 1.5px solid var(--color-blekk);
+    border-radius: 3px;
+    box-shadow: 3px 3px 0 color-mix(in srgb, var(--color-blekk) 12%, transparent);
+    padding: 0.4rem 0.65rem;
+    /* Lappen kan stå inni etiketter og monotekst: nullstill arven eksplisitt */
+    font-family: var(--font-hand);
+    font-size: 1.15rem;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: normal;
+    text-transform: none;
+    text-align: left;
+    white-space: normal;
+    color: var(--color-blekk);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.12s ease-out;
+    pointer-events: none;
+    z-index: 40;
+  }
+  .fagord:hover .fagord-lapp,
+  .fagord:focus .fagord-lapp,
+  .fagord:focus-visible .fagord-lapp {
+    opacity: 1;
+    visibility: visible;
+  }
+
   /* Prikket føringslinje, som i en innholdsliste */
   .leder {
     flex: 1 1 auto;
