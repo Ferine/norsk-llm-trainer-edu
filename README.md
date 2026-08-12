@@ -445,6 +445,13 @@ and it gets noticeably better.
 
 ---
 
+## 🤝 Credits
+
+The project was put together by **z.ai GLM-5.2**, then polished and extended by
+**Claude Opus 5**.
+
+---
+
 ## 📜 License
 
 [MIT](LICENSE) — © 2026 Atle Strand. Use it, fork it, teach with it.

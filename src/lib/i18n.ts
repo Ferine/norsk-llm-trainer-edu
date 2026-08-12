@@ -258,6 +258,7 @@ export interface Strings {
   footer: {
     line1: string;
     line2: string;
+    line3: string;
     excel: string;
     excelHint: string;
     excelBusy: string;
@@ -601,6 +602,8 @@ const bm: Strings = {
     line1:
       "Bygd med egenskrevet maskinlæringsmotor – transformer, autograd og Adam – helt i JavaScript.",
     line2: "All kode og all læring skjer lokalt i din egen nettleser. 🇳🇴",
+    line3:
+      "Satt sammen av z.ai GLM-5.2, finpusset og utvidet av Claude Opus 5.",
     excel: "Last ned modellen som regneark",
     excelHint:
       "Modellen du nettopp trente, som en Excel-fil som skriver tekst med vanlige formler – ingen makroer.",
@@ -947,6 +950,8 @@ const nn: Strings = {
     line1:
       "Bygd med eigenskriven maskinlæringsmotor – transformer, autograd og Adam – heilt i JavaScript.",
     line2: "All kode og all læring skjer lokalt i din eigen nettlesar. 🇳🇴",
+    line3:
+      "Sett saman av z.ai GLM-5.2, finpussa og utvida av Claude Opus 5.",
     excel: "Last ned modellen som rekneark",
     excelHint:
       "Modellen du nettopp trena, som ei Excel-fil som skriv tekst med vanlege formlar – ingen makroar.",

@@ -1222,6 +1222,8 @@ export default function App() {
           <Gloss text={s.footer.line1} />
           <br />
           {s.footer.line2}
+          <br />
+          {s.footer.line3}
           {/* Dukkar opp så snart det finst noko trent, men ikkje midt i treninga:
               eksporten blokkerer tråden ein augneblink, og vektene ville flytta seg. */}
           {step > 0 && !running && (
