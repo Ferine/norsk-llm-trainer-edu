@@ -1,8 +1,9 @@
 import { LESELISTE, type Strings } from "@/lib/i18n";
 
 // Skulebiblioteket bakarst i kladdeboka: éi hylle per panel, eitt bokkort per
-// rad. Dette er dei einaste lenkjene i appen som peikar ut på nettet – difor
-// står den ærlege noten øvst i staden for å bli gøymd.
+// rad. Nesten alle lenkjene i appen som peikar ut på nettet bur her (unnataket
+// er GGUF-visaren i botnteksten) – difor står den ærlege noten øvst i staden
+// for å bli gøymd.
 export default function Leseliste({ s }: { s: Strings["readMore"] }) {
   return (
     <div className="space-y-4">

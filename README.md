@@ -107,12 +107,12 @@ The page walks you through the full lifecycle of a language model, one section a
 | 2 | **Raw text & tokenization** | See the Norwegian corpus, watch a sentence split into characters, and inspect the full character-level vocabulary. |
 | 3 | **From characters to word-pieces (BPE)** | Learn byte-pair encoding hands-on: merge the most frequent pair step by step and watch the sample sentence re-tokenize into subwords. |
 | 4 | **The architecture** | A live diagram of the transformer that updates with your chosen layer/head/dimension settings — and redraws the wide layer as a row of experts when you switch those on. |
-| 5 | **Training** | Pick a model size, batch size, and learning rate, then hit **Start** and watch the loss fall and sample text improve in real time. **Flere innstillinger** holds the frontier switches (optimizer, LR schedule, activation, experts) and the 4-bit slimming measurement. |
+| 5 | **Training** | Pick a model size, batch size, and learning rate, then hit **Start** and watch the loss fall and sample text improve in real time. **Flere innstillinger** holds the frontier switches (optimizer, LR schedule, activation, experts) and the 4-bit slimming measurement. Two live weight views fold out below: the change-heat grid (*skruene*) and the **vevkart** — every single parameter as one pixel, grouped by the model's anatomy (embeddings → per-block attention/FFN → output head), redrawn as training runs with a decaying highlighter glow on the weights that just moved. |
 | 6 | **Look inside the model** | Pick any position in a sentence and inspect every head's attention pattern plus the next-character probability distribution — with the true next character as fasit. With experts switched on, an extra strip shows which expert each character woke. |
 | 7 | **Try the model** | Give it a prompt and generate text, tuning temperature, top-k, and length. The prompt you supplied stays marked in everything the model writes, so you can always see where your text ended and the model's began. |
 | 8 | **RLHF** | Generate two continuations, choose the one you prefer, and steer the model toward your taste with DPO. |
 | 9 | **Add your own text** | Paste in any text to rebuild the vocabulary and retrain on your own data — or pick a bundled excerpt from the dropdown (`src/lib/eksempeltekster.ts`): public-domain classics (Vinje, Hamsun, Garborg, Undset, via Project Gutenberg and Wikisource) plus modern Norwegian from Wikipedia — the Bokmål article on large language models and the Nynorsk one on machine learning (CC BY-SA 4.0), so the tiny model can train on text about itself. Everything ships inside the build, fetched verbatim at authoring time; the app still makes zero network calls. |
-| 10 | **Read more** | A curated reading list on five shelves — the original paper, things to watch, code you can read, Norwegian-language material, and what this app builds on. These are the only outbound links in the app, visited ones grey out, and the page says so up front rather than hiding it. |
+| 10 | **Read more** | A curated reading list on five shelves — the original paper, things to watch, code you can read, Norwegian-language material, and what this app builds on. Together with the GGUF-visualizer link in the footer these are the only outbound links in the app, visited ones grey out, and the page says so up front rather than hiding it. |
 | 11 | **Glossary** | Every technical term in the app on one page, grouped by theme — from tokenization to scaling laws. The same definitions pop up as handwritten notes when you hover a dotted-underlined word anywhere on the page: one source (`src/lib/ordliste.ts`) feeds both. |
 
 Above the journey sits the **hero strip**: a real training run replayed character by character
@@ -334,6 +334,13 @@ model built there, and the file states them honestly instead of papering over th
 Everything else follows llama.cpp's tensor shapes and naming exactly, so the file reads as familiar
 to a trained eye. Training metadata rides along in `sprakmodell.*` keys: step count, final loss,
 preset, language, activation and parameter count.
+
+The footer links to [GGUF visualizer](https://sultan-papagani.github.io/gguf-visualizer/), a
+client-side 3D viewer that parses the exported file entirely in your browser — architecture,
+layer/head counts, the full tensor table and a point cloud of the weights — without uploading it
+anywhere. Verified against this app's own exports, custom `sprakmodell-situ` architecture included.
+Its anatomy-ordered weight layout also inspired the in-app **vevkart** in step 5 — written from
+scratch on 2D canvas over the live weights (`src/components/Vevkart.tsx`), no Three.js, no parsing.
 
 ### The RLHF / DPO path
 

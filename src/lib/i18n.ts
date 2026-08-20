@@ -146,6 +146,15 @@ export interface Strings {
     screwsLabel: string;
     screwsHelp: string;
     screwsIdle: string;
+    /** Vevkartet: alle vektene som pikslar, sorterte etter anatomien. */
+    vevLabel: string;
+    vevHelp: string;
+    vevIdle: string;
+    vevEmb: string;
+    vevAttn: (i: number) => string;
+    vevFfn: (i: number) => string;
+    vevMoe: (i: number) => string;
+    vevOut: string;
     liveLabel: string;
     livePlaceholder: string;
     fanNote: string;
@@ -284,6 +293,9 @@ export interface Strings {
     ggufHint: string;
     ggufBusy: string;
     ggufDone: string;
+    /** Lenkje til GGUF-visualizer – eitt av to unnatak frå «berre leselista lenkjer ut». */
+    ggufViz: string;
+    ggufVizNote: string;
   };
   docTitle: string;
 }
@@ -449,6 +461,16 @@ const bm: Strings = {
     screwsHelp:
       "Hver rute er én av modellens justeringsskruer (vekter) – et lite utvalg av alle sammen. Mørk rute = skruen ble vridd mye nå nettopp. Tidlig i treningen er det mange mørke ruter; etter hvert som modellen lærer, blir det stadig færre og roligere.",
     screwsIdle: "Start treningen for å se skruene i arbeid.",
+    vevLabel: "Vevkart – alle vektene på ett brett",
+    vevHelp:
+      "Hver piksel er én vekt, sortert etter hvor i modellen den bor – jo mørkere blekk, jo større tall, og det som nettopp flyttet seg lyser som markeringstusj. De nesten svarte stripene er LayerNorm, som med vilje står rundt 1. Se læringen vandre rundt i anatomien mens treningen pågår.",
+    vevIdle:
+      "Foreløpig er alt jevn, tilfeldig grå – hver vekt er bare et lite tilfeldig tall. Start treningen og se mønstrene vokse fram.",
+    vevEmb: "innbygging",
+    vevAttn: (i) => `blokk ${i} – oppmerksomhet`,
+    vevFfn: (i) => `blokk ${i} – bredt lag`,
+    vevMoe: (i) => `blokk ${i} – eksperter`,
+    vevOut: "utgang (hode)",
     liveLabel: "Dette skriver modellen nå",
     livePlaceholder: "Trykk «Start trening» for å se eksempler underveis…",
     fanNote:
@@ -658,6 +680,8 @@ const bm: Strings = {
       "Samme filformat som de store modellene deles i. Du kan åpne den med vanlige GGUF-verktøy og se hver eneste skrue modellen har lært – men den er ikke laget for å kjøres av dem.",
     ggufBusy: "lager modellfil …",
     ggufDone: "lastet ned",
+    ggufViz: "Se filen i 3D med GGUF-visualizer",
+    ggufVizNote: "Verktøyet kjører i nettleseren din – filen lastes ikke opp.",
   },
   docTitle: "Språkmodell-trener – bygg AI på bokmål",
 };
@@ -823,6 +847,16 @@ const nn: Strings = {
     screwsHelp:
       "Kvar rute er éin av justeringsskruane til modellen (vektene) – eit lite utval av alle saman. Mørk rute = skruen vart vriden mykje no nettopp. Tidleg i treninga er det mange mørke ruter; etter kvart som modellen lærer, blir det stadig færre og rolegare.",
     screwsIdle: "Start treninga for å sjå skruane i arbeid.",
+    vevLabel: "Vevkart – alle vektene på eitt brett",
+    vevHelp:
+      "Kvar piksel er éi vekt, sortert etter kvar i modellen ho bur – di mørkare blekk, di større tal, og det som nettopp flytta seg lyser som markeringstusj. Dei nesten svarte stripene er LayerNorm, som med vilje står kring 1. Sjå læringa vandre rundt i anatomien medan treninga går.",
+    vevIdle:
+      "Førebels er alt jamn, tilfeldig grå – kvar vekt er berre eit lite tilfeldig tal. Start treninga og sjå mønstera vekse fram.",
+    vevEmb: "innbygging",
+    vevAttn: (i) => `blokk ${i} – merksemd`,
+    vevFfn: (i) => `blokk ${i} – breitt lag`,
+    vevMoe: (i) => `blokk ${i} – ekspertar`,
+    vevOut: "utgang (hovud)",
     liveLabel: "Dette skriv modellen no",
     livePlaceholder: "Trykk «Start trening» for å sjå døme undervegs…",
     fanNote:
@@ -1032,6 +1066,8 @@ const nn: Strings = {
       "Same filformatet som dei store modellane blir delte i. Du kan opne henne med vanlege GGUF-verktøy og sjå kvar einaste skrue modellen har lært – men ho er ikkje laga for å køyrast av dei.",
     ggufBusy: "lagar modellfil …",
     ggufDone: "lasta ned",
+    ggufViz: "Sjå fila i 3D med GGUF-visualizer",
+    ggufVizNote: "Verktøyet køyrer i nettlesaren din – fila blir ikkje lasta opp.",
   },
   docTitle: "Språkmodell-trenar – bygg AI på nynorsk",
 };

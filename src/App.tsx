@@ -22,6 +22,7 @@ import Rlhf from "@/components/Rlhf";
 import BpeLab from "@/components/BpeLab";
 import Inspector from "@/components/Inspector";
 import Skruer from "@/components/Skruer";
+import Vevkart from "@/components/Vevkart";
 import Slankekur from "@/components/Slankekur";
 import Leseliste from "@/components/Leseliste";
 import Ordliste from "@/components/Ordliste";
@@ -560,6 +561,7 @@ export default function App() {
   const examples = seed.examples;
 
   const getParams = useCallback(() => engineRef.current?.model.params ?? null, []);
+  const getModel = useCallback(() => engineRef.current?.model ?? null, []);
   const getEngine = useCallback(() => engineRef.current, []);
 
   const trainedDone = step >= MAX_STEPS && !running;
@@ -1025,6 +1027,17 @@ export default function App() {
               />
             </Advanced>
 
+            {/* fordypning: heile anatomien som pikselkart, levande under trening */}
+            <Advanced label={s.train.vevLabel}>
+              <Vevkart
+                getModel={getModel}
+                step={step}
+                engineGen={engineGen}
+                locale={activeLocale}
+                t={s.train}
+              />
+            </Advanced>
+
             {/* fordypning: same krymping som dei store modellane gjer før drift */}
             <Advanced label={s.train.slank.label}>
               <Slankekur
@@ -1320,6 +1333,21 @@ export default function App() {
                 {ggufState === "done" && (
                   <span className="handnotat text-base">✓ {s.footer.ggufDone}</span>
                 )}
+              </div>
+              {/* Eitt av to unnatak frå «berre leselista lenkjer ut»: verktøyet
+                  les fila lokalt i nettlesaren, så lovnaden om at ingenting
+                  forlèt maskina held. Verifisert mot appens eigne GGUF-filer. */}
+              <div className="mx-auto mt-2 max-w-md">
+                <a
+                  href="https://sultan-papagani.github.io/gguf-visualizer/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-blekk underline decoration-dotted decoration-blekk/50 underline-offset-2 hover:decoration-blekk"
+                >
+                  {s.footer.ggufViz} <span aria-hidden>↗</span>
+                  <span className="sr-only">{s.readMore.newTab}</span>
+                </a>{" "}
+                {s.footer.ggufVizNote}
               </div>
             </div>
             </>
