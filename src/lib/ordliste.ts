@@ -1,366 +1,781 @@
 import type { Lang } from "./i18n";
 
 /* --- Ordlista -----------------------------------------------------------
-   Fagorda i appen, med ei kjapp gloseforklaring på begge målformer.
-   Gloss-komponenten (components/Gloss.tsx) leitar opp orda i løpande tekst
-   og heng forklaringa på som ein handskriven lapp når ein peikar på ordet.
+   Fagorda i appen, med ei kjapp gloseforklaring på begge målformer. Éi kjelde,
+   to bruksmåtar:
+
+   – Gloss-komponenten (components/Gloss.tsx) leitar opp orda i løpande tekst
+     og heng forklaringa på som ein handskriven lapp når ein peikar på ordet.
+   – Ordliste-komponenten (components/Ordliste.tsx, steg 11) viser alle orda
+     samla, sorterte etter tema, som glosene bakarst i ei kladdebok.
 
    `ord` er skrivemåtane som skal merkjast, med bøygde former der teksten
    brukar dei («tapet», «merksemda»). glossify sorterer sjølv lengste først,
    så «tap (loss)» vinn over «tap». Berre første førekomst i kvar tekstbolk
-   blir merkt – elles blir sida sjåande ut som eit understrekingsseminar. */
+   blir merkt – elles blir sida sjåande ut som eit understrekingsseminar.
+   `vis` er oppslagsforma slik ho står i ordlista. */
 
 export interface Fagord {
+  /** Oppslagsforma i ordlista (steg 11). */
+  vis: string;
+  /** Skrivemåtane som skal merkjast i løpande tekst. */
   ord: string[];
   def: string;
 }
 
+/* Temaa følgjer løypa gjennom appen; rekkjefølgja her er rekkjefølgja på sida. */
+export type Tema =
+  | "grunnlag"
+  | "tekst"
+  | "inni"
+  | "laering"
+  | "optimalisering"
+  | "tal"
+  | "skriv"
+  | "finpuss"
+  | "skala";
+
+export const TEMA_REKKEFOLGJE: Tema[] = [
+  "grunnlag",
+  "tekst",
+  "inni",
+  "laering",
+  "optimalisering",
+  "tal",
+  "skriv",
+  "finpuss",
+  "skala",
+];
+
+export interface Oppslag {
+  tema: Tema;
+  bm: Fagord;
+  nn: Fagord;
+}
+
 export type OrdId =
+  // grunnlaget
   | "spraakmodell"
-  | "token"
+  | "nevralt-nett"
   | "transformer"
-  | "tap"
-  | "vekter"
-  | "backpropagation"
-  | "embedding"
-  | "attention"
-  | "kausal-maskering"
-  | "feed-forward"
-  | "residual"
-  | "layernorm"
-  | "logits"
-  | "softmax"
+  | "parametere"
   | "korpus"
+  // frå tekst til tal
+  | "token"
+  | "bpe"
   | "vokabular"
+  | "embedding"
+  | "posisjonskoding"
+  // inni transformeren
+  | "attention"
+  | "multi-head"
+  | "kausal-maskering"
+  | "softmax"
+  | "layernorm"
+  | "pre-norm"
+  | "residual"
+  | "feed-forward"
+  | "gelu"
+  | "situ-glu"
+  | "logits"
+  // læringa
+  | "tap"
+  | "perplexity"
+  | "backpropagation"
+  | "autograd"
+  | "gradient-clipping"
   | "minibatch"
+  | "seq-len"
+  // optimalisering
   | "laeringsrate"
   | "adam"
   | "muon"
-  | "gelu"
-  | "situ-glu"
-  | "moe"
-  | "rlhf"
-  | "dpo"
+  | "newton-schulz"
+  | "nedtrapping"
+  | "warmup"
+  // tal og minne
+  | "vekter"
+  | "tensor"
+  | "matmul"
+  | "float32array"
+  | "presisjon"
+  | "kvantisering"
+  // når modellen skriv
   | "temperatur"
   | "top-k"
-  | "gguf"
-  | "autograd"
-  | "nevralt-nett"
-  | "parametere";
+  // finpussing
+  | "rlhf"
+  | "dpo"
+  // skala
+  | "moe"
+  | "flops"
+  | "skalalov"
+  | "gguf";
 
-/* Gløymer du ei målform på eit ord, kompilerer det ikkje. */
-export const ORDLISTE: Record<OrdId, Record<Lang, Fagord>> = {
+/* Gløymer du ei målform på eit ord, kompilerer det ikkje.
+   Rekkjefølgja innanfor kvart tema er rekkjefølgja i ordlista. */
+export const ORDLISTE: Record<OrdId, Oppslag> = {
+  /* ---------------------------- grunnlaget ----------------------------- */
   spraakmodell: {
+    tema: "grunnlag",
     bm: {
+      vis: "språkmodell",
       ord: ["språkmodell", "språkmodellen", "språkmodeller", "språkmodellene"],
       def: "Et dataprogram trent til én ting: å gjette neste tegn eller ord i en tekst. All skrivingen er bare gjetting, om og om igjen.",
     },
     nn: {
+      vis: "språkmodell",
       ord: ["språkmodell", "språkmodellen", "språkmodellar", "språkmodellane"],
       def: "Eit dataprogram trena til éin ting: å gjette neste teikn eller ord i ein tekst. All skrivinga er berre gjetting, om att og om att.",
     },
   },
-  token: {
+  "nevralt-nett": {
+    tema: "grunnlag",
     bm: {
-      ord: ["token", "tokenisering"],
-      def: "Den minste tekstbiten modellen regner med – her ett enkelt tegn, i store modeller en ord-bit. Hvert token får sitt eget nummer.",
+      vis: "nevralt nett",
+      ord: ["nevralt nett", "nevrale nett"],
+      def: "Et nettverk av enkle regneenheter med justerbare vekter imellom – grunnmuren i moderne maskinlæring.",
     },
     nn: {
-      ord: ["token", "tokenisering"],
-      def: "Den minste tekstbiten modellen reknar med – her eitt enkelt teikn, i store modellar ein ord-bit. Kvart token får sitt eige nummer.",
+      vis: "nevralt nett",
+      ord: ["nevralt nett", "nevrale nett"],
+      def: "Eit nettverk av enkle rekneeiningar med justerbare vekter imellom – grunnmuren i moderne maskinlæring.",
     },
   },
   transformer: {
+    tema: "grunnlag",
     bm: {
+      vis: "transformer",
       ord: ["transformer", "transformeren"],
       def: "Byggetegningen bak moderne språkmodeller (fra 2017): lag på lag som først ser på sammenhengen i teksten, så tenker videre på den.",
     },
     nn: {
+      vis: "transformer",
       ord: ["transformer", "transformeren"],
       def: "Byggjeteikninga bak moderne språkmodellar (frå 2017): lag på lag som først ser på samanhengen i teksten, så tenkjer vidare på han.",
     },
   },
-  tap: {
+  parametere: {
+    tema: "grunnlag",
     bm: {
-      ord: ["tap (loss)", "tap", "tapet"],
-      def: "Feilmålet i treningen: hvor overrasket modellen ble av det riktige neste tegnet. Lavere tap = bedre gjetting.",
+      vis: "parametere",
+      ord: ["parametere", "parametre"],
+      def: "Samlenavn på alle tallene modellen lærer (vektene). Flere parametere = større modell – og mer regning.",
     },
     nn: {
-      ord: ["tap (loss)", "tap", "tapet"],
-      def: "Feilmålet i treninga: kor overraska modellen vart av det rette neste teiknet. Lågare tap = betre gjetting.",
-    },
-  },
-  vekter: {
-    bm: {
-      ord: ["vektene", "vekter"],
-      def: "Tallene inni modellen som lagrer alt den har lært. Å trene = å justere disse tallene bitte litt, tusenvis av ganger.",
-    },
-    nn: {
-      ord: ["vektene", "vektane", "vekter"],
-      def: "Tala inni modellen som lagrar alt han har lært. Å trene = å justere desse tala bitte litt, tusenvis av gonger.",
-    },
-  },
-  backpropagation: {
-    bm: {
-      ord: ["backpropagation"],
-      def: "Regnemetoden som sporer feilen bakover gjennom alle lagene, så hver vekt får vite hvilken vei den skal vris. På norsk: tilbakeføring av feil.",
-    },
-    nn: {
-      ord: ["backpropagation"],
-      def: "Reknemetoden som sporar feilen bakover gjennom alle laga, så kvar vekt får vite kva veg ho skal vridast. På norsk: tilbakeføring av feil.",
-    },
-  },
-  embedding: {
-    bm: {
-      ord: ["embedding", "innbygging", "innbyggingen"],
-      def: "Oversettelsen fra tegn til en liste med tall (en vektor) som modellen kan regne med. Tegn som ligner, får liknende tall.",
-    },
-    nn: {
-      ord: ["embedding", "innbygging", "innbygginga"],
-      def: "Omsetjinga frå teikn til ei liste med tal (ein vektor) som modellen kan rekne med. Teikn som liknar, får liknande tal.",
-    },
-  },
-  attention: {
-    bm: {
-      ord: ["multi-head oppmerksomhet", "selvoppmerksomhet", "oppmerksomhet", "oppmerksomheten"],
-      def: "Mekanismen (attention) der hvert tegn ser tilbake på teksten før seg og plukker ut det som er viktig akkurat nå. Hjertet i transformeren.",
-    },
-    nn: {
-      ord: ["multi-head merksemd", "sjølvmerksemd", "merksemd", "merksemda"],
-      def: "Mekanismen (attention) der kvart teikn ser attende på teksten før seg og plukkar ut det som er viktig akkurat no. Hjartet i transformeren.",
-    },
-  },
-  "kausal-maskering": {
-    bm: {
-      ord: ["kausal maskering"],
-      def: "Sperren som skjuler fremtiden: når modellen gjetter et tegn, ser den bare tegnene som kom før – aldri fasiten.",
-    },
-    nn: {
-      ord: ["kausal maskering"],
-      def: "Sperra som gøymer framtida: når modellen gjettar eit teikn, ser han berre teikna som kom før – aldri fasiten.",
-    },
-  },
-  "feed-forward": {
-    bm: {
-      ord: ["feed-forward"],
-      def: "Et lite nevralt nett inni hver blokk som bearbeider hvert tegn for seg, etter at oppmerksomheten har hentet inn sammenhengen.",
-    },
-    nn: {
-      ord: ["feed-forward"],
-      def: "Eit lite nevralt nett inni kvar blokk som arbeider vidare med kvart teikn for seg, etter at merksemda har henta inn samanhengen.",
-    },
-  },
-  residual: {
-    bm: {
-      ord: ["residualveier", "residual"],
-      def: "En snarvei der signalet hopper forbi et ledd og legges til igjen etterpå. Da kan ingen blokk ødelegge det som allerede er lært.",
-    },
-    nn: {
-      ord: ["residualvegar", "residual"],
-      def: "Ein snarveg der signalet hoppar forbi eit ledd og blir lagt til att etterpå. Då kan inga blokk øydeleggje det som alt er lært.",
-    },
-  },
-  layernorm: {
-    bm: {
-      ord: ["LayerNorm"],
-      def: "En liten opprydding som skalerer tallene til passe størrelse mellom leddene, så treningen holder seg stabil.",
-    },
-    nn: {
-      ord: ["LayerNorm"],
-      def: "Ei lita opprydding som skalerer tala til passe storleik mellom ledda, så treninga held seg stabil.",
-    },
-  },
-  logits: {
-    bm: {
-      ord: ["logits"],
-      def: "Rå poengsum for hvert mulige neste tegn – før softmax gjør dem om til sannsynlighet.",
-    },
-    nn: {
-      ord: ["logits"],
-      def: "Rå poengsum for kvart moglege neste teikn – før softmax gjer dei om til sannsyn.",
-    },
-  },
-  softmax: {
-    bm: {
-      ord: ["softmax"],
-      def: "Regnestykket som gjør poengsummene om til sannsynligheter som til sammen blir 100 %. Størst poeng → størst sjanse.",
-    },
-    nn: {
-      ord: ["softmax"],
-      def: "Reknestykket som gjer poengsummane om til sannsyn som til saman blir 100 %. Størst poeng → størst sjanse.",
+      vis: "parametrar",
+      ord: ["parametrar", "parametrane"],
+      def: "Samlenamn på alle tala modellen lærer (vektene). Fleire parametrar = større modell – og meir rekning.",
     },
   },
   korpus: {
+    tema: "grunnlag",
     bm: {
+      vis: "korpus",
       ord: ["korpus", "korpuset"],
       def: "Tekstsamlingen modellen lærer av. Modellen blir som korpuset sitt – derfor betyr kvaliteten alt.",
     },
     nn: {
+      vis: "korpus",
       ord: ["korpus", "korpuset"],
       def: "Tekstsamlinga modellen lærer av. Modellen blir som korpuset sitt – difor tyder kvaliteten alt.",
     },
   },
-  vokabular: {
+
+  /* -------------------------- frå tekst til tal ------------------------ */
+  token: {
+    tema: "tekst",
     bm: {
+      vis: "token",
+      ord: ["token", "tokenisering"],
+      def: "Den minste tekstbiten modellen regner med – her ett enkelt tegn, i store modeller en ord-bit. Hvert token får sitt eget nummer.",
+    },
+    nn: {
+      vis: "token",
+      ord: ["token", "tokenisering"],
+      def: "Den minste tekstbiten modellen reknar med – her eitt enkelt teikn, i store modellar ein ord-bit. Kvart token får sitt eige nummer.",
+    },
+  },
+  bpe: {
+    tema: "tekst",
+    bm: {
+      vis: "byte-pair encoding (BPE)",
+      ord: ["byte-pair encoding", "BPE"],
+      def: "Den vanligste måten å lage token på: start med enkelttegn og slå sammen det hyppigste paret, om og om igjen, til vanlige ord blir én bit. Prøv det selv i steg 3.",
+    },
+    nn: {
+      vis: "byte-pair encoding (BPE)",
+      ord: ["byte-pair encoding", "BPE"],
+      def: "Den vanlegaste måten å lage token på: start med einskildteikn og slå saman det hyppigaste paret, om att og om att, til vanlege ord blir éin bit. Prøv det sjølv i steg 3.",
+    },
+  },
+  vokabular: {
+    tema: "tekst",
+    bm: {
+      vis: "vokabular (vocab)",
       ord: ["vokabular", "vokabularet"],
       def: "Lista over alle token modellen kjenner – her: hele tegnsettet. Alt modellen noensinne kan skrive, står her.",
     },
     nn: {
+      vis: "vokabular (vocab)",
       ord: ["vokabular", "vokabularet"],
       def: "Lista over alle token modellen kjenner – her: heile teiknsettet. Alt modellen nokosinne kan skrive, står her.",
     },
   },
-  minibatch: {
+  embedding: {
+    tema: "tekst",
     bm: {
-      ord: ["minibatch"],
-      def: "En liten bunke tekstbiter modellen øver på i samme steg. Snittet av flere feil gir en jevnere vridning enn én bit alene.",
+      vis: "embedding",
+      ord: ["embedding", "innbygging", "innbyggingen"],
+      def: "Oversettelsen fra tegn til en liste med tall (en vektor) som modellen kan regne med. Tegn som ligner, får liknende tall.",
     },
     nn: {
-      ord: ["minibatch"],
-      def: "Ein liten bunke tekstbitar modellen øver på i same steg. Snittet av fleire feil gir ei jamnare vriding enn éin bit åleine.",
+      vis: "embedding",
+      ord: ["embedding", "innbygging", "innbygginga"],
+      def: "Omsetjinga frå teikn til ei liste med tal (ein vektor) som modellen kan rekne med. Teikn som liknar, får liknande tal.",
     },
   },
-  laeringsrate: {
+  posisjonskoding: {
+    tema: "tekst",
     bm: {
-      ord: ["læringsrate", "læringsraten"],
-      def: "Hvor mye skruene vris per steg. For mye: læringen kollapser i kaos. For lite: det tar evigheter.",
+      vis: "posisjonskoding",
+      ord: ["posisjonskoding", "posisjonskodingen"],
+      def: "Tegnene må vite hvor i setningen de står – «rev jager mus» og «mus jager rev» har de samme tegnene. Denne appen lærer én posisjonsvektor per plass og legger den til embeddingen.",
     },
     nn: {
-      ord: ["læringsrate", "læringsraten"],
-      def: "Kor mykje skruane blir vridne per steg. For mykje: læringa kollapsar i kaos. For lite: det tek all verdas tid.",
+      vis: "posisjonskoding",
+      ord: ["posisjonskoding", "posisjonskodinga"],
+      def: "Teikna må vite kvar i setninga dei står – «rev jagar mus» og «mus jagar rev» har dei same teikna. Denne appen lærer éin posisjonsvektor per plass og legg han til embeddinga.",
     },
   },
-  adam: {
+
+  /* ------------------------- inni transformeren ------------------------ */
+  attention: {
+    tema: "inni",
     bm: {
-      ord: ["Adam"],
-      def: "Arbeidshesten blant optimalisatorer siden 2015: gir hver enkelt vekt sin egen, selvjusterende skrittlengde.",
+      vis: "selvoppmerksomhet (self-attention)",
+      ord: ["multi-head oppmerksomhet", "selvoppmerksomhet", "oppmerksomhet", "oppmerksomheten"],
+      def: "Mekanismen (attention) der hvert tegn ser tilbake på teksten før seg og plukker ut det som er viktig akkurat nå. Hjertet i transformeren.",
     },
     nn: {
-      ord: ["Adam"],
-      def: "Arbeidshesten blant optimalisatorar sidan 2015: gir kvar einskild vekt si eiga, sjølvjusterande skrittlengd.",
+      vis: "sjølvmerksemd (self-attention)",
+      ord: ["multi-head merksemd", "sjølvmerksemd", "merksemd", "merksemda"],
+      def: "Mekanismen (attention) der kvart teikn ser attende på teksten før seg og plukkar ut det som er viktig akkurat no. Hjartet i transformeren.",
     },
   },
-  muon: {
+  "multi-head": {
+    tema: "inni",
     bm: {
-      ord: ["Muon"],
-      def: "En ny optimalisator (2024) som vrir en hel tallmatrise under ett og jevner ut retningene. Brukes på de største modellene i dag.",
+      vis: "multi-head",
+      ord: ["multi-head"],
+      def: "Flere oppmerksomhets-blikk side om side i samme lag, hvert med sine egne vekter – ett hode kan følge med på tegnet før, et annet på starten av ordet. Se dem i steg 6.",
     },
     nn: {
-      ord: ["Muon"],
-      def: "Ein ny optimalisator (2024) som vrir ei heil talmatrise under eitt og jamnar ut retningane. Blir brukt på dei største modellane i dag.",
+      vis: "multi-head",
+      ord: ["multi-head"],
+      def: "Fleire merksemds-blikk side om side i same lag, kvart med sine eigne vekter – eitt hovud kan følgje med på teiknet før, eit anna på starten av ordet. Sjå dei i steg 6.",
+    },
+  },
+  "kausal-maskering": {
+    tema: "inni",
+    bm: {
+      vis: "kausal maskering (causal mask)",
+      ord: ["kausal maskering"],
+      def: "Sperren som skjuler fremtiden: når modellen gjetter et tegn, ser den bare tegnene som kom før – aldri fasiten.",
+    },
+    nn: {
+      vis: "kausal maskering (causal mask)",
+      ord: ["kausal maskering"],
+      def: "Sperra som gøymer framtida: når modellen gjettar eit teikn, ser han berre teikna som kom før – aldri fasiten.",
+    },
+  },
+  softmax: {
+    tema: "inni",
+    bm: {
+      vis: "softmax",
+      ord: ["softmax"],
+      def: "Regnestykket som gjør poengsummene om til sannsynligheter som til sammen blir 100 %. Størst poeng → størst sjanse.",
+    },
+    nn: {
+      vis: "softmax",
+      ord: ["softmax"],
+      def: "Reknestykket som gjer poengsummane om til sannsyn som til saman blir 100 %. Størst poeng → størst sjanse.",
+    },
+  },
+  layernorm: {
+    tema: "inni",
+    bm: {
+      vis: "LayerNorm",
+      ord: ["LayerNorm"],
+      def: "En liten opprydding som skalerer tallene til passe størrelse mellom leddene, så treningen holder seg stabil.",
+    },
+    nn: {
+      vis: "LayerNorm",
+      ord: ["LayerNorm"],
+      def: "Ei lita opprydding som skalerer tala til passe storleik mellom ledda, så treninga held seg stabil.",
+    },
+  },
+  "pre-norm": {
+    tema: "inni",
+    bm: {
+      vis: "pre-norm",
+      ord: ["pre-norm"],
+      def: "Å legge LayerNorm før hvert ledd i stedet for etter. En liten ombytting som gjør treningen merkbart mer stabil – slik gjør denne appen og de fleste moderne modeller det.",
+    },
+    nn: {
+      vis: "pre-norm",
+      ord: ["pre-norm"],
+      def: "Å leggje LayerNorm før kvart ledd i staden for etter. Ei lita ombyting som gjer treninga merkbart meir stabil – slik gjer denne appen og dei fleste moderne modellane det.",
+    },
+  },
+  residual: {
+    tema: "inni",
+    bm: {
+      vis: "residualveier",
+      ord: ["residualveier", "residual"],
+      def: "En snarvei der signalet hopper forbi et ledd og legges til igjen etterpå. Da kan ingen blokk ødelegge det som allerede er lært.",
+    },
+    nn: {
+      vis: "residualvegar",
+      ord: ["residualvegar", "residual"],
+      def: "Ein snarveg der signalet hoppar forbi eit ledd og blir lagt til att etterpå. Då kan inga blokk øydeleggje det som alt er lært.",
+    },
+  },
+  "feed-forward": {
+    tema: "inni",
+    bm: {
+      vis: "feed-forward",
+      ord: ["feed-forward"],
+      def: "Et lite nevralt nett inni hver blokk som bearbeider hvert tegn for seg, etter at oppmerksomheten har hentet inn sammenhengen.",
+    },
+    nn: {
+      vis: "feed-forward",
+      ord: ["feed-forward"],
+      def: "Eit lite nevralt nett inni kvar blokk som arbeider vidare med kvart teikn for seg, etter at merksemda har henta inn samanhengen.",
     },
   },
   gelu: {
+    tema: "inni",
     bm: {
+      vis: "GELU",
       ord: ["GELU"],
       def: "En mye brukt aktiveringsfunksjon: en myk knekk som avgjør hvor mye av hvert signal som slipper videre i nettet.",
     },
     nn: {
+      vis: "GELU",
       ord: ["GELU"],
       def: "Ein mykje brukt aktiveringsfunksjon: ein mjuk knekk som avgjer kor mykje av kvart signal som slepp vidare i nettet.",
     },
   },
   "situ-glu": {
+    tema: "inni",
     bm: {
+      vis: "SiTU-GLU",
       ord: ["SiTU-GLU"],
       def: "En portfunksjon fra Kimi K3-oppskriften: laget styrer selv hvor mye som slipper gjennom, og et innebygd tak hindrer tallene i å løpe løpsk.",
     },
     nn: {
+      vis: "SiTU-GLU",
       ord: ["SiTU-GLU"],
       def: "Ein portfunksjon frå Kimi K3-oppskrifta: laget styrer sjølv kor mykje som slepp gjennom, og eit innebygd tak hindrar tala i å renne løpsk.",
     },
   },
-  moe: {
+  logits: {
+    tema: "inni",
     bm: {
-      ord: ["MoE"],
-      def: "«Mixture of Experts»: det brede laget deles i flere smale eksperter, og bare noen få vekkes per tegn. Like mange vekter, mye mindre regning.",
+      vis: "logits",
+      ord: ["logits"],
+      def: "Rå poengsum for hvert mulige neste tegn – før softmax gjør dem om til sannsynlighet.",
     },
     nn: {
-      ord: ["MoE"],
-      def: "«Mixture of Experts»: det breie laget blir delt i fleire smale ekspertar, og berre nokre få blir vekte per teikn. Like mange vekter, mykje mindre rekning.",
+      vis: "logits",
+      ord: ["logits"],
+      def: "Rå poengsum for kvart moglege neste teikn – før softmax gjer dei om til sannsyn.",
     },
   },
-  rlhf: {
+
+  /* ------------------------------ læringa ------------------------------ */
+  tap: {
+    tema: "laering",
     bm: {
-      ord: ["RLHF"],
-      def: "«Reinforcement Learning from Human Feedback»: mennesker velger de beste svarene, og modellen justeres mot det folk foretrekker. Slik lærte chatbotene folkeskikk.",
+      vis: "tap (cross-entropy loss)",
+      ord: ["tap (loss)", "tap", "tapet", "kryssentropi", "cross-entropy"],
+      def: "Feilmålet i treningen: hvor overrasket modellen ble av det riktige neste tegnet. Lavere tap = bedre gjetting. Regnestykket bak heter kryssentropi (cross-entropy).",
     },
     nn: {
-      ord: ["RLHF"],
-      def: "«Reinforcement Learning from Human Feedback»: menneske vel dei beste svara, og modellen blir justert mot det folk føretrekkjer. Slik lærte chatbotane folkeskikk.",
+      vis: "tap (cross-entropy loss)",
+      ord: ["tap (loss)", "tap", "tapet", "kryssentropi", "cross-entropy"],
+      def: "Feilmålet i treninga: kor overraska modellen vart av det rette neste teiknet. Lågare tap = betre gjetting. Reknestykket bak heiter kryssentropi (cross-entropy).",
     },
   },
-  dpo: {
+  perplexity: {
+    tema: "laering",
     bm: {
-      ord: ["DPO"],
-      def: "«Direct Preference Optimization»: en enkel RLHF-oppskrift som flytter modellen rett mot svarene du valgte – uten et eget nettverk som setter poeng på svarene.",
+      vis: "perpleksitet (perplexity)",
+      ord: ["perpleksitet", "perplexity"],
+      def: "Tapet i en annen skala: hvor mange tegn modellen i praksis nøler mellom. Perfekt gjetting gir 1; ren sjanse gir hele vokabularet.",
     },
     nn: {
-      ord: ["DPO"],
-      def: "«Direct Preference Optimization»: ei enkel RLHF-oppskrift som flyttar modellen rett mot svara du valde – utan eit eige nettverk som set poeng på svara.",
+      vis: "perpleksitet (perplexity)",
+      ord: ["perpleksitet", "perplexity"],
+      def: "Tapet i ein annan skala: kor mange teikn modellen i praksis nøler mellom. Perfekt gjetting gir 1; rein sjanse gir heile vokabularet.",
     },
   },
+  backpropagation: {
+    tema: "laering",
+    bm: {
+      vis: "backpropagation",
+      ord: ["backpropagation"],
+      def: "Regnemetoden som sporer feilen bakover gjennom alle lagene, så hver vekt får vite hvilken vei den skal vris. På norsk: tilbakeføring av feil.",
+    },
+    nn: {
+      vis: "backpropagation",
+      ord: ["backpropagation"],
+      def: "Reknemetoden som sporar feilen bakover gjennom alle laga, så kvar vekt får vite kva veg ho skal vridast. På norsk: tilbakeføring av feil.",
+    },
+  },
+  autograd: {
+    tema: "laering",
+    bm: {
+      vis: "autograd",
+      ord: ["autograd"],
+      def: "Maskineriet som automatisk regner ut hvilken vei hver vekt må vris – det som gjør backpropagation mulig å skrive.",
+    },
+    nn: {
+      vis: "autograd",
+      ord: ["autograd"],
+      def: "Maskineriet som automatisk reknar ut kva veg kvar vekt må vridast – det som gjer backpropagation mogleg å skrive.",
+    },
+  },
+  "gradient-clipping": {
+    tema: "laering",
+    bm: {
+      vis: "gradient clipping",
+      ord: ["gradient clipping", "gradientklipping"],
+      def: "Et tak på hvor stor den samlede justeringen får bli i ett steg: blir feilsignalet for voldsomt, skaleres hele ned. Én vill bom får dermed ikke velte treningen.",
+    },
+    nn: {
+      vis: "gradient clipping",
+      ord: ["gradient clipping", "gradientklipping"],
+      def: "Eit tak på kor stor den samla justeringa får bli i eitt steg: blir feilsignalet for valdsamt, blir heile skalert ned. Éin vill bom får dermed ikkje velte treninga.",
+    },
+  },
+  minibatch: {
+    tema: "laering",
+    bm: {
+      vis: "minibatch",
+      ord: ["minibatch"],
+      def: "En liten bunke tekstbiter modellen øver på i samme steg. Snittet av flere feil gir en jevnere vridning enn én bit alene.",
+    },
+    nn: {
+      vis: "minibatch",
+      ord: ["minibatch"],
+      def: "Ein liten bunke tekstbitar modellen øver på i same steg. Snittet av fleire feil gir ei jamnare vriding enn éin bit åleine.",
+    },
+  },
+  "seq-len": {
+    tema: "laering",
+    bm: {
+      vis: "seq_len (kontekstvindu)",
+      ord: ["seq_len", "kontekstvindu", "kontekstvinduet"],
+      def: "Hvor mange tegn modellen ser på om gangen. Her 32–48 tegn; de store modellene husker hundretusenvis av token.",
+    },
+    nn: {
+      vis: "seq_len (kontekstvindauge)",
+      ord: ["seq_len", "kontekstvindauge", "kontekstvindauget"],
+      def: "Kor mange teikn modellen ser på om gongen. Her 32–48 teikn; dei store modellane hugsar hundretusenvis av token.",
+    },
+  },
+
+  /* --------------------------- optimalisering -------------------------- */
+  laeringsrate: {
+    tema: "optimalisering",
+    bm: {
+      vis: "læringsrate",
+      ord: ["læringsrate", "læringsraten"],
+      def: "Hvor mye skruene vris per steg. For mye: læringen kollapser i kaos. For lite: det tar evigheter.",
+    },
+    nn: {
+      vis: "læringsrate",
+      ord: ["læringsrate", "læringsraten"],
+      def: "Kor mykje skruane blir vridne per steg. For mykje: læringa kollapsar i kaos. For lite: det tek all verdas tid.",
+    },
+  },
+  adam: {
+    tema: "optimalisering",
+    bm: {
+      vis: "Adam",
+      ord: ["Adam"],
+      def: "Arbeidshesten blant optimalisatorer siden 2015: gir hver enkelt vekt sin egen, selvjusterende skrittlengde.",
+    },
+    nn: {
+      vis: "Adam",
+      ord: ["Adam"],
+      def: "Arbeidshesten blant optimalisatorar sidan 2015: gir kvar einskild vekt si eiga, sjølvjusterande skrittlengd.",
+    },
+  },
+  muon: {
+    tema: "optimalisering",
+    bm: {
+      vis: "Muon",
+      ord: ["Muon"],
+      def: "En ny optimalisator (2024) som vrir en hel tallmatrise under ett og jevner ut retningene. Brukes på de største modellene i dag.",
+    },
+    nn: {
+      vis: "Muon",
+      ord: ["Muon"],
+      def: "Ein ny optimalisator (2024) som vrir ei heil talmatrise under eitt og jamnar ut retningane. Blir brukt på dei største modellane i dag.",
+    },
+  },
+  "newton-schulz": {
+    tema: "optimalisering",
+    bm: {
+      vis: "Newton–Schulz",
+      ord: ["Newton–Schulz", "Newton-Schulz"],
+      def: "Regnetrikset inni Muon: noen få runder matriseregning som jevner ut justeringen, så ingen enkelt retning får dominere steget.",
+    },
+    nn: {
+      vis: "Newton–Schulz",
+      ord: ["Newton–Schulz", "Newton-Schulz"],
+      def: "Reknetrikset inni Muon: nokre få rundar matriserekning som jamnar ut justeringa, så inga enkelt retning får dominere steget.",
+    },
+  },
+  nedtrapping: {
+    tema: "optimalisering",
+    bm: {
+      vis: "kosinus-nedtrapping (cosine schedule)",
+      ord: ["kosinus-nedtrapping", "cosine schedule", "nedtrapping", "nedtrappingen"],
+      def: "Å senke læringsraten i en myk kosinusbue mot slutten av treningen. Standard for de store modellene – men prøv bryteren i steg 5: på denne lille teksten taper du som regel på det.",
+    },
+    nn: {
+      vis: "kosinus-nedtrapping (cosine schedule)",
+      ord: ["kosinus-nedtrapping", "cosine schedule", "nedtrapping", "nedtrappinga"],
+      def: "Å senke læringsraten i ein mjuk kosinusboge mot slutten av treninga. Standard for dei store modellane – men prøv brytaren i steg 5: på denne vesle teksten taper du som regel på det.",
+    },
+  },
+  warmup: {
+    tema: "optimalisering",
+    bm: {
+      vis: "oppvarming (warmup)",
+      ord: ["warmup", "oppvarming"],
+      def: "Å starte med bitte liten læringsrate den første prosenten av treningen, mens alt inni modellen fortsatt er tilfeldig. Nedtrappingen her begynner slik.",
+    },
+    nn: {
+      vis: "oppvarming (warmup)",
+      ord: ["warmup", "oppvarming"],
+      def: "Å starte med bitte lita læringsrate den første prosenten av treninga, medan alt inni modellen framleis er tilfeldig. Nedtrappinga her byrjar slik.",
+    },
+  },
+
+  /* ---------------------------- tal og minne --------------------------- */
+  vekter: {
+    tema: "tal",
+    bm: {
+      vis: "vekter (weights)",
+      ord: ["vektene", "vekter"],
+      def: "Tallene inni modellen som lagrer alt den har lært. Å trene = å justere disse tallene bitte litt, tusenvis av ganger.",
+    },
+    nn: {
+      vis: "vekter (weights)",
+      ord: ["vektene", "vektane", "vekter"],
+      def: "Tala inni modellen som lagrar alt han har lært. Å trene = å justere desse tala bitte litt, tusenvis av gonger.",
+    },
+  },
+  tensor: {
+    tema: "tal",
+    bm: {
+      vis: "tensor",
+      ord: ["tensor", "tensorer", "tensorene"],
+      def: "En tabell med tall – byggeklossen alt i modellen er laget av. Vektene, tegnene underveis og feilsignalene er alle tensorer.",
+    },
+    nn: {
+      vis: "tensor",
+      ord: ["tensor", "tensorar", "tensorane"],
+      def: "Ein tabell med tal – byggjeklossen alt i modellen er laga av. Vektene, teikna undervegs og feilsignala er alle tensorar.",
+    },
+  },
+  matmul: {
+    tema: "tal",
+    bm: {
+      vis: "matmul (matrisemultiplikasjon)",
+      ord: ["matmul", "matrisemultiplikasjon"],
+      def: "Å gange to talltabeller sammen. Det er dette datamaskinen bruker nesten all tiden på – både her og i datasentrene.",
+    },
+    nn: {
+      vis: "matmul (matrisemultiplikasjon)",
+      ord: ["matmul", "matrisemultiplikasjon"],
+      def: "Å gange to taltabellar saman. Det er dette datamaskina brukar nesten all tida på – både her og i datasentera.",
+    },
+  },
+  float32array: {
+    tema: "tal",
+    bm: {
+      vis: "Float32Array",
+      ord: ["Float32Array"],
+      def: "JavaScripts råe talltabell for 32-bits desimaltall. Hele regnemotoren i denne appen (src/lib/ml.ts) er bygd på den.",
+    },
+    nn: {
+      vis: "Float32Array",
+      ord: ["Float32Array"],
+      def: "JavaScripts råe taltabell for 32-bits desimaltal. Heile reknemotoren i denne appen (src/lib/ml.ts) er bygd på han.",
+    },
+  },
+  presisjon: {
+    tema: "tal",
+    bm: {
+      vis: "fp32 / bf16 / MXFP4",
+      ord: ["MXFP4", "bf16", "fp32"],
+      def: "Hvor mange bits hvert tall får: 32, 16 eller 4. Færre bits betyr mindre minne og raskere regning, men grovere tall – i MXFP4 har hvert tall bare 16 mulige verdier.",
+    },
+    nn: {
+      vis: "fp32 / bf16 / MXFP4",
+      ord: ["MXFP4", "bf16", "fp32"],
+      def: "Kor mange bits kvart tal får: 32, 16 eller 4. Færre bits tyder mindre minne og raskare rekning, men grovare tal – i MXFP4 har kvart tal berre 16 moglege verdiar.",
+    },
+  },
+  kvantisering: {
+    tema: "tal",
+    bm: {
+      vis: "kvantisering",
+      ord: ["kvantisering", "kvantiseringen", "kvantisert"],
+      def: "Å krympe en ferdig trent modell til færre bits per tall. Slankekuren i steg 5 gjør akkurat dette – det brede laget ned til 4 bits – så du ser hva det koster i tap.",
+    },
+    nn: {
+      vis: "kvantisering",
+      ord: ["kvantisering", "kvantiseringa", "kvantisert"],
+      def: "Å krympe ein ferdig trena modell til færre bits per tal. Slankekuren i steg 5 gjer akkurat dette – det breie laget ned til 4 bits – så du ser kva det kostar i tap.",
+    },
+  },
+
+  /* -------------------------- når modellen skriv ----------------------- */
   temperatur: {
+    tema: "skriv",
     bm: {
+      vis: "temperatur",
       ord: ["temperatur", "temperaturen"],
       def: "Styrer sjansespillet når neste tegn velges: 0 = alltid det sikreste tegnet, høyere = jevnere lodd og villere tekst.",
     },
     nn: {
+      vis: "temperatur",
       ord: ["temperatur", "temperaturen"],
       def: "Styrer sjansespelet når neste teikn blir valt: 0 = alltid det sikraste teiknet, høgare = jamnare lodd og villare tekst.",
     },
   },
   "top-k": {
+    tema: "skriv",
     bm: {
+      vis: "top-k",
       ord: ["top-k"],
       def: "Modellen får bare trekke blant de k mest sannsynlige tegnene – resten kastes før loddtrekningen.",
     },
     nn: {
+      vis: "top-k",
       ord: ["top-k"],
       def: "Modellen får berre trekkje mellom dei k mest sannsynlege teikna – resten blir kasta før loddtrekkinga.",
     },
   },
-  gguf: {
+
+  /* ----------------------------- finpussing ---------------------------- */
+  rlhf: {
+    tema: "finpuss",
     bm: {
+      vis: "RLHF",
+      ord: ["RLHF"],
+      def: "«Reinforcement Learning from Human Feedback»: mennesker velger de beste svarene, og modellen justeres mot det folk foretrekker. Slik lærte chatbotene folkeskikk.",
+    },
+    nn: {
+      vis: "RLHF",
+      ord: ["RLHF"],
+      def: "«Reinforcement Learning from Human Feedback»: menneske vel dei beste svara, og modellen blir justert mot det folk føretrekkjer. Slik lærte chatbotane folkeskikk.",
+    },
+  },
+  dpo: {
+    tema: "finpuss",
+    bm: {
+      vis: "DPO",
+      ord: ["DPO"],
+      def: "«Direct Preference Optimization»: en enkel RLHF-oppskrift som flytter modellen rett mot svarene du valgte – uten et eget nettverk som setter poeng på svarene.",
+    },
+    nn: {
+      vis: "DPO",
+      ord: ["DPO"],
+      def: "«Direct Preference Optimization»: ei enkel RLHF-oppskrift som flyttar modellen rett mot svara du valde – utan eit eige nettverk som set poeng på svara.",
+    },
+  },
+
+  /* -------------------------------- skala ------------------------------ */
+  moe: {
+    tema: "skala",
+    bm: {
+      vis: "mixture of experts (MoE)",
+      ord: ["MoE"],
+      def: "«Mixture of Experts»: det brede laget deles i flere smale eksperter, og bare noen få vekkes per tegn. Like mange vekter, mye mindre regning.",
+    },
+    nn: {
+      vis: "mixture of experts (MoE)",
+      ord: ["MoE"],
+      def: "«Mixture of Experts»: det breie laget blir delt i fleire smale ekspertar, og berre nokre få blir vekte per teikn. Like mange vekter, mykje mindre rekning.",
+    },
+  },
+  flops: {
+    tema: "skala",
+    bm: {
+      vis: "FLOPs",
+      ord: ["FLOPs"],
+      def: "Antall regneoperasjoner på desimaltall – måleenheten for hva trening koster. De største treningskjøringene måles i billioner av billioner FLOPs.",
+    },
+    nn: {
+      vis: "FLOPs",
+      ord: ["FLOPs"],
+      def: "Talet på rekneoperasjonar på desimaltal – måleeininga for kva trening kostar. Dei største treningskøyringane blir målte i billionar av billionar FLOPs.",
+    },
+  },
+  skalalov: {
+    tema: "skala",
+    bm: {
+      vis: "skalalover",
+      ord: ["skalalover", "skalalov", "skaleringslover", "skaleringslov"],
+      def: "Den påfallende jevne sammenhengen mellom regnekraft og resultat: ti ganger mer trening gir et fast, forutsigbart hakk lavere tap. Det er denne kurven som får folk til å bygge datasentre.",
+    },
+    nn: {
+      vis: "skalalover",
+      ord: ["skalalover", "skalalov", "skaleringslover", "skaleringslov"],
+      def: "Den påfallande jamne samanhengen mellom reknekraft og resultat: ti gonger meir trening gir eit fast, føreseieleg hakk lågare tap. Det er denne kurva som får folk til å byggje datasenter.",
+    },
+  },
+  gguf: {
+    tema: "skala",
+    bm: {
+      vis: "GGUF",
       ord: ["GGUF"],
       def: "Filformatet åpne modeller deles i (kjent fra llama.cpp): én fil med alle vektene pluss en liten innholdsfortegnelse.",
     },
     nn: {
+      vis: "GGUF",
       ord: ["GGUF"],
       def: "Filformatet opne modellar blir delte i (kjent frå llama.cpp): éi fil med alle vektene pluss ei lita innhaldsliste.",
     },
   },
-  autograd: {
-    bm: {
-      ord: ["autograd"],
-      def: "Maskineriet som automatisk regner ut hvilken vei hver vekt må vris – det som gjør backpropagation mulig å skrive.",
-    },
-    nn: {
-      ord: ["autograd"],
-      def: "Maskineriet som automatisk reknar ut kva veg kvar vekt må vridast – det som gjer backpropagation mogleg å skrive.",
-    },
-  },
-  "nevralt-nett": {
-    bm: {
-      ord: ["nevralt nett", "nevrale nett"],
-      def: "Et nettverk av enkle regneenheter med justerbare vekter imellom – grunnmuren i moderne maskinlæring.",
-    },
-    nn: {
-      ord: ["nevralt nett", "nevrale nett"],
-      def: "Eit nettverk av enkle rekneeiningar med justerbare vekter imellom – grunnmuren i moderne maskinlæring.",
-    },
-  },
-  parametere: {
-    bm: {
-      ord: ["parametere", "parametre"],
-      def: "Samlenavn på alle tallene modellen lærer (vektene). Flere parametere = større modell – og mer regning.",
-    },
-    nn: {
-      ord: ["parametrar", "parametrane"],
-      def: "Samlenamn på alle tala modellen lærer (vektene). Fleire parametrar = større modell – og meir rekning.",
-    },
-  },
 };
+
+/* --- Ordlista sortert etter tema (steg 11) ------------------------------ */
+
+export interface OrdlisteGruppe {
+  tema: Tema;
+  oppslag: { id: OrdId; vis: string; def: string }[];
+}
+
+/** Alle oppslaga gruppert i temarekkjefølgje; rekkjefølgja innanfor kvart
+ *  tema er rekkjefølgja i ORDLISTE. */
+export function ordlisteTema(lang: Lang): OrdlisteGruppe[] {
+  const ids = Object.keys(ORDLISTE) as OrdId[];
+  return TEMA_REKKEFOLGJE.map((tema) => ({
+    tema,
+    oppslag: ids
+      .filter((id) => ORDLISTE[id].tema === tema)
+      .map((id) => ({ id, vis: ORDLISTE[id][lang].vis, def: ORDLISTE[id][lang].def })),
+  }));
+}
 
 /* --- Oppslag i løpande tekst ------------------------------------------- */
 

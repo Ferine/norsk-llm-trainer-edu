@@ -24,6 +24,8 @@ import Inspector from "@/components/Inspector";
 import Skruer from "@/components/Skruer";
 import Slankekur from "@/components/Slankekur";
 import Leseliste from "@/components/Leseliste";
+import Ordliste from "@/components/Ordliste";
+import { EKSEMPELTEKSTER, type EksId } from "@/lib/eksempeltekster";
 import Bekreft, { type Ask } from "@/components/Bekreft";
 import { useRlhf } from "@/lib/useRlhf";
 import { buildModelWorkbook } from "@/lib/excel-model";
@@ -165,6 +167,9 @@ export default function App() {
   const [moe, setMoe] = useState(false);
   const [schedule, setSchedule] = useState(false);
   const [extraText, setExtraText] = useState("");
+  // Kva for klassikar-utdrag som står i tekstfeltet (steg 9). Blir nullstilt
+  // så snart eleven redigerer, så kjeldelinja aldri lyg om innhaldet.
+  const [sampleId, setSampleId] = useState<EksId | "">("");
 
   const cfg = useMemo(
     () => ({ ...PRESETS[preset], batch, lr }),
@@ -1190,9 +1195,46 @@ export default function App() {
           intro={s.extra.intro}
         >
           <Card>
+            {/* Nedtrekkslista fyller berre tekstfeltet – å byggja på nytt er
+                framleis eit eige, medvite trykk på knappen under. */}
+            <div className="mb-4 max-w-md">
+              <label className="etikett mb-1 block" htmlFor="eksempeltekst">
+                {s.extra.sampleLabel}
+              </label>
+              <select
+                id="eksempeltekst"
+                value={sampleId}
+                disabled={running}
+                onChange={(e) => {
+                  const id = e.target.value as EksId | "";
+                  const valgt = EKSEMPELTEKSTER.find((t) => t.id === id);
+                  setSampleId(id);
+                  if (valgt) setExtraText(valgt.tekst);
+                }}
+                className="felt text-sm disabled:opacity-50"
+              >
+                <option value="">{s.extra.samplePlaceholder}</option>
+                {EKSEMPELTEKSTER.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {`${t.tittel} – ${t.forfattar} (${t.aar})`}
+                  </option>
+                ))}
+              </select>
+              {sampleId && (
+                <p className="mt-2 font-mono text-[11px] leading-relaxed text-blyant">
+                  {(() => {
+                    const t = EKSEMPELTEKSTER.find((e) => e.id === sampleId)!;
+                    return `${s.extra.sampleFrom(t.tittel, t.forfattar, t.aar, t.kjelde)} ${s.extra.sampleLicense[t.lisens]} ${s.extra.sampleNote}`;
+                  })()}
+                </p>
+              )}
+            </div>
             <textarea
               value={extraText}
-              onChange={(e) => setExtraText(e.target.value)}
+              onChange={(e) => {
+                setExtraText(e.target.value);
+                setSampleId("");
+              }}
               rows={5}
               disabled={running}
               placeholder={s.extra.placeholder}
@@ -1212,8 +1254,19 @@ export default function App() {
         </Section>
 
         {/* Les meir: baksida av kladdeboka */}
-        <Section id="lesmer" step={10} title={s.readMore.title} intro={s.readMore.intro}>
+        <Section id="lesmer" step={10} title={s.readMore.title} intro={s.readMore.intro} fold={s.fold}>
           <Leseliste s={s.readMore} />
+        </Section>
+
+        {/* Ordliste: glosene aller bakarst, same kjelde som gloselappane */}
+        <Section
+          id="ordliste"
+          step={11}
+          title={s.ordliste.title}
+          intro={s.ordliste.intro}
+          fold={s.fold}
+        >
+          <Ordliste s={s.ordliste} />
         </Section>
       </main>
 

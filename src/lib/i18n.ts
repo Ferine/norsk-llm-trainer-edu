@@ -1,3 +1,6 @@
+import type { Tema } from "./ordliste";
+import type { Lisens } from "./eksempeltekster";
+
 export type Lang = "bm" | "nn";
 
 export const LANGS: { id: Lang; label: string; htmlLang: string; locale: string }[] = [
@@ -234,6 +237,13 @@ export interface Strings {
     placeholder: string;
     charsNote: (n: number) => string;
     rebuild: string;
+    /** Nedtrekkslista med tekstutdrag; tekstane bur i lib/eksempeltekster.ts. */
+    sampleLabel: string;
+    samplePlaceholder: string;
+    sampleFrom: (tittel: string, forfattar: string, aar: number, kjelde: string) => string;
+    /** Éi setning per lisens, vald ut frå `lisens`-feltet på teksten. */
+    sampleLicense: Record<Lisens, string>;
+    sampleNote: string;
   };
   readMore: {
     title: string;
@@ -247,6 +257,12 @@ export interface Strings {
     levels: Record<LesLevel, string>;
     /** Éi linje per lenkje. Manglar ein, seier tsc frå. */
     items: Record<LesId, string>;
+  };
+  ordliste: {
+    title: string;
+    intro: string;
+    /** Overskrift per tema; sjølve orda bur i lib/ordliste.ts. */
+    temaer: Record<Tema, string>;
   };
   loss: {
     last: string;
@@ -545,6 +561,16 @@ const bm: Strings = {
     placeholder: "Lim inn bokmålstekst her… (gjerne flere avsnitt)",
     charsNote: (n) => `Tatt med i tillegg til ${n} faste tegn.`,
     rebuild: "Bygg modell på nytt",
+    sampleLabel: "Lån en tekst – fra Vinje til Wikipedia",
+    samplePlaceholder: "— velg et utdrag —",
+    sampleFrom: (tittel, forfattar, aar, kjelde) =>
+      `Utdrag fra «${tittel}» av ${forfattar} (${aar}), via ${kjelde}.`,
+    sampleLicense: {
+      fri: "Boken har falt i det fri (forfatteren døde for over 70 år siden), og den gamle rettskrivingen står som forfatteren skrev.",
+      ccbysa: "Teksten er skrevet av frivillige og fritt lisensiert (CC BY-SA 4.0).",
+    },
+    sampleNote:
+      "Utdraget følger med appen – ingenting hentes fra nettet; modellen lærer nøyaktig det den leser.",
   },
   readMore: {
     title: "Les mer",
@@ -589,6 +615,22 @@ const bm: Strings = {
       sprakbanken:
         "Der ekte norske treningsdata kommer fra. Korpuset i steg 2 er noen få avsnitt; dette er hyllemeter.",
       k3: "Paragrafhenvisningene i steg 5 og slankekuren peker hit. Fire triks derfra kjører i modellen din, krympet fra 2,8 billioner tall til 60 000.",
+    },
+  },
+  ordliste: {
+    title: "Ordliste",
+    intro:
+      "Alle fagordene i appen på ett brett, sortert etter hvor i løypa de hører hjemme. Det er de samme forklaringene som henger på ordene med prikket strek rundt om på siden – her står de i ro, så du kan slå opp.",
+    temaer: {
+      grunnlag: "Grunnlaget",
+      tekst: "Fra tekst til tall",
+      inni: "Inni transformeren",
+      laering: "Læringen",
+      optimalisering: "Optimalisering",
+      tal: "Tall og minne",
+      skriv: "Når modellen skriver",
+      finpuss: "Finpussing",
+      skala: "Skala",
     },
   },
   loss: {
@@ -893,6 +935,16 @@ const nn: Strings = {
     placeholder: "Lim inn nynorsk tekst her… (gjerne fleire avsnitt)",
     charsNote: (n) => `Teken med i tillegg til ${n} faste teikn.`,
     rebuild: "Bygg modell på nytt",
+    sampleLabel: "Lån ein tekst – frå Vinje til Wikipedia",
+    samplePlaceholder: "— vel eit utdrag —",
+    sampleFrom: (tittel, forfattar, aar, kjelde) =>
+      `Utdrag frå «${tittel}» av ${forfattar} (${aar}), via ${kjelde}.`,
+    sampleLicense: {
+      fri: "Boka har falle i det fri (forfattaren døydde for over 70 år sidan), og den gamle rettskrivinga står som forfattaren skreiv.",
+      ccbysa: "Teksten er skriven av frivillige og fritt lisensiert (CC BY-SA 4.0).",
+    },
+    sampleNote:
+      "Utdraget følgjer med appen – ingenting blir henta frå nettet; modellen lærer nøyaktig det han les.",
   },
   readMore: {
     title: "Les meir",
@@ -937,6 +989,22 @@ const nn: Strings = {
       sprakbanken:
         "Der ekte norske treningsdata kjem frå. Korpuset i steg 2 er nokre få avsnitt; dette er hyllemeter.",
       k3: "Paragrafvisingane i steg 5 og slankekuren peikar hit. Fire triks derifrå køyrer i modellen din, krympa frå 2,8 billionar tal til 60 000.",
+    },
+  },
+  ordliste: {
+    title: "Ordliste",
+    intro:
+      "Alle fagorda i appen på eitt brett, sorterte etter kvar i løypa dei høyrer heime. Det er dei same forklaringane som heng på orda med prikka strek rundt om på sida – her står dei i ro, så du kan slå opp.",
+    temaer: {
+      grunnlag: "Grunnlaget",
+      tekst: "Frå tekst til tal",
+      inni: "Inni transformeren",
+      laering: "Læringa",
+      optimalisering: "Optimalisering",
+      tal: "Tal og minne",
+      skriv: "Når modellen skriv",
+      finpuss: "Finpussing",
+      skala: "Skala",
     },
   },
   loss: {
