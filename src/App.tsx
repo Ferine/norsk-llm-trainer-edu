@@ -133,6 +133,33 @@ function LearningStrip({
   );
 }
 
+// Skriftstorleik: standardisert CSS `zoom` på rota, så både rem-tekst og
+// dei pikselfaste mono-etikettane skalerer i lag – som nettlesarens eigen
+// zoom, berre med knappar i appen. Responsiv-oppsettet taklar det som eit
+// smalare vindauge, så ingenting renn ut av kanten.
+const ZOOM_KEY = "trainer-zoom";
+const ZOOM_MIN = 0.875;
+const ZOOM_MAX = 1.5;
+const ZOOM_STEP = 0.125;
+
+function readStoredZoom(): number {
+  try {
+    const v = Number(localStorage.getItem(ZOOM_KEY));
+    if (Number.isFinite(v) && v >= ZOOM_MIN && v <= ZOOM_MAX)
+      return Math.round(v / ZOOM_STEP) * ZOOM_STEP;
+  } catch {
+    /* localStorage unavailable */
+  }
+  return 1;
+}
+function writeStoredZoom(z: number) {
+  try {
+    localStorage.setItem(ZOOM_KEY, String(z));
+  } catch {
+    /* ignore */
+  }
+}
+
 const LANG_KEY = "trainer-lang";
 function readStoredLang(): Lang {
   try {
@@ -152,6 +179,13 @@ function writeStoredLang(l: Lang) {
 }
 
 export default function App() {
+  // ---- skriftstorleik ----
+  const [zoom, setZoom] = useState(() => readStoredZoom());
+  useEffect(() => {
+    document.documentElement.style.setProperty("zoom", String(zoom));
+    writeStoredZoom(zoom);
+  }, [zoom]);
+
   // ---- language ----
   const [lang, setLang] = useState<Lang>(() => readStoredLang());
   const s = STRINGS[lang];
@@ -625,6 +659,28 @@ export default function App() {
             </div>
           </div>
           <div className="ml-auto flex flex-none items-center gap-3">
+            {/* A−/A+: same gruppestil som språkveljaren. Ved endane blir
+                knappen grå i staden for å forsvinne – ro i headeren. */}
+            <div className="inline-flex overflow-hidden rounded-[3px] border-2 border-blekk font-mono text-xs font-semibold">
+              <button
+                onClick={() => setZoom((z) => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(3)))}
+                disabled={zoom <= ZOOM_MIN}
+                aria-label={s.header.fontDown}
+                title={s.header.fontDown}
+                className="bg-white px-2 py-1 text-blekk transition hover:bg-papir disabled:opacity-40"
+              >
+                A−
+              </button>
+              <button
+                onClick={() => setZoom((z) => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(3)))}
+                disabled={zoom >= ZOOM_MAX}
+                aria-label={s.header.fontUp}
+                title={s.header.fontUp}
+                className="border-l-2 border-blekk bg-white px-2 py-1 text-blekk transition hover:bg-papir disabled:opacity-40"
+              >
+                A+
+              </button>
+            </div>
             {/* Levande status: gruppa kan vandre på sida medan eleven øver */}
             {(running || step > 0) && (
               <div className="hidden items-center gap-2 font-mono text-[11px] sm:flex">

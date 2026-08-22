@@ -28,7 +28,14 @@ export type LesId =
   | "k3";
 
 export interface Strings {
-  header: { title: string; subtitle: string; jump: string };
+  header: {
+    title: string;
+    subtitle: string;
+    jump: string;
+    /** Skriftknappane A−/A+: skjermlesar-namn og tittel. */
+    fontDown: string;
+    fontUp: string;
+  };
   fold: { tag: string; show: string; hide: string };
   advanced: string;
   /** Forklarer den dempa, prikka startteksten der modellen skriv. */
@@ -305,6 +312,8 @@ const bm: Strings = {
     title: "Språkmodell-trener",
     subtitle: "Lær AI på bokmål – i nettleseren",
     jump: "Hopp til trening →",
+    fontDown: "Mindre skrift",
+    fontUp: "Større skrift",
   },
   fold: { tag: "Fordypning – valgfritt", show: "+ vis", hide: "− skjul" },
   advanced: "Flere innstillinger",
@@ -691,6 +700,8 @@ const nn: Strings = {
     title: "Språkmodell-trenar",
     subtitle: "Lær AI på nynorsk – i nettlesaren",
     jump: "Hopp til trening →",
+    fontDown: "Mindre skrift",
+    fontUp: "Større skrift",
   },
   fold: { tag: "Fordjuping – valfritt", show: "+ vis", hide: "− skjul" },
   advanced: "Fleire innstillingar",

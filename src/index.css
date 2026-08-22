@@ -92,6 +92,13 @@
 }
 
 @layer base {
+  html {
+    /* Gøymde gloselappar (.fagord-lapp) tek layoutplass og kan stikke utanfor
+       høgrekanten – utan denne kunne heile sida rullast vassrett, tydelegast
+       med skriftknappane (zoom) på. `clip` klipper utan å lage rullekontekst,
+       så sticky-headeren verkar framleis (det gjer han ikkje med `hidden`). */
+    overflow-x: clip;
+  }
   body {
     background-color: var(--color-papir);
     /* Ruteark: 24 px ruter, svakt nok til å lese oppå */
