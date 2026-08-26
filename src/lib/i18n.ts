@@ -655,7 +655,7 @@ const bm: Strings = {
   readMore: {
     title: "Les mer",
     intro:
-      "Du har trent en modell selv. Herfra går det an å gå videre – hyllene er sortert etter hva du er ute etter: se det, lese koden eller prøve selv. For trigramminnet kan du begynne med Qwen-bloggen, lese §2.3 i rapporten og til slutt sammenligne den ekte konfigurasjonen med vår lille variant.",
+      "Du har trent en modell selv. Her finner du videoer, forklaringer, norsk materiale og kode du kan utforske videre. Begynn med det som er merket «Start her», og velg «lett» hvis du vil ha en myk inngang.",
     note: "Alt annet i appen kjører lokalt – disse lenkene går ut på nettet. Det du har vært innom, blir grått.",
     startHere: "Start her",
     newTab: "(åpnes i ny fane)",
@@ -706,7 +706,7 @@ const bm: Strings = {
   ordliste: {
     title: "Ordliste",
     intro:
-      "Alle fagordene i appen på ett brett, sortert etter hvor i løypa de hører hjemme. Det er de samme forklaringene som henger på ordene med prikket strek rundt om på siden – her står de i ro, så du kan slå opp. Oppslaget om trigramminne viser til Qwen Team (2026, §2.3); full rapport, kortversjon og modellkonfigurasjon ligger i steg 10.",
+      "Møter du et ukjent ord? Her finner du korte forklaringer samlet etter tema. De samme forklaringene dukker opp når du holder pekeren over ord med prikket strek ellers i appen.",
     temaer: {
       grunnlag: "Grunnlaget",
       tekst: "Fra tekst til tall",
@@ -1079,7 +1079,7 @@ const nn: Strings = {
   readMore: {
     title: "Les meir",
     intro:
-      "Du har trena ein modell sjølv. Herfrå går det an å gå vidare – hyllene er sorterte etter kva du er ute etter: sjå det, lesa koden eller prøva sjølv. For trigramminnet kan du byrja med Qwen-bloggen, lesa §2.3 i rapporten og til slutt samanlikna den ekte konfigurasjonen med den vesle varianten vår.",
+      "Du har trena ein modell sjølv. Her finn du videoar, forklaringar, norsk materiale og kode du kan utforska vidare. Byrja med det som er merkt «Start her», og vel «lett» om du vil ha ein mjuk inngang.",
     note: "Alt anna i appen køyrer lokalt – desse lenkjene går ut på nettet. Det du har vore innom, blir grått.",
     startHere: "Start her",
     newTab: "(opnar i ny fane)",
@@ -1130,7 +1130,7 @@ const nn: Strings = {
   ordliste: {
     title: "Ordliste",
     intro:
-      "Alle fagorda i appen på eitt brett, sorterte etter kvar i løypa dei høyrer heime. Det er dei same forklaringane som heng på orda med prikka strek rundt om på sida – her står dei i ro, så du kan slå opp. Oppslaget om trigramminne viser til Qwen Team (2026, §2.3); full rapport, kortversjon og modellkonfigurasjon ligg i steg 10.",
+      "Møter du eit ukjent ord? Her finn du korte forklaringar samla etter tema. Dei same forklaringane dukkar opp når du held peikaren over ord med prikka strek elles i appen.",
     temaer: {
       grunnlag: "Grunnlaget",
       tekst: "Frå tekst til tal",
