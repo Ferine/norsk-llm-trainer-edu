@@ -1333,6 +1333,13 @@ export function buildModelWorkbook(o: ExcelModelOpts): ExcelModelResult {
     throw new RangeError(
       "rekneark-eksporten støttar ikkje ekspertar (MoE) enno – arket ville rekna feil modell"
     );
+  // Trigramminnet krev eit kausalt tre-ID-oppslag og den same FNV-hashen som
+  // nettlesarmotoren. Før formlane gjer akkurat det, nektar vi å laga ei fil
+  // som stille ville ha hoppa over ein del av den trente modellen.
+  if (model.ngram)
+    throw new RangeError(
+      "rekneark-eksporten støttar ikkje trigramminne enno – arket ville rekna feil modell"
+    );
 
   // Arket slår opp teikn i vokabularet. Fjern det det ikkje kan slå opp, så
   // referansen frå nettlesaren og arket startar på same tekst.

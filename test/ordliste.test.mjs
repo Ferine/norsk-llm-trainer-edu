@@ -71,4 +71,19 @@ treff = glossify("multi-head merksemd", "nn").filter((d) => typeof d !== "string
 assert.equal(treff.length, 1);
 assert.equal(treff[0].id, "attention");
 
+// Trigramminnet in step 11 should explain both the mechanism and its source,
+// while the component terms remain independently discoverable.
+for (const lang of ["bm", "nn"]) {
+  assert.match(ORDLISTE["ngram-minne"][lang].def, /Qwen3\.8-Flash-Next/);
+  assert.match(ORDLISTE["ngram-minne"][lang].def, /§2\.3/);
+  assert.match(ORDLISTE.hashfunksjon[lang].def, /FNV-1a/);
+  for (const id of ["n-gram", "oppslagstabell", "hashkollisjon", "ablasjon", "heldout", "overtilpassing"])
+    assert.ok(ORDLISTE[id][lang].def.length > 80, `${id}/${lang}: needs a useful explanation`);
+}
+treff = glossify(
+  "Trigramminnet hashes nøkkelen, og hashkollisjoner deler en rad.",
+  "bm"
+).filter((d) => typeof d !== "string");
+assert.deepEqual(treff.map((d) => d.id), ["ngram-minne", "hashfunksjon", "hashkollisjon"]);
+
 console.log(`ordliste: OK – ${Object.keys(ORDLISTE).length} fagord med gloser på bm+nn`);

@@ -52,6 +52,7 @@ function band(label: string, tensors: { d: Float32Array }[]): Band {
 // ml.ts, berre gruppert slik arkitekturteikninga i steg 4 fortel historia.
 function buildBands(model: Transformer, t: Strings["train"]): Band[] {
   const bands: Band[] = [band(t.vevEmb, [model.tokEmb, model.posEmb])];
+  if (model.ngramEmb) bands.push(band(t.vevNgram, [model.ngramEmb]));
   model.blocks.forEach((blk, i) => {
     bands.push(band(t.vevAttn(i + 1), [blk.ln1g, blk.ln1b, blk.Wq, blk.Wk, blk.Wv, blk.Wo]));
     const ffn: { d: Float32Array }[] = [blk.ln2g, blk.ln2b, blk.W1, blk.b1];

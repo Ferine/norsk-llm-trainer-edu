@@ -1,5 +1,5 @@
 import type { Strings } from "@/lib/i18n";
-import type { MoeConfig } from "@/lib/ml";
+import type { MoeConfig, NgramConfig } from "@/lib/ml";
 import { Gloss } from "@/components/Gloss";
 
 interface Props {
@@ -7,6 +7,7 @@ interface Props {
   heads: number;
   dim: number;
   moe?: MoeConfig;
+  ngram?: NgramConfig;
   s: Strings;
 }
 
@@ -48,7 +49,7 @@ function Arrow() {
 }
 
 // Skjematisk teikning av transformer-arkitekturen (GPT-stil).
-export default function Architecture({ layers, heads, dim, moe, s }: Props) {
+export default function Architecture({ layers, heads, dim, moe, ngram, s }: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto_1fr]">
       {/* Hovudstraum (venstre/sentralt) */}
@@ -59,6 +60,16 @@ export default function Architecture({ layers, heads, dim, moe, s }: Props) {
         <Arrow />
         {Array.from({ length: layers }).map((_, i) => (
           <div key={i}>
+            {ngram?.layer === i && (
+              <>
+                <Box
+                  title={s.arch.boxNgram.title}
+                  sub={s.arch.boxNgram.sub(ngram.size, ngram.slots)}
+                  tone="tusj"
+                />
+                <Arrow />
+              </>
+            )}
             <Box title={s.arch.boxBlock.title(i + 1)} sub={s.arch.boxBlock.sub} tone="rute">
               <div className="mt-2 space-y-1">
                 <Box title={s.arch.boxAttn.title} sub={s.arch.boxAttn.sub(heads)} />
@@ -93,6 +104,12 @@ export default function Architecture({ layers, heads, dim, moe, s }: Props) {
                 <b className="text-blekk"><Gloss text={e.b} /></b> <Gloss text={e.t} />
               </li>
             ))}
+            {ngram && (
+              <li>
+                <b className="text-blekk"><Gloss text={s.arch.ngramExplain.b} /></b>{" "}
+                <Gloss text={s.arch.ngramExplain.t} />
+              </li>
+            )}
           </ul>
         </div>
       </aside>

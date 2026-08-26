@@ -307,6 +307,7 @@ export interface GgufBuild {
 // er noko anna, og då seier vi det. Ekspertar er eit endå større avvik, og
 // vinn over aktiveringa i namnet – aktiveringa står uansett i ein eigen nøkkel.
 export function archName(model: Transformer): string {
+  if (model.ngram) return model.moe ? "sprakmodell-ngram-moe" : "sprakmodell-ngram";
   if (model.moe) return "sprakmodell-moe";
   return model.act === "situ" ? "sprakmodell-situ" : "gpt2";
 }
@@ -321,6 +322,7 @@ export function buildModelGguf(o: GgufBuildOpts): GgufBuild {
     embedTensor("token_embd.weight", model.tokEmb),
     embedTensor("position_embd.weight", model.posEmb),
   ];
+  if (model.ngramEmb) tensors.push(embedTensor("ngram_embd.weight", model.ngramEmb));
 
   model.blocks.forEach((blk, i) => {
     const p = `blk.${i}`;
@@ -389,6 +391,11 @@ export function buildModelGguf(o: GgufBuildOpts): GgufBuild {
           (cfg.moe
             ? ` Det breie laget er delt i ${cfg.moe.experts} ruta ekspertar` +
               ` pluss éin delt; ${cfg.moe.topK} av dei ruta reknar per token.`
+            : "") +
+          (cfg.ngram
+            ? ` Eit ${cfg.ngram.size}-gramminne hash-ar vanlege teikn-ID-ar til` +
+              ` éi av ${cfg.ngram.slots} rader før blokk ${cfg.ngram.layer + 1};` +
+              " det lagar ingen nye token."
             : ""),
       },
     },
@@ -406,6 +413,17 @@ export function buildModelGguf(o: GgufBuildOpts): GgufBuild {
           { key: `${arch}.expert_feed_forward_length`, val: { t: "u32", v: expertWidth(cfg) } },
           // Totalbreidda før delinga – slik at ein kan sjå at ingen skruer kom til.
           { key: "sprakmodell.ffn_total_width", val: { t: "u32", v: ffnWidth(cfg) } },
+        ] as GgufKv[])
+      : []),
+    ...(cfg.ngram
+      ? ([
+          { key: `${arch}.ngram.size`, val: { t: "u32", v: cfg.ngram.size } },
+          { key: `${arch}.ngram.bucket_count`, val: { t: "u32", v: cfg.ngram.slots } },
+          { key: `${arch}.ngram.layer`, val: { t: "u32", v: cfg.ngram.layer } },
+          {
+            key: `${arch}.ngram.hash`,
+            val: { t: "str", v: "fnv1a-u32-token-ids-vocab-as-bos" },
+          },
         ] as GgufKv[])
       : []),
     { key: `${arch}.attention.head_count`, val: { t: "u32", v: cfg.nHead } },

@@ -1,5 +1,11 @@
 import { Fragment, useMemo, useState } from "react";
-import { rowProbs, type Transformer } from "@/lib/ml";
+import {
+  NGRAM_BOS,
+  ngramKeyAt,
+  ngramSlot,
+  rowProbs,
+  type Transformer,
+} from "@/lib/ml";
 import type { Tokenizer } from "@/lib/corpus";
 import type { Strings } from "@/lib/i18n";
 import { Gloss } from "@/components/Gloss";
@@ -7,6 +13,7 @@ import { Gloss } from "@/components/Gloss";
 interface Props {
   model: Transformer | null;
   tokenizer: Tokenizer | null;
+  corpusIds: number[] | null;
   step: number;
   defaultText: string;
   s: Strings["inspect"];
@@ -21,7 +28,15 @@ function charLabel(itos: string[], id: number): string {
   return c;
 }
 
-export default function Inspector({ model, tokenizer, step, defaultText, s }: Props) {
+function ngramLabel(itos: string[], key: ArrayLike<number>): string {
+  return Array.from(key, (id) => (id === NGRAM_BOS ? "∅" : charLabel(itos, id))).join(" · ");
+}
+
+function ngramKeyId(key: ArrayLike<number>): string {
+  return Array.from(key).join(",");
+}
+
+export default function Inspector({ model, tokenizer, corpusIds, step, defaultText, s }: Props) {
   const [text, setText] = useState(defaultText);
   const [layer, setLayer] = useState(0);
   const [head, setHead] = useState(0);
@@ -35,9 +50,28 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
     let ids = tokenizer.encode(text);
     if (ids.length === 0) ids = [0];
     if (ids.length > model.seqLen) ids = ids.slice(ids.length - model.seqLen);
-    const { logits, attn, routes } = model.inspect(ids);
-    return { ids, logits, attn, routes };
+    const { logits, attn, routes, ngram } = model.inspect(ids);
+    return { ids, logits, attn, routes, ngram };
   }, [text, model, step, tokenizer]);
+
+  // Eit corpuskart gjer hashkollisjonar synlege. Kvar unik trigramnøkkel blir
+  // lagra éin gong per skuff; dette er berre inspeksjon, ikkje treningstilstand.
+  const collisionIndex = useMemo(() => {
+    const cfg = model?.ngram;
+    if (!model || !cfg || !corpusIds?.length) return null;
+    const byBucket = new Map<number, Map<string, Int32Array>>();
+    for (let i = 0; i < corpusIds.length; i++) {
+      const key = ngramKeyAt(corpusIds, i, cfg.size);
+      const bucket = ngramSlot(key, model.vocab, cfg.slots);
+      let keys = byBucket.get(bucket);
+      if (!keys) {
+        keys = new Map();
+        byBucket.set(bucket, keys);
+      }
+      keys.set(ngramKeyId(key), key);
+    }
+    return new Map(Array.from(byBucket, ([bucket, keys]) => [bucket, Array.from(keys.values())]));
+  }, [model, corpusIds]);
 
   if (!model || !tokenizer || !result) {
     return <p className="text-sm text-blyant">{s.notReady}</p>;
@@ -60,6 +94,25 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
   const top = ranking.slice(0, MAX_BARS);
   const guess = ranking[0]?.id;
   const actualNext = sel + 1 < T ? result.ids[sel + 1] : null;
+  const ngramView = result.ngram;
+  const selectedNgram = ngramView
+    ? ngramView.keys.slice(sel * ngramView.size, (sel + 1) * ngramView.size)
+    : null;
+  const selectedBucket = ngramView?.buckets[sel] ?? null;
+  const selectedNgramId = selectedNgram ? ngramKeyId(selectedNgram) : "";
+  const collisions =
+    selectedBucket === null
+      ? []
+      : (collisionIndex?.get(selectedBucket) ?? []).filter(
+          (key) => ngramKeyId(key) !== selectedNgramId
+        );
+  let ngramRms = 0;
+  if (selectedBucket !== null && model.ngramEmb) {
+    const start = selectedBucket * model.cfg.dim;
+    for (let i = 0; i < model.cfg.dim; i++)
+      ngramRms += model.ngramEmb.d[start + i] * model.ngramEmb.d[start + i];
+    ngramRms = Math.sqrt(ngramRms / model.cfg.dim);
+  }
 
   const tabBtn = (active: boolean) =>
     `rounded-[2px] border px-2 py-0.5 text-xs font-semibold transition ${
@@ -205,6 +258,61 @@ export default function Inspector({ model, tokenizer, step, defaultText, s }: Pr
           </p>
         </div>
       </div>
+
+      {/* Dei faktiske hasha trigramoppslaga – berre når minnet er slått på. */}
+      {ngramView && selectedNgram && selectedBucket !== null && model.ngramEmb && (
+        <div>
+          <h3 className="text-sm font-semibold text-blekk">{s.ngramHeading}</h3>
+          <p className="mb-3 text-[11px] text-blyant"><Gloss text={s.ngramHelp} /></p>
+          <div className="flex flex-wrap gap-1.5">
+            {result.ids.map((_, i) => {
+              const key = ngramView.keys.slice(i * ngramView.size, (i + 1) * ngramView.size);
+              return (
+                <button
+                  key={`ng${i}`}
+                  onClick={() => setPos(i)}
+                  className={`rounded-[3px] border px-2 py-1 text-left font-mono text-[10px] transition ${
+                    i === sel
+                      ? "border-blekk bg-tusj font-semibold text-blekk"
+                      : "border-blekk/25 bg-white text-blyant hover:bg-papir"
+                  }`}
+                >
+                  <span className="block">{ngramLabel(itos, key)}</span>
+                  <span className="block opacity-70">#{ngramView.buckets[i] + 1}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-3 rounded-[3px] border-2 border-blekk bg-white p-3 text-xs sm:grid-cols-2">
+            <div className="space-y-1 font-mono text-blyant">
+              <div className="font-semibold text-blekk">{ngramLabel(itos, selectedNgram)}</div>
+              <div>{s.ngramSlot(selectedBucket + 1, ngramView.slots)}</div>
+              <div>{s.ngramRms(ngramRms.toFixed(4))}</div>
+              <div>{s.ngramActive(model.cfg.dim, model.ngramParamCount())}</div>
+            </div>
+            <div className="text-blyant">
+              {collisions.length === 0 ? (
+                s.ngramCollisionNone
+              ) : (
+                <>
+                  <div>{s.ngramCollisions(collisions.length)}</div>
+                  <div className="mt-1 flex flex-wrap gap-1 font-mono text-[10px]">
+                    {collisions.slice(0, 8).map((key) => (
+                      <span key={ngramKeyId(key)} className="brikke px-1.5 py-0.5">
+                        {ngramLabel(itos, key)}
+                      </span>
+                    ))}
+                    {collisions.length > 8 && <span>…</span>}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          <p className="mt-2 border-l-4 border-tusj bg-white px-3 py-2 text-[11px] leading-relaxed text-blyant">
+            <Gloss text={s.ngramTokenPromise} />
+          </p>
+        </div>
+      )}
 
       {/* kven rutaren sende kvart teikn til – berre når modellen har ekspertar */}
       {route && (

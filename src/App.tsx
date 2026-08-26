@@ -3,6 +3,7 @@ import { cn } from "@/utils/cn";
 import {
   Adam,
   MOE_DEFAULT,
+  NGRAM_DEFAULT,
   Muon,
   Transformer,
   cosineLr,
@@ -200,6 +201,7 @@ export default function App() {
   const [optim, setOptim] = useState<OptimKey>("adam");
   const [act, setAct] = useState<Activation>("situ");
   const [moe, setMoe] = useState(false);
+  const [ngram, setNgram] = useState(false);
   const [schedule, setSchedule] = useState(false);
   const [extraText, setExtraText] = useState("");
   // Kva for klassikar-utdrag som står i tekstfeltet (steg 9). Blir nullstilt
@@ -263,6 +265,7 @@ export default function App() {
         ffnMult: arch.ffnMult,
         act,
         moe: moe ? MOE_DEFAULT : undefined,
+        ngram: ngram ? NGRAM_DEFAULT : undefined,
       },
       mulberry32(1337)
     );
@@ -281,9 +284,9 @@ export default function App() {
     setParamCount(model.paramCount());
     setEngineGen((g) => g + 1);
     rlhf.reset();
-    // arkitektur (preset, aktivering, ekspertar) og val av optimerar tvingar
+    // arkitektur (preset, aktivering, ekspertar, trigramminne) og val av optimerar tvingar
     // fram ein ny modell – ikkje lr/batch, som kan endrast midt i ei økt
-  }, [preset, act, moe, optim, rlhf.reset, activeCorpus]);
+  }, [preset, act, moe, ngram, optim, rlhf.reset, activeCorpus]);
 
   useEffect(() => {
     if (!runningRef.current) buildEngine();
@@ -871,6 +874,7 @@ export default function App() {
               heads={cfg.nHead}
               dim={cfg.dim}
               moe={moe ? MOE_DEFAULT : undefined}
+              ngram={ngram ? NGRAM_DEFAULT : undefined}
               s={s}
             />
             <div className="mt-5 grid grid-cols-1 gap-3 text-sm leading-relaxed text-blyant sm:grid-cols-2">
@@ -995,6 +999,25 @@ export default function App() {
                     <option value="on">{s.train.moeOn}</option>
                   </select>
                   <p className="mt-1 text-xs leading-relaxed text-blyant"><Gloss text={s.train.moeHelp} /></p>
+                </div>
+                <div>
+                  <label className="etikett mb-1 block" htmlFor="ngram">
+                    {s.train.ngramLabel}
+                  </label>
+                  <select
+                    id="ngram"
+                    value={ngram ? "on" : "off"}
+                    disabled={running || rlhf.dpoRunning}
+                    onChange={(e) => {
+                      const v = e.target.value === "on";
+                      guard("ngram", () => setNgram(v));
+                    }}
+                    className="felt text-sm disabled:opacity-50"
+                  >
+                    <option value="off">{s.train.ngramOff}</option>
+                    <option value="on">{s.train.ngramOn}</option>
+                  </select>
+                  <p className="mt-1 text-xs leading-relaxed text-blyant"><Gloss text={s.train.ngramHelp} /></p>
                 </div>
                 <div className="sm:col-span-2">
                   <label className="flex items-start gap-2 text-sm text-blekk">
@@ -1138,6 +1161,7 @@ export default function App() {
             <Inspector
               model={engineRef.current?.model ?? null}
               tokenizer={engineRef.current?.tokenizer ?? null}
+              corpusIds={engineRef.current?.data ?? null}
               step={step}
               defaultText={seed.sampleSentence}
               s={s.inspect}
@@ -1293,7 +1317,11 @@ export default function App() {
                 <p className="mt-2 font-mono text-[11px] leading-relaxed text-blyant">
                   {(() => {
                     const t = EKSEMPELTEKSTER.find((e) => e.id === sampleId)!;
-                    return `${s.extra.sampleFrom(t.tittel, t.forfattar, t.aar, t.kjelde)} ${s.extra.sampleLicense[t.lisens]} ${s.extra.sampleNote}`;
+                    const source =
+                      t.lisens === "referat"
+                        ? s.extra.sampleAdaptedFrom(t.tittel, t.aar, t.kjelde)
+                        : s.extra.sampleFrom(t.tittel, t.forfattar, t.aar, t.kjelde);
+                    return `${source} ${s.extra.sampleLicense[t.lisens]} ${s.extra.sampleNote}`;
                   })()}
                 </p>
               )}
@@ -1356,6 +1384,8 @@ export default function App() {
             <div className="mt-6">
               {moe ? (
                 <div className="mx-auto max-w-md"><Gloss text={s.footer.excelMoe} /></div>
+              ) : ngram ? (
+                <div className="mx-auto max-w-md"><Gloss text={s.footer.excelNgram} /></div>
               ) : (
                 <>
                   <button

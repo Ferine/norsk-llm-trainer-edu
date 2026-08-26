@@ -1,4 +1,4 @@
-// Eksempeltekster til steg 9 – to hyller i same nedtrekksliste:
+// Eksempeltekster til steg 9 – tre kjeldetypar i same nedtrekksliste:
 //
 // KLASSIKARANE (lisens "fri") har falle i det fri (forfattarane døydde for
 // meir enn 70 år sidan). Henta ordrett frå Project Gutenberg og Wikisource,
@@ -16,6 +16,11 @@
 // faktasvake seksjonar er ikkje tekne med. `aar` er hentingsåret –
 // artiklane har mange forfattarar og endrar seg over tid.
 //
+// FRITT REFERAT (lisens "referat") er nyskrive tekstar som byggjer på fakta
+// frå ei namngjeven nettside utan å kopiera formuleringane derfrå. Kjelde-URL
+// og opphav blir tekne vare på, og appen seier uttrykkeleg at teksten er vår
+// samandragstekst – ikkje eit lisensiert utdrag frå kjelda.
+//
 // Alt er baka inn i bygget – appen skal aldri henta noko frå nettet.
 // Adressene peikar til kjelda, men blir viste som rein tekst i appen –
 // utgåande lenkjer høyrer heime i leselista (steg 10) og ved GGUF-knappen
@@ -28,10 +33,11 @@ export type EksId =
   | "jenny"
   | "markens"
   | "wiki-llm"
-  | "wiki-ml";
+  | "wiki-ml"
+  | "sikker-surfing";
 
 /** Kva for lisensforklaring (i18n `extra.sampleLicense`) som gjeld. */
-export type Lisens = "fri" | "ccbysa";
+export type Lisens = "fri" | "ccbysa" | "referat";
 
 export interface Eksempeltekst {
   id: EksId;
@@ -209,5 +215,29 @@ Ved rettleia læring får algoritmen eit datasett der kvar input er para med ein
 I ikkje-rettleia læring er data ikkje merkt – det vil seie at algoritmen får input utan tilhøyrande output. Her prøver modellen å finne skjulte mønster i data, til dømes ved å gruppere liknande datapunkt saman (klynging), eller ved å redusere kompleksiteten i datasettet gjennom teknikkar som dimensjonsreduksjon.
 
 Forsterkande læring skil seg frå dei to andre ved at ein agent lærer gjennom interaksjon med eit miljø. Agenten tek avgjerder og får tilbakemelding i form av belønning eller straff, og målet er å lære ei strategi som maksimerer samla belønning over tid. Denne læringsforma vert mykje brukt innan robotikk og spelutvikling.`,
+  },
+  {
+    id: "sikker-surfing",
+    forfattar: "Språkmodell-trener",
+    tittel: "Trygg på nettet",
+    aar: 2026,
+    kjelde: "NEAS – Sikker surfing",
+    url: "https://neas.no/internett/sikker-surfing/",
+    lisens: "referat",
+    tekst: `Internett er en del av hverdagen, men en vanlig lenke kan føre til en side som prøver å lure deg. Svindlere sender lenker i e-post, tekstmeldinger, annonser og meldinger i sosiale medier. Målet kan være å få tak i passord, kortopplysninger, identitet eller penger. Derfor er det lurt å stoppe opp før du trykker, særlig når meldingen skaper hastverk eller lover en gevinst.
+
+Se nøye på nettadressen. En falsk side kan ligne på banken, posten eller en nettbutikk, men adressen avslører ofte at noe er galt. Noen bokstaver kan være byttet ut, eller domenet kan være helt annerledes enn navnet du forventer. Ikke stol på logo og farger alene. Er du usikker, kan du lukke meldingen og skrive inn den kjente adressen selv i nettleseren.
+
+Vær forsiktig når en side ber om sensitiv informasjon. Seriøse virksomheter ber normalt ikke om passord, BankID-koder eller fullstendige kortopplysninger gjennom en tilfeldig lenke. Tenk også over hvem som sendte meldingen, og om forespørselen passer med noe du faktisk har gjort. En pakke du aldri bestilte eller en konkurranse du aldri deltok i, bør gjøre deg ekstra skeptisk.
+
+Skadelig innhold finnes i flere former. Et falskt innloggingsskjema kan stjele brukernavn og passord. Et vedlegg kan installere skadevare. Løsepengevirus kan låse dokumenter og bilder og kreve betaling for å åpne dem igjen. Kriminelle trenger ikke mene at filene dine er interessante for andre; det holder at de er viktige for deg.
+
+Tekniske sikkerhetstjenester kan blokkere mange kjente farer før siden åpnes. Antivirus, skadevarebeskyttelse og filtrering gir flere lag med vern. Likevel kan ingen løsning oppdage alt. Nye svindelsider blir laget hele tiden, og noen angrep er utformet for å få brukeren til å godkjenne handlingen selv. Den viktigste kontrollen er derfor fortsatt den som sitter foran skjermen.
+
+Gode vaner gjør risikoen mindre. Bruk forskjellige og sterke passord, gjerne lagret i en passordbehandler. Slå på tofaktorinnlogging der det er mulig. Installer oppdateringer på telefon, datamaskin og nettleser. Ta sikkerhetskopi av bilder og dokumenter som du ikke vil miste. Snakk med barn og andre i familien om hvordan falske meldinger ser ut.
+
+Hvis du allerede har trykket, trenger du ikke få panikk. Lukk siden og ikke skriv inn flere opplysninger. Har du oppgitt et passord, bør du endre det fra en trygg enhet og kontrollere om samme passord er brukt andre steder. Kontakt banken raskt hvis kortinformasjon eller BankID kan være på avveie. Det er bedre å spørre en gang for mye enn å vente mens et angrep utvikler seg.
+
+Digital trygghet handler ikke om å være redd for nettet. Det handler om å bruke et lite øyeblikk på å undersøke avsenderen, adressen og det du blir bedt om. En kritisk pause før et klikk kan være nok til å skille en nyttig melding fra et svindelforsøk.`,
   },
 ];

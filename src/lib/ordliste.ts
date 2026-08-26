@@ -66,6 +66,11 @@ export type OrdId =
   | "vokabular"
   | "embedding"
   | "posisjonskoding"
+  | "n-gram"
+  | "oppslagstabell"
+  | "hashfunksjon"
+  | "hashkollisjon"
+  | "ngram-minne"
   // inni transformeren
   | "attention"
   | "multi-head"
@@ -81,6 +86,9 @@ export type OrdId =
   // læringa
   | "tap"
   | "perplexity"
+  | "ablasjon"
+  | "heldout"
+  | "overtilpassing"
   | "backpropagation"
   | "autograd"
   | "gradient-clipping"
@@ -246,6 +254,71 @@ export const ORDLISTE: Record<OrdId, Oppslag> = {
       vis: "posisjonskoding",
       ord: ["posisjonskoding", "posisjonskodinga"],
       def: "Teikna må vite kvar i setninga dei står – «rev jagar mus» og «mus jagar rev» har dei same teikna. Denne appen lærer éin posisjonsvektor per plass og legg han til embeddinga.",
+    },
+  },
+  "n-gram": {
+    tema: "tekst",
+    bm: {
+      vis: "n-gram",
+      ord: ["n-gram", "n-grammet", "n-grammene", "trigram"],
+      def: "En sammenhengende rekke på n token. Et trigram har tre. Siden modellens token er enkelttegn, er «and» ett tegn-trigram her – ikke ett nytt token eller en ord-bit.",
+    },
+    nn: {
+      vis: "n-gram",
+      ord: ["n-gram", "n-grammet", "n-gramma", "trigram"],
+      def: "Ei samanhengande rekkje på n token. Eit trigram har tre. Sidan tokena til modellen er einskildteikn, er «and» eitt teikn-trigram her – ikkje eitt nytt token eller ein ord-bit.",
+    },
+  },
+  oppslagstabell: {
+    tema: "tekst",
+    bm: {
+      vis: "oppslagstabell",
+      ord: ["oppslagstabell", "oppslagstabellen"],
+      def: "En samling lærbare rader der en nøkkel velger raden direkte. Modellen regner ikke gjennom hele tabellen; for hvert tegn henter trigramminnet bare én rad med dim tall.",
+    },
+    nn: {
+      vis: "oppslagstabell",
+      ord: ["oppslagstabell", "oppslagstabellen"],
+      def: "Ei samling lærbare rader der ein nøkkel vel rada direkte. Modellen reknar ikkje gjennom heile tabellen; for kvart teikn hentar trigramminnet berre éi rad med dim tal.",
+    },
+  },
+  hashfunksjon: {
+    tema: "tekst",
+    bm: {
+      vis: "hashfunksjon",
+      ord: ["hashfunksjon", "hashfunksjonen", "hashes", "hashing", "hashen"],
+      def: "En deterministisk oppskrift som presser en stor nøkkelverden inn i et fast antall skuffer: samme trigram får alltid samme skuff. Denne appen bruker FNV-1a; Qwen-kildene spesifiserer ikke FNV.",
+    },
+    nn: {
+      vis: "hashfunksjon",
+      ord: ["hashfunksjon", "hashfunksjonen", "hasha", "hashing", "hashen"],
+      def: "Ei deterministisk oppskrift som pressar ei stor nøkkelverd inn i eit fast tal skuffer: same trigram får alltid same skuff. Denne appen brukar FNV-1a; Qwen-kjeldene spesifiserer ikkje FNV.",
+    },
+  },
+  hashkollisjon: {
+    tema: "tekst",
+    bm: {
+      vis: "hashkollisjon",
+      ord: ["hashkollisjon", "hashkollisjonen", "hashkollisjoner", "kollisjoner"],
+      def: "Når to ulike trigram havner i samme skuff og derfor må dele minnerad. Det er ikke en programfeil, men prisen for en liten tabell: flere kollisjoner gir mindre minne og mer deling.",
+    },
+    nn: {
+      vis: "hashkollisjon",
+      ord: ["hashkollisjon", "hashkollisjonen", "hashkollisjonar", "kollisjonar"],
+      def: "Når to ulike trigram hamnar i same skuff og difor må dela minnerad. Det er ikkje ein programfeil, men prisen for ein liten tabell: fleire kollisjonar gir mindre minne og meir deling.",
+    },
+  },
+  "ngram-minne": {
+    tema: "tekst",
+    bm: {
+      vis: "trigramminne",
+      ord: ["trigramminne", "trigramminnet", "trigramoppslag", "trigramoppslagene"],
+      def: "Qwen3.8-Flash-Next bruker korte token-n-gram som deterministiske nøkler til enorme minnetabeller ved lag 2 (Qwen Team, 2026, §2.3; full kilde i steg 10). Her er ideen krympet til én direkte FNV-tabell med 256 rader. Tre tegn er fortsatt tre token.",
+    },
+    nn: {
+      vis: "trigramminne",
+      ord: ["trigramminne", "trigramminnet", "trigramoppslag", "trigramoppslaga"],
+      def: "Qwen3.8-Flash-Next brukar korte token-n-gram som deterministiske nøklar til enorme minnetabellar ved lag 2 (Qwen Team, 2026, §2.3; full kjelde i steg 10). Her er ideen krympa til éi direkte FNV-tabell med 256 rader. Tre teikn er framleis tre token.",
     },
   },
 
@@ -419,6 +492,45 @@ export const ORDLISTE: Record<OrdId, Oppslag> = {
       vis: "perpleksitet (perplexity)",
       ord: ["perpleksitet", "perplexity"],
       def: "Tapet i ein annan skala: kor mange teikn modellen i praksis nøler mellom. Perfekt gjetting gir 1; rein sjanse gir heile vokabularet.",
+    },
+  },
+  ablasjon: {
+    tema: "laering",
+    bm: {
+      vis: "ablasjon",
+      ord: ["ablasjon", "ablasjonen", "ablasjonsmåling"],
+      def: "Et kontrollert forsøk der én del slås av eller på mens alt annet holdes likt. Trigramtesten bruker samme startvekter, tekstbiter og frø på begge sider, så forskjellen kan tilskrives minnet.",
+    },
+    nn: {
+      vis: "ablasjon",
+      ord: ["ablasjon", "ablasjonen", "ablasjonsmåling"],
+      def: "Eit kontrollert forsøk der éin del blir slått av eller på medan alt anna er likt. Trigramtesten brukar same startvekter, tekstbitar og frø på båe sider, så skilnaden kan skrivast på minnet.",
+    },
+  },
+  heldout: {
+    tema: "laering",
+    bm: {
+      vis: "held-out-data",
+      ord: ["held-out", "held-out-data", "testdata"],
+      def: "Tekst modellen aldri får trene på, men som brukes til måling etterpå. Den viser om modellen har lært et mønster som virker videre, ikke bare pugget treningskorpuset.",
+    },
+    nn: {
+      vis: "held-out-data",
+      ord: ["held-out", "held-out-data", "testdata"],
+      def: "Tekst modellen aldri får trena på, men som blir brukt til måling etterpå. Han viser om modellen har lært eit mønster som verkar vidare, ikkje berre pugga treningskorpuset.",
+    },
+  },
+  overtilpassing: {
+    tema: "laering",
+    bm: {
+      vis: "overtilpasning (overfitting)",
+      ord: ["overtilpasning", "overtilpasset", "overfitting", "memoriserer"],
+      def: "Når modellen blir svært god på teksten den trente på, men dårligere på ny tekst. Trigramminnet viser dette her: treningstapet faller kraftig samtidig som held-out-tapet stiger.",
+    },
+    nn: {
+      vis: "overtilpassing (overfitting)",
+      ord: ["overtilpassing", "overtilpassa", "overfitting", "memorerer"],
+      def: "Når modellen blir svært god på teksten han trena på, men dårlegare på ny tekst. Trigramminnet viser dette her: treningstapet fell kraftig samstundes som held-out-tapet stig.",
     },
   },
   backpropagation: {

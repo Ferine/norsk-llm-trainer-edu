@@ -623,6 +623,18 @@ export interface MoeConfig {
 // ekspert er dessutan det klaraste biletet i «Sjå inni modellen».
 export const MOE_DEFAULT: MoeConfig = { experts: 4, topK: 1, bias: 0.001 };
 
+// Eit lite, kontekstavhengig oppslagsminne etter ideen i Qwen3.8-Flash-Next.
+// Tokeniseringa blir ikkje rørt: modellen får framleis nøyaktig éin token per
+// teikn. Tre allereie eksisterande token-id-ar blir berre hasha til éi rad i
+// ein ekstra tabell, og den rada blir lagd til signalet før ei vald blokk.
+export interface NgramConfig {
+  size: number; // kor mange teikn som dannar nøkkelen (3 = trigram)
+  slots: number; // talet på rader i den hasha minnetabellen
+  layer: number; // nullbasert blokk som får minnet lagt til før seg
+}
+
+export const NGRAM_DEFAULT: NgramConfig = { size: 3, slots: 256, layer: 1 };
+
 export interface ModelConfig {
   vocab: number;
   dim: number;
@@ -632,6 +644,46 @@ export interface ModelConfig {
   ffnMult: number;
   act?: Activation;
   moe?: MoeConfig;
+  ngram?: NgramConfig;
+}
+
+// -1 er byrjinga på sekvensen, ikkje eit nytt token i vokabularet. Han finst
+// berre medan trigramnøkkelen blir bygd, slik at dei to første teikna òg får
+// kvar sin eintydige kontekst.
+export const NGRAM_BOS = -1;
+
+export function ngramKeyAt(ids: number[], pos: number, size: number): Int32Array {
+  if (!Number.isInteger(size) || size < 2) throw new RangeError("ngram size must be at least 2");
+  if (!Number.isInteger(pos) || pos < 0 || pos >= ids.length)
+    throw new RangeError(`ngram position ${pos} is outside the sequence`);
+  const key = new Int32Array(size);
+  const start = pos - size + 1;
+  for (let i = 0; i < size; i++) key[i] = start + i < 0 ? NGRAM_BOS : ids[start + i];
+  return key;
+}
+
+// FNV-1a: lite, deterministisk og med Math.imul identisk i nettlesar og Node.
+// BOS får verdien vocab; ekte token-id-ar ligg alltid i [0, vocab).
+export function ngramSlot(key: ArrayLike<number>, vocab: number, slots: number): number {
+  if (!Number.isInteger(vocab) || vocab < 1) throw new RangeError("vocab must be positive");
+  if (!Number.isInteger(slots) || slots < 1) throw new RangeError("ngram slots must be positive");
+  let h = 0x811c9dc5;
+  for (let i = 0; i < key.length; i++) {
+    const raw = key[i];
+    if (raw !== NGRAM_BOS && (!Number.isInteger(raw) || raw < 0 || raw >= vocab))
+      throw new RangeError(`ngram token ${raw} is outside the vocabulary`);
+    const id = raw === NGRAM_BOS ? vocab : raw;
+    h ^= id + 1;
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0) % slots;
+}
+
+export function ngramSlotsFor(ids: number[], vocab: number, cfg: NgramConfig): Int32Array {
+  const out = new Int32Array(ids.length);
+  for (let pos = 0; pos < ids.length; pos++)
+    out[pos] = ngramSlot(ngramKeyAt(ids, pos, cfg.size), vocab, cfg.slots);
+  return out;
 }
 
 // Breidda på det breie laget. GLU-varianten har tre matriser der GELU har to,
@@ -719,11 +771,34 @@ export interface RouteView {
   chosen: Int32Array;
 }
 
+export interface NgramView {
+  size: number;
+  slots: number;
+  layer: number;
+  // T × size, med NGRAM_BOS i dei tomme plassane ved sekvensstart.
+  keys: Int32Array;
+  // Éin oppslagsrad per teikn. Dette er framleis ikkje token-id-ar.
+  buckets: Int32Array;
+}
+
+export interface ForwardStats {
+  maxActivation: number;
+}
+
+function observeActivation(a: Tensor, stats?: ForwardStats): void {
+  if (!stats) return;
+  for (let i = 0; i < a.d.length; i++) {
+    const v = Math.abs(a.d[i]);
+    if (v > stats.maxActivation) stats.maxActivation = v;
+  }
+}
+
 export class Transformer {
   cfg: ModelConfig;
   params: Tensor[];
   tokEmb: Tensor;
   posEmb: Tensor;
+  ngramEmb?: Tensor;
   blocks: Block[];
   lnFg: Tensor;
   lnFb: Tensor;
@@ -755,6 +830,15 @@ export class Transformer {
         throw new RangeError("moe.topK must be between 1 and moe.experts");
       if (!Number.isFinite(m.bias) || m.bias < 0)
         throw new RangeError("moe.bias must be a non-negative number");
+    }
+    if (cfg.ngram !== undefined) {
+      const n = cfg.ngram;
+      if (!Number.isInteger(n.size) || n.size < 2)
+        throw new RangeError("ngram.size must be an integer of at least 2");
+      if (!Number.isInteger(n.slots) || n.slots < 1)
+        throw new RangeError("ngram.slots must be a positive integer");
+      if (!Number.isInteger(n.layer) || n.layer < 0 || n.layer >= cfg.nLayer)
+        throw new RangeError("ngram.layer must name an existing zero-based layer");
     }
 
     this.cfg = cfg;
@@ -819,6 +903,13 @@ export class Transformer {
       for (const e of blk.routed ?? []) pushExpert(e);
     }
     this.params.push(this.tokEmb, this.posEmb, this.lnFg, this.lnFb, this.head);
+    // All vanlege vekter blir laga først. Dermed startar ein baseline og ein
+    // trigrammodell med byte-identiske fellesvekter når dei får same frø –
+    // avgjerande for ei ærleg para ablasjonsmåling.
+    if (cfg.ngram) {
+      this.ngramEmb = param(cfg.ngram.slots, dim, rng, 0.02);
+      this.params.push(this.ngramEmb);
+    }
   }
 
   get act(): Activation {
@@ -827,6 +918,10 @@ export class Transformer {
 
   get moe(): MoeConfig | undefined {
     return this.cfg.moe;
+  }
+
+  get ngram(): NgramConfig | undefined {
+    return this.cfg.ngram;
   }
 
   // Deler parametrane slik Muon vil ha dei: matrisene i nettverket blir
@@ -859,6 +954,9 @@ export class Transformer {
       if (blk.router) scalar.push(blk.router.W);
     }
     scalar.push(this.tokEmb, this.posEmb, this.lnFg, this.lnFb, this.head);
+    // Oppslagstabellar er ikkje lineære kart og skal difor aldri Muon-
+    // ortogonaliserast. Qwen held tilsvarande n-gramtabellar på Adam.
+    if (this.ngramEmb) scalar.push(this.ngramEmb);
     return { matrix, scalar };
   }
 
@@ -967,6 +1065,23 @@ export class Transformer {
     return add(x, f);
   }
 
+  private ngramMemory(ids: number[], sink?: NgramView): Tensor {
+    const cfg = this.cfg.ngram;
+    const table = this.ngramEmb;
+    if (!cfg || !table) throw new Error("ngram memory is not configured");
+    const buckets = ngramSlotsFor(ids, this.vocab, cfg);
+    if (sink) {
+      sink.size = cfg.size;
+      sink.slots = cfg.slots;
+      sink.layer = cfg.layer;
+      sink.buckets = buckets.slice();
+      sink.keys = new Int32Array(ids.length * cfg.size);
+      for (let pos = 0; pos < ids.length; pos++)
+        sink.keys.set(ngramKeyAt(ids, pos, cfg.size), pos * cfg.size);
+    }
+    return gatherRows(table, Array.from(buckets));
+  }
+
   // Dyttar skeivfordelings-leddet mot jamn last: den som fekk meir enn sin del
   // blir litt mindre attraktiv, den som fekk mindre litt meir. Ingen hjelpe-tap,
   // ingen gradient – berre eit lite dytt, slik V3 gjer det.
@@ -997,7 +1112,13 @@ export class Transformer {
   }
 
   // Føreveg: tek token-id-ar og returnerer logits [T, vocab].
-  forward(ids: number[], sink?: AttnView[], routeSink?: RouteView[]): Tensor {
+  forward(
+    ids: number[],
+    sink?: AttnView[],
+    routeSink?: RouteView[],
+    ngramSink?: NgramView,
+    stats?: ForwardStats
+  ): Tensor {
     const Tt = ids.length;
     if (Tt < 1 || Tt > this.seqLen)
       throw new RangeError(`Expected between 1 and ${this.seqLen} token IDs, got ${Tt}`);
@@ -1009,26 +1130,46 @@ export class Transformer {
     const posIdx: number[] = [];
     for (let i = 0; i < Tt; i++) posIdx[i] = i;
     let x = add(x0, gatherRows(this.posEmb, posIdx));
-    for (let l = 0; l < this.blocks.length; l++)
+    observeActivation(x, stats);
+    for (let l = 0; l < this.blocks.length; l++) {
+      if (this.cfg.ngram?.layer === l) {
+        x = add(x, this.ngramMemory(ids, ngramSink));
+        observeActivation(x, stats);
+      }
       x = this.blockForward(this.blocks[l], x, l, sink, routeSink);
+      observeActivation(x, stats);
+    }
     x = layernorm(x, this.lnFg, this.lnFb);
+    observeActivation(x, stats);
     return matmul(x, this.head);
   }
 
   // Forward pass that also records every head's post-softmax attention, and —
   // when the model has experts — which of them each character woke.
   // For visualization only — no backward pass is run on the result.
-  inspect(ids: number[]): { logits: Tensor; attn: AttnView[]; routes: RouteView[] } {
+  inspect(ids: number[]): {
+    logits: Tensor;
+    attn: AttnView[];
+    routes: RouteView[];
+    ngram: NgramView | null;
+  } {
     const attn: AttnView[] = [];
     const routes: RouteView[] = [];
-    const logits = this.forward(ids, attn, routes);
-    return { logits, attn, routes };
+    const ngram: NgramView | undefined = this.cfg.ngram
+      ? { size: 0, slots: 0, layer: 0, keys: new Int32Array(), buckets: new Int32Array() }
+      : undefined;
+    const logits = this.forward(ids, attn, routes, ngram);
+    return { logits, attn, routes, ngram: ngram ?? null };
   }
 
   paramCount(): number {
     let n = 0;
     for (const p of this.params) n += p.d.length;
     return n;
+  }
+
+  ngramParamCount(): number {
+    return this.ngramEmb?.d.length ?? 0;
   }
 }
 
@@ -1054,13 +1195,18 @@ export function cloneTransformer(src: Transformer): Transformer {
 export interface Optimizer {
   lr: number;
   zeroGrad(): void;
-  clipGradNorm(maxNorm: number): void;
+  clipGradNorm(maxNorm: number): GradClipStats;
   step(): void;
+}
+
+export interface GradClipStats {
+  norm: number;
+  clipped: boolean;
 }
 
 // Klypp gradienten til ei fast norm (hindrar eksplosjon). Delt av alle
 // optimerarane, så dei ser nøyaktig same gradient.
-function clipGrads(params: Tensor[], maxNorm: number) {
+function clipGrads(params: Tensor[], maxNorm: number): GradClipStats {
   let total = 0;
   for (const p of params) for (let i = 0; i < p.grad.length; i++) total += p.grad[i] * p.grad[i];
   const norm = Math.sqrt(total);
@@ -1068,6 +1214,7 @@ function clipGrads(params: Tensor[], maxNorm: number) {
     const f = maxNorm / (norm + 1e-6);
     for (const p of params) for (let i = 0; i < p.grad.length; i++) p.grad[i] *= f;
   }
+  return { norm, clipped: norm > maxNorm };
 }
 
 export class Adam {
@@ -1090,7 +1237,7 @@ export class Adam {
   }
 
   clipGradNorm(maxNorm: number) {
-    clipGrads(this.params, maxNorm);
+    return clipGrads(this.params, maxNorm);
   }
 
   step() {
@@ -1218,7 +1365,7 @@ export class Muon implements Optimizer {
   }
 
   clipGradNorm(maxNorm: number) {
-    clipGrads(this.params, maxNorm);
+    return clipGrads(this.params, maxNorm);
   }
 
   step() {
@@ -1395,15 +1542,24 @@ export function evalLoss(
   return total / batches;
 }
 
-// Eitt treningssteg over ein minibatch av tilfeldige utdrag. Returnerer snitt-tap.
-export function trainStep(
+export interface TrainStepStats {
+  loss: number;
+  gradNorm: number;
+  clipped: boolean;
+  maxActivation: number;
+}
+
+// Felles implementasjon for den raske løkka i appen og den instrumenterte
+// ablasjonsløypa. Når measure=false blir ingen aktiveringar skanna.
+function runTrainStep(
   model: Transformer,
   opt: Optimizer,
   data: number[],
   seqLen: number,
   batchSize: number,
-  rng: () => number
-): number {
+  rng: () => number,
+  measure: boolean
+): TrainStepStats {
   if (data.length < 2) throw new RangeError("Training data must contain at least two tokens");
   if (!Number.isInteger(seqLen) || seqLen < 1)
     throw new RangeError("seqLen must be a positive integer");
@@ -1414,6 +1570,7 @@ export function trainStep(
   const effectiveSeqLen = Math.min(seqLen, data.length - 1, model.seqLen);
   const startCount = data.length - effectiveSeqLen;
   let total = 0;
+  const forwardStats: ForwardStats | undefined = measure ? { maxActivation: 0 } : undefined;
   model.countRouting = true;
   for (let b = 0; b < batchSize; b++) {
     const start = Math.max(0, Math.min(startCount - 1, Math.floor(rng() * startCount)));
@@ -1423,7 +1580,7 @@ export function trainStep(
       x.push(data[start + i]);
       y.push(data[start + i + 1]);
     }
-    const logits = model.forward(x);
+    const logits = model.forward(x, undefined, undefined, undefined, forwardStats);
     const loss = crossEntropyLoss(logits, y);
     backward(loss);
     total += loss.d[0];
@@ -1432,11 +1589,41 @@ export function trainStep(
   if (batchSize > 1)
     for (const p of model.params)
       for (let i = 0; i < p.grad.length; i++) p.grad[i] /= batchSize;
-  opt.clipGradNorm(1.0);
+  const clip = opt.clipGradNorm(1.0);
   opt.step();
   // Etter steget: dytt lasta jamn ut frå det denne minibatchen faktisk gjorde.
   model.rebalanceRouters();
-  return total / batchSize;
+  return {
+    loss: total / batchSize,
+    gradNorm: clip.norm,
+    clipped: clip.clipped,
+    maxActivation: forwardStats?.maxActivation ?? 0,
+  };
+}
+
+// Eitt treningssteg over ein minibatch av tilfeldige utdrag. Returnerer snitt-tap.
+export function trainStep(
+  model: Transformer,
+  opt: Optimizer,
+  data: number[],
+  seqLen: number,
+  batchSize: number,
+  rng: () => number
+): number {
+  return runTrainStep(model, opt, data, seqLen, batchSize, rng, false).loss;
+}
+
+// Same steg, men med dei måla ablasjonsharnessen treng for å samanlikna
+// stabilitet: uklypt gradientnorm, om klypping slo inn og høgaste aktivering.
+export function trainStepDetailed(
+  model: Transformer,
+  opt: Optimizer,
+  data: number[],
+  seqLen: number,
+  batchSize: number,
+  rng: () => number
+): TrainStepStats {
+  return runTrainStep(model, opt, data, seqLen, batchSize, rng, true);
 }
 
 export interface PrefPair {

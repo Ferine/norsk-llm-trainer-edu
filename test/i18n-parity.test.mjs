@@ -44,4 +44,25 @@ for (const l of lenker) {
 }
 assert.equal(lenker.filter((l) => l.start).length, 1, "exactly one link is marked «start her»");
 
+// The new architecture is traceable to primary, official sources rather than
+// an unexplained name in the UI.
+const byId = new Map(lenker.map((l) => [l.id, l]));
+assert.equal(
+  byId.get("qwen38report")?.url,
+  "https://github.com/QwenLM/Qwen3.8-Flash-Next/blob/main/tech_report.pdf"
+);
+assert.equal(
+  byId.get("qwen38blog")?.url,
+  "https://qwen.ai/blog?id=qwen3.8-flash-next"
+);
+assert.equal(
+  byId.get("qwen38config")?.url,
+  "https://huggingface.co/Qwen/Qwen3.8-Flash-Next-FP8/blob/main/config.json"
+);
+for (const lang of ["bm", "nn"]) {
+  assert.match(STRINGS[lang].readMore.items.qwen38report, /§2\.3/);
+  assert.match(STRINGS[lang].readMore.items.qwen38config, /ngram_size: 3/);
+  assert.match(STRINGS[lang].ordliste.intro, /Qwen Team \(2026, §2\.3\)/);
+}
+
 console.log(`i18n-parity: OK – ${lenker.length} lenker i leselista, alle med notat på bm+nn`);

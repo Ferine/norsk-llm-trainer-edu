@@ -30,7 +30,9 @@ doesn't fake anything:
   multi-head **causal** self-attention and a feed-forward network, with residual
   connections, a final LayerNorm, and a softmax output head. The wide layer's activation is
   switchable (SiTU-GLU by default, GELU available), and it can be split into a router plus
-  experts.
+  experts. An optional learned **trigram memory** hashes the last three ordinary character IDs
+  into one extra lookup row before block 2 — without changing the one-character/one-token
+  tokenizer.
 - 📉 **Real training.** Cross-entropy next-character loss, **Adam** with bias correction and
   gradient-norm clipping, minibatching — and a live loss curve so you can *see* learning happen.
 - 🎛️ **Real preference tuning (RLHF).** After pretraining, fine-tune the model on *your* taste
@@ -52,6 +54,11 @@ doesn't fake anything:
   wide layer with DeepSeek-V3's auxiliary-loss-free load balancing, where the layer is split rather
   than widened so only two fifths of it computes per character. See
   [Frontier techniques](#-frontier-techniques) and [MoE](#-mange-små-i-stedet-for-ett-stort-moe).
+- 🗃️ **A Qwen-style memory you can open up.** Inspired by
+  [Qwen3.8-Flash-Next](https://github.com/QwenLM/Qwen3.8-Flash-Next), the optional 256-row trigram
+  table comes with a lookup inspector (keys, buckets, learned row strength and real hash
+  collisions) and a deterministic paired ablation harness that compares it against today's
+  unchanged baseline. See [Trigram memory](#-trigram-memory-qwen-style).
 
 It is honest about its scale, too: this is a model with a few tens of thousands of parameters,
 trained on a handful of sentences. It will not write like ChatGPT. But the *principle* is
@@ -70,6 +77,7 @@ pnpm build        # produce a single self-contained dist/index.html
 pnpm preview      # serve the production build locally
 pnpm test         # run the model + i18n test suite
 pnpm typecheck    # type-check without emitting
+pnpm run ablate:ngram # paired baseline/trigram evaluation on both corpora
 pnpm run deploy   # build + publish to Cloudflare Workers (see Deployment)
 ```
 
@@ -106,14 +114,14 @@ The page walks you through the full lifecycle of a language model, one section a
 | 1 | **What is a language model?** | The core loop: guess the next character → measure the error → nudge the weights. |
 | 2 | **Raw text & tokenization** | See the Norwegian corpus, watch a sentence split into characters, and inspect the full character-level vocabulary. |
 | 3 | **From characters to word-pieces (BPE)** | Learn byte-pair encoding hands-on: merge the most frequent pair step by step and watch the sample sentence re-tokenize into subwords. |
-| 4 | **The architecture** | A live diagram of the transformer that updates with your chosen layer/head/dimension settings — and redraws the wide layer as a row of experts when you switch those on. |
-| 5 | **Training** | Pick a model size, batch size, and learning rate, then hit **Start** and watch the loss fall and sample text improve in real time. **Flere innstillinger** holds the frontier switches (optimizer, LR schedule, activation, experts) and the 4-bit slimming measurement. Two live weight views fold out below: the change-heat grid (*skruene*) and the **vevkart** — every single parameter as one pixel, grouped by the model's anatomy (embeddings → per-block attention/FFN → output head), redrawn as training runs with a decaying highlighter glow on the weights that just moved. |
-| 6 | **Look inside the model** | Pick any position in a sentence and inspect every head's attention pattern plus the next-character probability distribution — with the true next character as fasit. With experts switched on, an extra strip shows which expert each character woke. |
+| 4 | **The architecture** | A live diagram of the transformer that updates with your chosen layer/head/dimension settings — and shows the expert split or the trigram lookup exactly where either enters the network. |
+| 5 | **Training** | Pick a model size, batch size, and learning rate, then hit **Start** and watch the loss fall and sample text improve in real time. **Flere innstillinger** holds the frontier switches (optimizer, LR schedule, activation, experts, trigram memory) and the 4-bit slimming measurement. Two live weight views fold out below: the change-heat grid (*skruene*) and the **vevkart** — every single parameter as one pixel, grouped by the model's anatomy (embeddings → optional memory → per-block attention/FFN → output head), redrawn as training runs with a decaying highlighter glow on the weights that just moved. |
+| 6 | **Look inside the model** | Pick any position in a sentence and inspect every head's attention pattern plus the next-character probability distribution — with the true next character as fasit. With experts switched on, an extra strip shows which expert each character woke. With trigram memory switched on, every position exposes its three-ID key, bucket, active row, learned RMS strength and other corpus trigrams colliding in that bucket. |
 | 7 | **Try the model** | Give it a prompt and generate text, tuning temperature, top-k, and length. The prompt you supplied stays marked in everything the model writes, so you can always see where your text ended and the model's began. |
 | 8 | **RLHF** | Generate two continuations, choose the one you prefer, and steer the model toward your taste with DPO. |
-| 9 | **Add your own text** | Paste in any text to rebuild the vocabulary and retrain on your own data — or pick a bundled excerpt from the dropdown (`src/lib/eksempeltekster.ts`): public-domain classics (Vinje, Hamsun, Garborg, Undset, via Project Gutenberg and Wikisource) plus modern Norwegian from Wikipedia — the Bokmål article on large language models and the Nynorsk one on machine learning (CC BY-SA 4.0), so the tiny model can train on text about itself. Everything ships inside the build, fetched verbatim at authoring time; the app still makes zero network calls. |
-| 10 | **Read more** | A curated reading list on five shelves — the original paper, things to watch, code you can read, Norwegian-language material, and what this app builds on. Together with the GGUF-visualizer link in the footer these are the only outbound links in the app, visited ones grey out, and the page says so up front rather than hiding it. |
-| 11 | **Glossary** | Every technical term in the app on one page, grouped by theme — from tokenization to scaling laws. The same definitions pop up as handwritten notes when you hover a dotted-underlined word anywhere on the page: one source (`src/lib/ordliste.ts`) feeds both. |
+| 9 | **Add your own text** | Paste in any text to rebuild the vocabulary and retrain on your own data — or pick a bundled text from the dropdown (`src/lib/eksempeltekster.ts`): public-domain classics (Vinje, Hamsun, Garborg, Undset), CC BY-SA Wikipedia texts about language models and machine learning, and **“Trygg på nettet”**, a newly written Bokmål training text based on the factual guidance in [NEAS’ “Sikker surfing”](https://neas.no/internett/sikker-surfing/). The NEAS page states no free reuse license, so its prose is not copied: the app labels this entry as its own attributed summary. Everything ships inside the build; the app still makes zero network calls. |
+| 10 | **Read more** | A curated reading list on five shelves — the original paper, things to watch, code you can read, Norwegian-language material, and what this app builds on. The trigram path links the official Qwen overview, §2.3 of the technical report, and the released model configuration, each with a bilingual “what to look for” note. Together with the GGUF-visualizer link in the footer these are the only outbound links in the app, visited ones grey out, and the page says so up front rather than hiding it. |
+| 11 | **Glossary** | Every technical term in the app on one page, grouped by theme — now including n-grams, lookup tables, hashing, collisions, ablations, held-out data and overfitting, plus a Qwen §2.3 citation on trigram memory. The same definitions pop up as handwritten notes when you hover a dotted-underlined word anywhere on the page: one source (`src/lib/ordliste.ts`) feeds both. |
 
 Above the journey sits the **hero strip**: a real training run replayed character by character
 (`LearningStrip` in `App.tsx`, data on `Seeds.strip` in `i18n.ts`). It is not an animation of what
@@ -145,10 +153,10 @@ graph and invokes each `_back` in reverse, exactly like the tape in a real frame
 
 ### The model
 
-- **`Transformer`** — configurable `{ vocab, dim, nLayer, nHead, seqLen, ffnMult, act, moe }`, with
+- **`Transformer`** — configurable `{ vocab, dim, nLayer, nHead, seqLen, ffnMult, act, moe, ngram }`, with
   validated hyperparameters, multi-head causal attention, pre-norm residual blocks, and a
   tied-shape output head. `inspect()` runs a forward pass that also records every head's attention
-  and every router's decisions, for the visualizations.
+  every router's decisions and every hashed memory lookup, for the visualizations.
 - **`Adam`** — full implementation with bias-corrected moments, configurable β₁/β₂/ε, and
   `clipGradNorm` to keep gradients from exploding.
 - **`trainStep`** — samples a random minibatch of windows from the corpus, runs forward → loss →
@@ -206,6 +214,86 @@ which is a confusing way to find out you regenerated it by hand.
 The Excel export follows the architecture: pick SiTU-GLU and the downloaded workbook computes the
 gated activation in spreadsheet formulas too (with σ written as `0.5·(1+tanh(g/2))`, since `EXP`
 overflows in Excel where `TANH` never does).
+
+### 🗃️ Trigram memory (Qwen style)
+
+The optional **trigram memory** is inspired by
+[Qwen3.8-Flash-Next](https://github.com/QwenLM/Qwen3.8-Flash-Next): for every position, the last
+three ordinary character-token IDs (with an internal BOS sentinel only at the left edge) are
+hashed with deterministic FNV-1a into one of 256 learned rows. That one `dim`-wide row is added to
+the residual stream before transformer block 2. In preset *liten* this adds `256 × 48 = 12,288`
+parameters, but consults only 48 of them per character.
+
+This does **not** alter the teaching tokenizer. No trigram becomes a token, no word-piece is
+inserted, and BOS is not added to the vocabulary: one Unicode character remains exactly one token.
+The lookup inspector makes the distinction concrete. Click any input character to see its
+three-ID key, bucket, learned row RMS, `dim / (slots × dim)` active weights, and all distinct
+training-corpus trigrams that collide in the same bucket.
+
+The switch is **off by default**, based on the paired evaluation rather than on novelty. Run it
+yourself with `pnpm run ablate:ngram` (`ABLATION_STEPS`, `ABLATION_SEEDS`, `ABLATION_BATCH` and
+`ABLATION_EVAL_BATCHES` can override the defaults). The harness builds both variants with the same
+vocabulary and seed, verifies every shared starting weight is byte-identical, samples the same
+training and held-out windows, alternates which variant runs first to balance JIT warm-up, and
+records capacity, tail training loss, held-out loss, timing, gradient p99, clipping and peak
+activation.
+
+Measured on 26 August 2026: 800 steps × 3 paired seeds for each language; preset *liten*, Adam,
+SiTU-GLU, batch 4, lr 8e-4, context 32. The final paragraph was held out completely.
+
+| Language | Variant | params | tail train loss | held-out loss | ms/step | grad p99 | clip rate | max activation |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| Bokmål | baseline (today/default) | 62,624 | 1.8019 | **2.6681** | 27.84 | 6.816 | 96.7% | 5.460 |
+| Bokmål | trigram | 74,912 | **0.7998** | 3.4761 | 27.93 | 6.656 | 97.7% | 5.891 |
+| Nynorsk | baseline (today/default) | 62,624 | 1.8581 | **2.7321** | 27.88 | 6.348 | 95.9% | 5.721 |
+| Nynorsk | trigram | 74,912 | **0.7607** | 3.6042 | 27.87 | 6.784 | 97.0% | 5.964 |
+
+The honest result: memory lowers tail training loss by **55.6% on Bokmål and 59.1% on Nynorsk**
+at essentially zero step-time cost, while held-out loss gets **30.3% and 31.9% worse**. Stability
+remains close (about +1 percentage point of clipping and +4–8% peak activation), so this is not an
+explosion; it is the table doing exactly what a direct context memory is good at — memorizing this
+very small corpus. That makes it a valuable ablation and teaching tool, not a quality upgrade to
+turn on by default. The UI says so by leaving today's transformer selected until the learner opts
+in.
+
+#### References and implementation scope
+
+The three primary references are also presented with bilingual reading guidance in **step 10,
+Les mer**, while **step 11, Ordliste** explains n-grams, lookup tables, hash functions, collisions,
+ablations, held-out data and overfitting in the vocabulary used by the inspector and benchmark.
+
+1. **Qwen Team (2026), [*On the Design of Qwen3.8-Next Architecture: Evaluation, Efficiency,
+   and Training Stability*](https://github.com/QwenLM/Qwen3.8-Flash-Next/blob/main/tech_report.pdf).**
+   See §2.3 and Tables 7–9 (pp. 14–15): short token n-grams deterministically address embedding
+   memory; one layer at Layer 2 is sufficient; larger memory lowers loss more consistently than it
+   improves downstream evaluation. The report describes 51B additional table parameters held off
+   the accelerator and says the table itself uses Adam without weight decay.
+2. **Qwen Team (2026), [*Qwen3.8-Flash-Next: A New Architecture, Towards Ultimate
+   Cost-Efficiency*](https://qwen.ai/blog?id=qwen3.8-flash-next).** The shorter architectural
+   overview explains why sparsely accessed memory can increase capacity with little per-token
+   arithmetic.
+3. **Qwen Team, [released `config.json`](https://huggingface.co/Qwen/Qwen3.8-Flash-Next-FP8/blob/main/config.json).**
+   This is the machine-readable check on the prose: `ngram_size` is `3`, `ple_layer_ids` is `[2]`,
+   `heads_per_ngram` is `8`, and `ngram_vocab_size_base` is `20,000,000`.
+
+“Qwen style” here therefore means **the capacity-scaling idea, trigram order, deterministic sparse
+lookup and Layer-2 placement**, not a claim of architectural equivalence:
+
+| Aspect | Qwen3.8-Flash-Next | This teaching model |
+|---|---|---|
+| Tokenizer | 248,320-token production vocabulary | ~70 Unicode characters; exactly one character per token |
+| Memory | 51B off-accelerator table parameters | 12,288 parameters in preset *liten* |
+| Retrieval | Multiple hashed heads plus key/value projections and host-memory prefetch | One transparent FNV-1a bucket and one directly added row |
+| Placement | One n-gram embedding layer at Layer 2 | One trigram table before transformer block 2 |
+| Purpose | Production-scale capacity and efficiency | Inspectability and a controlled generalization lesson |
+
+FNV-1a is an implementation choice made by this project; the Qwen report specifies deterministic
+addressing but does **not** prescribe FNV. Keeping that distinction explicit is why the inspector
+shows the hash inputs and collisions instead of presenting the table as magic.
+
+The spreadsheet exporter refuses a memory model until its formulas can reproduce the hash and
+lookup exactly. GGUF does carry `ngram_embd.weight` plus the n-gram size, bucket count, injection
+layer and hash/BOS recipe, while continuing to declare the tokenizer honestly as `char`.
 
 ### 🧩 Mange små i stedet for ett stort (MoE)
 
@@ -266,8 +354,8 @@ specialization is visible by eye — spaces, vowels and `æøå` tend to end up 
 
 ### 🛑 Nothing is thrown away silently
 
-Eight controls discard a trained model: model size, optimizer, activation, experts, language,
-"rebuild with my own text", reset, and pressing **Start** on an already-finished run. A ninth — the
+Nine controls discard a trained model: model size, optimizer, activation, experts, trigram memory, language,
+"rebuild with my own text", reset, and pressing **Start** on an already-finished run. A tenth — the
 RLHF *reset tuning* button — rolls the weights back to the frozen reference. All of them route
 through one confirmation dialog (`src/components/Bekreft.tsx`) that names the action, states how
 many steps are at stake, and explains the consequence, in Bokmål or Nynorsk.
@@ -328,6 +416,8 @@ model built there, and the file states them honestly instead of papering over th
    named `gpt2`. SiTU-GLU adds a gate branch gpt2 has no place for, so that file says
    `sprakmodell-situ`; a routed model says `sprakmodell-moe` and carries `expert_count`,
    `expert_used_count` and `expert_shared_count` alongside every expert's tensors and the router.
+   A memory model says `sprakmodell-ngram`, carries `ngram_embd.weight`, and records the n-gram
+   size, bucket count, injection layer and exact FNV-1a/BOS recipe in metadata.
 3. **The attention has no bias.** gpt2 does. Rather than invent zeros to fill the slot, the tensors
    simply do not exist.
 
@@ -387,11 +477,13 @@ the math and data, independent of React:
 | `schedule` | Warmup ramps to the peak, cosine decays monotonically to the floor, endpoints and clamping |
 | `situ` | The β₁β₂ soft cap holds for extreme inputs, SiTU-GLU tracks SwiGLU near the origin, gradients match finite differences, the ⅔ width keeps parameter counts within 5% |
 | `moe` | The three routing primitives move rows and gradients correctly (including a row routed twice), the router receives gradient, the wide layer is split rather than widened, routing is sparse and every gate row sums to 1, the balancing nudge equalizes load and resets its counters, a routed model trains without starving an expert, a clone routes identically, and the exports refuse or describe experts rather than lying about them |
+| `ngram` | Unicode characters remain exactly one token each; hashing is deterministic and causal; same-seed shared weights are byte-identical; only consulted lookup rows learn; inspection, cloning and parameter accounting work; Excel refuses an unsupported memory model rather than omitting it |
+| `ablation` | The paired harness preserves the character/token invariant, matches initialization and sampled windows across variants, reports finite loss/timing/gradient/clipping/activation metrics, and accounts for the table's exact capacity |
 | `quant` | Representable values round-trip exactly, per-block error stays under ¼ of the block maximum, byte accounting, only the wide layer is touched, the clone leaves the original alone |
 | `confirm` | Every control that discards training goes through the confirmation dialog — asserted against the source, since a new switch can silently skip it and there is no React harness here to click one |
 | `excel` | For **both** activations: the workbook's formulas reproduce `ml.ts` position for position, no cycles, exactly one editable cell, all 18 flowchart steps filled with live values wired to the real model, and the style table's declared counts match its contents (a mismatch is what makes Excel say "unreadable content") |
 | `xlsx-zip` | The ZIP is re-read with `node:zlib` independently of the writer, so a bad CRC, a wrong header length or a broken deflate stream surfaces here rather than in Excel; plus the browser download path |
-| `gguf` | The file is parsed back by a reader written from the GGUF spec alone, not from the writer's code — wrong magic, bad alignment, a lying tensor offset or a byte-order slip fails here rather than in `gguf-dump`; both activations round-trip, ragged tensors land on their promised offsets, and mismatched or zero-sized tensors are refused |
+| `gguf` | The file is parsed back by a reader written from the GGUF spec alone, not from the writer's code — wrong magic, bad alignment, a lying tensor offset or a byte-order slip fails here rather than in `gguf-dump`; both activations and the trigram table/lookup metadata round-trip, ragged tensors land on their promised offsets, and mismatched or zero-sized tensors are refused |
 
 ---
 
@@ -401,7 +493,8 @@ the math and data, independent of React:
 src/
   lib/
     ml.ts          # autograd engine, Transformer, Adam + Muon, schedules,
-                   #   quantization, MoE routing, DPO
+                   #   trigram lookup, quantization, MoE routing, DPO
+    ablation.ts    # deterministic paired baseline-vs-trigram evaluator
     corpus.ts      # Norwegian corpora (bm/nn) + character-level tokenizer
     bpe.ts         # standalone BPE learner for the teaching demo (not the model tokenizer)
     i18n.ts        # bilingual UI strings, seeds, reading list, language metadata
@@ -414,7 +507,7 @@ src/
     Architecture.tsx  # live transformer diagram
     Bekreft.tsx       # the one confirmation dialog every destructive control routes through
     BpeLab.tsx        # interactive BPE merge lab
-    Inspector.tsx     # attention heatmap, next-character bars, expert strip
+    Inspector.tsx     # attention heatmap, probability bars, expert + lookup inspectors
     Leseliste.tsx     # the reading list — the only outbound links in the app
     LossChart.tsx     # training/DPO loss curve
     Rlhf.tsx          # preference-selection arena
@@ -425,6 +518,8 @@ src/
   App.tsx          # the full guided single-page experience
   index.css        # Tailwind layer + the workbook look (paper, ink, grid)
 test/              # Node test suite for the pure-logic library
+scripts/
+  ablate-ngram.mjs # reproducible two-language benchmark CLI
 wrangler.jsonc     # Cloudflare Workers config (assets-only Worker + custom domain)
 ```
 

@@ -204,6 +204,44 @@ for (const act of ["gelu", "situ"]) {
   );
 }
 
+// ---- the optional trigram memory is carried honestly ----------------------
+{
+  const cfg = {
+    vocab: tok.vocab,
+    dim: 16,
+    nLayer: 2,
+    nHead: 2,
+    seqLen: 12,
+    ffnMult: 4,
+    act: "situ",
+    ngram: { size: 3, slots: 32, layer: 1 },
+  };
+  const model = new Transformer(cfg, mulberry32(77));
+  trainStep(model, new Adam(model.params, 0.002), data, cfg.seqLen, 2, mulberry32(88));
+  const built = buildModelGguf({
+    model, tokenizer: tok, step: 1, loss: 3, presetName: "liten", lang: "bm",
+  });
+  const back = readGguf(built.bytes);
+  const arch = "sprakmodell-ngram";
+
+  assert.equal(built.arch, arch);
+  assert.equal(back.kv.get("general.architecture"), arch);
+  assert.equal(back.kv.get(`${arch}.ngram.size`), 3);
+  assert.equal(back.kv.get(`${arch}.ngram.bucket_count`), 32);
+  assert.equal(back.kv.get(`${arch}.ngram.layer`), 1);
+  assert.equal(back.kv.get(`${arch}.ngram.hash`), "fnv1a-u32-token-ids-vocab-as-bos");
+  assert.match(back.kv.get("general.description"), /ingen nye token/);
+  assert.equal(back.kv.get("tokenizer.ggml.model"), "char");
+  assert.deepEqual(back.kv.get("tokenizer.ggml.tokens"), tok.itos);
+
+  const table = back.tensors.get("ngram_embd.weight");
+  assert.ok(table, "the learned lookup table must be present");
+  assert.deepEqual(table.dims, [cfg.dim, cfg.ngram.slots]);
+  assert.deepEqual(Array.from(table.data), Array.from(model.ngramEmb.d));
+  assert.equal(back.kv.get("sprakmodell.parameter_count"), model.paramCount());
+  console.log("  trigram: lookup tensor, hash recipe and char tokenizer round-trip");
+}
+
 // ---- the writer rejects a tensor whose shape does not match its data -------
 
 assert.throws(

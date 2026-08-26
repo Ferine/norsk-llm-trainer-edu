@@ -25,7 +25,10 @@ export type LesId =
   | "denneappen"
   | "nbailab"
   | "sprakbanken"
-  | "k3";
+  | "k3"
+  | "qwen38blog"
+  | "qwen38report"
+  | "qwen38config";
 
 export interface Strings {
   header: {
@@ -98,6 +101,8 @@ export interface Strings {
     boxAttn: { title: string; sub: (heads: number) => string };
     boxFfn: { title: string; sub: string };
     boxMoe: { title: string; sub: (experts: number, topK: number) => string };
+    boxNgram: { title: string; sub: (size: number, slots: number) => string };
+    ngramExplain: { b: string; t: string };
     residualNote: string;
     boxFinalNorm: { title: string; sub: string };
     boxOutHead: { title: string; sub: string };
@@ -126,6 +131,10 @@ export interface Strings {
     moeOff: string;
     moeOn: string;
     moeHelp: string;
+    ngramLabel: string;
+    ngramOff: string;
+    ngramOn: string;
+    ngramHelp: string;
     slank: {
       label: string;
       help: string;
@@ -158,6 +167,7 @@ export interface Strings {
     vevHelp: string;
     vevIdle: string;
     vevEmb: string;
+    vevNgram: string;
     vevAttn: (i: number) => string;
     vevFfn: (i: number) => string;
     vevMoe: (i: number) => string;
@@ -196,6 +206,14 @@ export interface Strings {
     expertHelp: string;
     expertLabel: (n: number) => string;
     expertShared: string;
+    ngramHeading: string;
+    ngramHelp: string;
+    ngramTokenPromise: string;
+    ngramSlot: (slot: number, slots: number) => string;
+    ngramRms: (x: string) => string;
+    ngramActive: (active: number, total: number) => string;
+    ngramCollisionNone: string;
+    ngramCollisions: (n: number) => string;
     fasitLabel: string;
     fasitNext: (ch: string) => string;
     correct: string;
@@ -239,6 +257,7 @@ export interface Strings {
       optim: string;
       act: string;
       moe: string;
+      ngram: string;
       lang: string;
       text: string;
       restart: string;
@@ -257,6 +276,7 @@ export interface Strings {
     sampleLabel: string;
     samplePlaceholder: string;
     sampleFrom: (tittel: string, forfattar: string, aar: number, kjelde: string) => string;
+    sampleAdaptedFrom: (tittel: string, aar: number, kjelde: string) => string;
     /** Éi setning per lisens, vald ut frå `lisens`-feltet på teksten. */
     sampleLicense: Record<Lisens, string>;
     sampleNote: string;
@@ -296,6 +316,7 @@ export interface Strings {
     excelBusy: string;
     excelDone: string;
     excelMoe: string;
+    excelNgram: string;
     gguf: string;
     ggufHint: string;
     ggufBusy: string;
@@ -400,6 +421,14 @@ const bm: Strings = {
       title: "Tenker videre – hver sin spesialitet",
       sub: (experts, topK) => `${experts} eksperter + én fast, ${topK} våkner per tegn`,
     },
+    boxNgram: {
+      title: "Trigramminne",
+      sub: (size, slots) => `${size} tegn → én av ${slots} skuffer`,
+    },
+    ngramExplain: {
+      b: "Trigramminne:",
+      t: "de tre siste tegn-ID-ene peker på én liten minnerad, som legges til før neste transformer-blokk.",
+    },
     residualNote: "+ snarveier forbi hvert ledd, så ingenting går tapt (residual)",
     boxFinalNorm: { title: "Siste opprydding i tallene", sub: "LayerNorm" },
     boxOutHead: { title: "Poengsum for hvert tegn", sub: "utgangshodet (logits)" },
@@ -439,6 +468,11 @@ const bm: Strings = {
     moeOn: "Fire eksperter + én fast (MoE)",
     moeHelp:
       "Det brede laget deles i fem like smale skiver. Én er alltid på, og en liten portner (ruter) slipper hvert tegn inn til én av de fire andre. Modellen har like mange skruer som før – men bare to femtedeler av dem jobber om gangen, så hvert steg går merkbart raskere. Portneren får et lite dytt hvert steg, slik at ingen ekspert blir gående ledig. Det er slik de største åpne modellene er bygd i dag. Se hvem som tok seg av hvilke tegn under «Se inni modellen».",
+    ngramLabel: "Huske de tre siste tegnene",
+    ngramOff: "Bare transformeren (som før)",
+    ngramOn: "Trigramminne – 256 skuffer",
+    ngramHelp:
+      "Tre vanlige tegn-ID-er hashes til én ekstra minnerad før blokk 2. Tabellen gir modellen korttidsoppslag uten å endre alfabetet: hvert tegn er fortsatt nøyaktig ett token, og bare én rad med 48–96 tall brukes per tegn. Se det faktiske oppslaget under «Se inni modellen».",
     slank: {
       label: "Modellen på slankekur (4 bit)",
       help:
@@ -476,6 +510,7 @@ const bm: Strings = {
     vevIdle:
       "Foreløpig er alt jevn, tilfeldig grå – hver vekt er bare et lite tilfeldig tall. Start treningen og se mønstrene vokse fram.",
     vevEmb: "innbygging",
+    vevNgram: "trigramminne",
     vevAttn: (i) => `blokk ${i} – oppmerksomhet`,
     vevFfn: (i) => `blokk ${i} – bredt lag`,
     vevMoe: (i) => `blokk ${i} – eksperter`,
@@ -519,6 +554,16 @@ const bm: Strings = {
       "Hver rad er ett tegn, hver kolonne en ekspert. Mørkere rute = mer av portnerens oppmerksomhet. Rutene med ramme er de som faktisk ble vekket. Se etter mønstre: vokaler, mellomrom og æøå havner gjerne hos hver sine.",
     expertLabel: (n) => `Ekspert ${n}`,
     expertShared: "Den faste eksperten er med på hvert eneste tegn, så den står ikke i tabellen.",
+    ngramHeading: "Oppslaget i trigramminnet",
+    ngramHelp:
+      "Hvert kort viser de tre tegnene som danner nøkkelen og hvilken skuff de peker på. Klikk et tegn over for å følge akkurat det oppslaget.",
+    ngramTokenPromise:
+      "Tokeniseringen er uendret: tre tegn er fortsatt tre token. Hashen velger bare en minnerad; den lager ingen ny ord-bit.",
+    ngramSlot: (slot, slots) => `skuff ${slot} av ${slots}`,
+    ngramRms: (x) => `styrken i raden (RMS): ${x}`,
+    ngramActive: (active, total) => `${active} av ${total} minnevekter er aktive for dette tegnet`,
+    ngramCollisionNone: "Ingen andre trigram i treningsdataene deler denne skuffen.",
+    ngramCollisions: (n) => `${n} andre trigram i treningsdataene deler skuffen:`,
     fasitLabel: "Fasit:",
     fasitNext: (ch) => `det virkelige neste tegnet er «${ch}».`,
     correct: "✓ modellen gjettet riktig!",
@@ -567,6 +612,7 @@ const bm: Strings = {
       optim: "Du er i ferd med å bytte måten skruene vris på.",
       act: "Du er i ferd med å bytte knekken i det brede laget.",
       moe: "Du er i ferd med å bytte mellom ett bredt lag og mange eksperter.",
+      ngram: "Du er i ferd med å slå trigramminnet av eller på.",
       lang: "Du er i ferd med å bytte språk. Da blir det nytt alfabet, ny tekst og dermed en helt ny modell.",
       text: "Du er i ferd med å bygge modellen om med din egen tekst.",
       restart: "Du er i ferd med å starte en helt ny treningsøkt.",
@@ -596,9 +642,12 @@ const bm: Strings = {
     samplePlaceholder: "— velg et utdrag —",
     sampleFrom: (tittel, forfattar, aar, kjelde) =>
       `Utdrag fra «${tittel}» av ${forfattar} (${aar}), via ${kjelde}.`,
+    sampleAdaptedFrom: (tittel, aar, kjelde) =>
+      `«${tittel}» er et nyskrevet referat for appen (${aar}), med ${kjelde} som faglig utgangspunkt.`,
     sampleLicense: {
       fri: "Boken har falt i det fri (forfatteren døde for over 70 år siden), og den gamle rettskrivingen står som forfatteren skrev.",
       ccbysa: "Teksten er skrevet av frivillige og fritt lisensiert (CC BY-SA 4.0).",
+      referat: "Formuleringene er våre og er ikke kopiert fra kildesiden, som ikke oppgir noen fri gjenbrukslisens.",
     },
     sampleNote:
       "Utdraget følger med appen – ingenting hentes fra nettet; modellen lærer nøyaktig det den leser.",
@@ -606,7 +655,7 @@ const bm: Strings = {
   readMore: {
     title: "Les mer",
     intro:
-      "Du har trent en modell selv. Herfra går det an å gå videre – hyllene er sortert etter hva du er ute etter: se det, lese koden eller prøve selv.",
+      "Du har trent en modell selv. Herfra går det an å gå videre – hyllene er sortert etter hva du er ute etter: se det, lese koden eller prøve selv. For trigramminnet kan du begynne med Qwen-bloggen, lese §2.3 i rapporten og til slutt sammenligne den ekte konfigurasjonen med vår lille variant.",
     note: "Alt annet i appen kjører lokalt – disse lenkene går ut på nettet. Det du har vært innom, blir grått.",
     startHere: "Start her",
     newTab: "(åpnes i ny fane)",
@@ -646,12 +695,18 @@ const bm: Strings = {
       sprakbanken:
         "Der ekte norske treningsdata kommer fra. Korpuset i steg 2 er noen få avsnitt; dette er hyllemeter.",
       k3: "Paragrafhenvisningene i steg 5 og slankekuren peker hit. Fire triks derfra kjører i modellen din, krympet fra 2,8 billioner tall til 60 000.",
+      qwen38blog:
+        "Den korte inngangen til arkitekturen. Les avsnittet om N-gram embedding: kapasitet legges i en oppslagstabell som bare henter noen få rader per token, så regnekostnaden vokser mye saktere enn antall parametere.",
+      qwen38report:
+        "Primærkilden bak trigramminnet her. Gå rett til §2.3 og tabell 7–9: korte n-gram brukes som deterministiske nøkler, lag 2 velges, og større tabeller senker tapet uten at sluttoppgavene forbedres like jevnt. Det siste er grunnen til at vår egen held-out-måling står ved siden av treningstapet.",
+      qwen38config:
+        "Den utgitte modellens fasit i maskinlesbar form. Se etter ngram_size: 3 og ple_layer_ids: [2]. Resten viser avstanden til undervisningsmodellen: 20 millioner grunnskuffer, flere hashede hoder og egne projeksjoner – mot én direkte 256-raders FNV-tabell her.",
     },
   },
   ordliste: {
     title: "Ordliste",
     intro:
-      "Alle fagordene i appen på ett brett, sortert etter hvor i løypa de hører hjemme. Det er de samme forklaringene som henger på ordene med prikket strek rundt om på siden – her står de i ro, så du kan slå opp.",
+      "Alle fagordene i appen på ett brett, sortert etter hvor i løypa de hører hjemme. Det er de samme forklaringene som henger på ordene med prikket strek rundt om på siden – her står de i ro, så du kan slå opp. Oppslaget om trigramminne viser til Qwen Team (2026, §2.3); full rapport, kortversjon og modellkonfigurasjon ligger i steg 10.",
     temaer: {
       grunnlag: "Grunnlaget",
       tekst: "Fra tekst til tall",
@@ -684,6 +739,8 @@ const bm: Strings = {
     excelDone: "lastet ned",
     excelMoe:
       "Regnearket kan ennå ikke regne med eksperter. Vi lar heller være å tilby det enn å gi deg en fil som regner på noe annet enn modellen din. Slå av «mange små» over og tren på nytt, så er knappen tilbake – GGUF-fila under tar med ekspertene som de er.",
+    excelNgram:
+      "Regnearket kan ennå ikke gjengi trigramoppslagene. Slå av «huske de tre siste tegnene» og tren på nytt for å få regneark-knappen tilbake – GGUF-fila under tar med hele minnetabellen og oppskriften på oppslaget.",
     gguf: "Last ned modellen som modellfil (GGUF)",
     ggufHint:
       "Samme filformat som de store modellene deles i. Du kan åpne den med vanlige GGUF-verktøy og se hver eneste skrue modellen har lært – men den er ikke laget for å kjøres av dem.",
@@ -788,6 +845,14 @@ const nn: Strings = {
       title: "Tenkjer vidare – kvar sin spesialitet",
       sub: (experts, topK) => `${experts} ekspertar + éin fast, ${topK} vaknar per teikn`,
     },
+    boxNgram: {
+      title: "Trigramminne",
+      sub: (size, slots) => `${size} teikn → éi av ${slots} skuffer`,
+    },
+    ngramExplain: {
+      b: "Trigramminne:",
+      t: "dei tre siste teikn-ID-ane peikar på éi lita minnerad, som blir lagd til før neste transformer-blokk.",
+    },
     residualNote: "+ snarvegar forbi kvart ledd, så ingenting går tapt (residual)",
     boxFinalNorm: { title: "Siste opprydding i tala", sub: "LayerNorm" },
     boxOutHead: { title: "Poengsum for kvart teikn", sub: "utgangshovudet (logits)" },
@@ -827,6 +892,11 @@ const nn: Strings = {
     moeOn: "Fire ekspertar + éin fast (MoE)",
     moeHelp:
       "Det breie laget blir delt i fem like smale skiver. Éi står alltid på, og ein liten portnar (rutar) slepp kvart teikn inn til éin av dei fire andre. Modellen har like mange skruer som før – men berre to femtedelar av dei jobbar om gongen, så kvart steg går merkbart raskare. Portnaren får eit lite dytt kvart steg, slik at ingen ekspert blir gåande ledig. Det er slik dei største opne modellane er bygde i dag. Sjå kven som tok seg av kva teikn under «Sjå inni modellen».",
+    ngramLabel: "Hugse dei tre siste teikna",
+    ngramOff: "Berre transformeren (som før)",
+    ngramOn: "Trigramminne – 256 skuffer",
+    ngramHelp:
+      "Tre vanlege teikn-ID-ar blir hasha til éi ekstra minnerad før blokk 2. Tabellen gir modellen korttidsoppslag utan å endra alfabetet: kvart teikn er framleis nøyaktig eitt token, og berre éi rad med 48–96 tal blir brukt per teikn. Sjå det faktiske oppslaget under «Sjå inni modellen».",
     slank: {
       label: "Modellen på slankekur (4 bit)",
       help:
@@ -864,6 +934,7 @@ const nn: Strings = {
     vevIdle:
       "Førebels er alt jamn, tilfeldig grå – kvar vekt er berre eit lite tilfeldig tal. Start treninga og sjå mønstera vekse fram.",
     vevEmb: "innbygging",
+    vevNgram: "trigramminne",
     vevAttn: (i) => `blokk ${i} – merksemd`,
     vevFfn: (i) => `blokk ${i} – breitt lag`,
     vevMoe: (i) => `blokk ${i} – ekspertar`,
@@ -907,6 +978,16 @@ const nn: Strings = {
       "Kvar rad er eitt teikn, kvar kolonne ein ekspert. Mørkare rute = meir av merksemda til portnaren. Rutene med ramme er dei som faktisk vart vekte. Sjå etter mønster: vokalar, mellomrom og æøå hamnar gjerne hos kvar sine.",
     expertLabel: (n) => `Ekspert ${n}`,
     expertShared: "Den faste eksperten er med på kvart einaste teikn, så han står ikkje i tabellen.",
+    ngramHeading: "Oppslaget i trigramminnet",
+    ngramHelp:
+      "Kvart kort viser dei tre teikna som dannar nøkkelen og kva skuff dei peikar på. Klikk eit teikn over for å følgja akkurat det oppslaget.",
+    ngramTokenPromise:
+      "Tokeniseringa er uendra: tre teikn er framleis tre token. Hashen vel berre ei minnerad; han lagar ingen ny ord-bit.",
+    ngramSlot: (slot, slots) => `skuff ${slot} av ${slots}`,
+    ngramRms: (x) => `styrken i rada (RMS): ${x}`,
+    ngramActive: (active, total) => `${active} av ${total} minnevekter er aktive for dette teiknet`,
+    ngramCollisionNone: "Ingen andre trigram i treningsdataa deler denne skuffa.",
+    ngramCollisions: (n) => `${n} andre trigram i treningsdataa deler skuffa:`,
     fasitLabel: "Fasit:",
     fasitNext: (ch) => `det verkelege neste teiknet er «${ch}».`,
     correct: "✓ modellen gjetta rett!",
@@ -955,6 +1036,7 @@ const nn: Strings = {
       optim: "Du er i ferd med å byta måten skruane blir vridde på.",
       act: "Du er i ferd med å byta knekken i det breie laget.",
       moe: "Du er i ferd med å byta mellom eitt breitt lag og mange ekspertar.",
+      ngram: "Du er i ferd med å slå trigramminnet av eller på.",
       lang: "Du er i ferd med å byta språk. Då blir det nytt alfabet, ny tekst og dermed ein heilt ny modell.",
       text: "Du er i ferd med å byggja modellen om med din eigen tekst.",
       restart: "Du er i ferd med å starta ei heilt ny treningsøkt.",
@@ -984,9 +1066,12 @@ const nn: Strings = {
     samplePlaceholder: "— vel eit utdrag —",
     sampleFrom: (tittel, forfattar, aar, kjelde) =>
       `Utdrag frå «${tittel}» av ${forfattar} (${aar}), via ${kjelde}.`,
+    sampleAdaptedFrom: (tittel, aar, kjelde) =>
+      `«${tittel}» er eit nyskrive referat for appen (${aar}), med ${kjelde} som fagleg utgangspunkt.`,
     sampleLicense: {
       fri: "Boka har falle i det fri (forfattaren døydde for over 70 år sidan), og den gamle rettskrivinga står som forfattaren skreiv.",
       ccbysa: "Teksten er skriven av frivillige og fritt lisensiert (CC BY-SA 4.0).",
+      referat: "Formuleringane er våre og er ikkje kopierte frå kjeldesida, som ikkje oppgir nokon fri gjenbrukslisens.",
     },
     sampleNote:
       "Utdraget følgjer med appen – ingenting blir henta frå nettet; modellen lærer nøyaktig det han les.",
@@ -994,7 +1079,7 @@ const nn: Strings = {
   readMore: {
     title: "Les meir",
     intro:
-      "Du har trena ein modell sjølv. Herfrå går det an å gå vidare – hyllene er sorterte etter kva du er ute etter: sjå det, lesa koden eller prøva sjølv.",
+      "Du har trena ein modell sjølv. Herfrå går det an å gå vidare – hyllene er sorterte etter kva du er ute etter: sjå det, lesa koden eller prøva sjølv. For trigramminnet kan du byrja med Qwen-bloggen, lesa §2.3 i rapporten og til slutt samanlikna den ekte konfigurasjonen med den vesle varianten vår.",
     note: "Alt anna i appen køyrer lokalt – desse lenkjene går ut på nettet. Det du har vore innom, blir grått.",
     startHere: "Start her",
     newTab: "(opnar i ny fane)",
@@ -1034,12 +1119,18 @@ const nn: Strings = {
       sprakbanken:
         "Der ekte norske treningsdata kjem frå. Korpuset i steg 2 er nokre få avsnitt; dette er hyllemeter.",
       k3: "Paragrafvisingane i steg 5 og slankekuren peikar hit. Fire triks derifrå køyrer i modellen din, krympa frå 2,8 billionar tal til 60 000.",
+      qwen38blog:
+        "Den korte inngangen til arkitekturen. Les avsnittet om N-gram embedding: kapasitet blir lagd i ein oppslagstabell som berre hentar nokre få rader per token, så reknekostnaden veks mykje saktare enn talet på parametrar.",
+      qwen38report:
+        "Primærkjelda bak trigramminnet her. Gå rett til §2.3 og tabell 7–9: korte n-gram blir brukte som deterministiske nøklar, lag 2 blir valt, og større tabellar senkar tapet utan at sluttoppgåvene blir betre like jamt. Det siste er grunnen til at vår eiga held-out-måling står ved sida av treningstapet.",
+      qwen38config:
+        "Fasiten til den utgitte modellen i maskinlesbar form. Sjå etter ngram_size: 3 og ple_layer_ids: [2]. Resten viser avstanden til undervisningsmodellen: 20 millionar grunnskuffer, fleire hasha hovud og eigne projeksjonar – mot éi direkte 256-raders FNV-tabell her.",
     },
   },
   ordliste: {
     title: "Ordliste",
     intro:
-      "Alle fagorda i appen på eitt brett, sorterte etter kvar i løypa dei høyrer heime. Det er dei same forklaringane som heng på orda med prikka strek rundt om på sida – her står dei i ro, så du kan slå opp.",
+      "Alle fagorda i appen på eitt brett, sorterte etter kvar i løypa dei høyrer heime. Det er dei same forklaringane som heng på orda med prikka strek rundt om på sida – her står dei i ro, så du kan slå opp. Oppslaget om trigramminne viser til Qwen Team (2026, §2.3); full rapport, kortversjon og modellkonfigurasjon ligg i steg 10.",
     temaer: {
       grunnlag: "Grunnlaget",
       tekst: "Frå tekst til tal",
@@ -1072,6 +1163,8 @@ const nn: Strings = {
     excelDone: "lasta ned",
     excelMoe:
       "Rekneark-modellen kan enno ikkje rekna med ekspertar. Vi lèt heller vera å tilby det enn å gje deg ei fil som reknar på noko anna enn modellen din. Slå av «mange små» over og tren på nytt, så er knappen attende – GGUF-fila under tek med ekspertane som dei er.",
+    excelNgram:
+      "Reknearket kan enno ikkje gje att trigramoppslaga. Slå av «hugse dei tre siste teikna» og tren på nytt for å få rekneark-knappen attende – GGUF-fila under tek med heile minnetabellen og oppskrifta på oppslaget.",
     gguf: "Last ned modellen som modellfil (GGUF)",
     ggufHint:
       "Same filformatet som dei store modellane blir delte i. Du kan opne henne med vanlege GGUF-verktøy og sjå kvar einaste skrue modellen har lært – men ho er ikkje laga for å køyrast av dei.",
@@ -1173,6 +1266,14 @@ export const LESELISTE: { id: LesShelf; items: LesLenke[] }[] = [
         kind: "kode",
         level: "middels",
       },
+      {
+        id: "qwen38config",
+        url: "https://huggingface.co/Qwen/Qwen3.8-Flash-Next-FP8/blob/main/config.json",
+        name: "Qwen3.8-Flash-Next config.json",
+        by: "Qwen Team",
+        kind: "kode",
+        level: "middels",
+      },
     ],
   },
   {
@@ -1206,6 +1307,24 @@ export const LESELISTE: { id: LesShelf; items: LesLenke[] }[] = [
         by: "Moonshot AI",
         kind: "papir",
         level: "tung",
+      },
+      {
+        id: "qwen38blog",
+        url: "https://qwen.ai/blog?id=qwen3.8-flash-next",
+        name: "Qwen3.8-Flash-Next: A New Architecture",
+        by: "Qwen Team, 2026",
+        kind: "nett",
+        level: "middels",
+        meta: "12 min",
+      },
+      {
+        id: "qwen38report",
+        url: "https://github.com/QwenLM/Qwen3.8-Flash-Next/blob/main/tech_report.pdf",
+        name: "On the Design of Qwen3.8-Next Architecture",
+        by: "Qwen Team, 2026",
+        kind: "papir",
+        level: "tung",
+        meta: "§2.3 · s. 14–15",
       },
     ],
   },
