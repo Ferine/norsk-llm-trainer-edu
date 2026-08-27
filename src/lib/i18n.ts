@@ -190,6 +190,17 @@ export interface Strings {
     generate: string;
     thinking: string;
     answerLabel: string;
+    context: {
+      title: string;
+      help: (capacity: number) => string;
+      used: (used: number, capacity: number) => string;
+      outside: (forgotten: number) => string;
+      inside: string;
+      next: string;
+      oneChar: string;
+      empty: string;
+      screenReader: (forgotten: number, visible: string) => string;
+    };
   };
   inspect: {
     title: string;
@@ -535,6 +546,22 @@ const bm: Strings = {
     generate: "Generer tekst",
     thinking: "Tenker…",
     answerLabel: "Svar fra modellen",
+    context: {
+      title: "Hvor langt bak kan modellen se?",
+      help: (capacity) =>
+        `Når modellen gjetter neste tegn, kan den bare bruke de siste ${capacity} tegnene den kjenner. Vinduet flytter seg mens svaret vokser.`,
+      used: (used, capacity) => `${used} av ${capacity} plasser i bruk`,
+      outside: (forgotten) =>
+        forgotten === 1 ? "1 tegn er for langt tilbake" : `${forgotten} tegn er for langt tilbake`,
+      inside: "Dette ser modellen nå",
+      next: "Neste tegn",
+      oneChar: "Her fyller hvert kjent tegn én plass. Ett tegn er fortsatt ett token.",
+      empty: "Skriv en starttekst for å fylle vinduet.",
+      screenReader: (forgotten, visible) =>
+        forgotten > 0
+          ? `${forgotten} tegn er for langt tilbake. Modellen ser nå: ${visible}`
+          : `Modellen ser nå: ${visible}`,
+    },
   },
   inspect: {
     title: "Se inni modellen",
@@ -959,6 +986,22 @@ const nn: Strings = {
     generate: "Generer tekst",
     thinking: "Tenkjer…",
     answerLabel: "Svar frå modellen",
+    context: {
+      title: "Kor langt bak kan modellen sjå?",
+      help: (capacity) =>
+        `Når modellen gjettar neste teikn, kan han berre bruke dei siste ${capacity} teikna han kjenner. Vindauget flyttar seg medan svaret veks.`,
+      used: (used, capacity) => `${used} av ${capacity} plassar i bruk`,
+      outside: (forgotten) =>
+        forgotten === 1 ? "1 teikn er for langt attende" : `${forgotten} teikn er for langt attende`,
+      inside: "Dette ser modellen no",
+      next: "Neste teikn",
+      oneChar: "Her fyller kvart kjent teikn éin plass. Eitt teikn er framleis eitt token.",
+      empty: "Skriv ein starttekst for å fylla vindauget.",
+      screenReader: (forgotten, visible) =>
+        forgotten > 0
+          ? `${forgotten} teikn er for langt attende. Modellen ser no: ${visible}`
+          : `Modellen ser no: ${visible}`,
+    },
   },
   inspect: {
     title: "Sjå inni modellen",

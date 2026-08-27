@@ -64,6 +64,8 @@ for (const lang of ["bm", "nn"]) {
   assert.match(STRINGS[lang].readMore.items.qwen38config, /ngram_size: 3/);
   assert.doesNotMatch(STRINGS[lang].readMore.intro, /trigram|Qwen/i);
   assert.doesNotMatch(STRINGS[lang].ordliste.intro, /trigram|Qwen/i);
+  assert.doesNotMatch(STRINGS[lang].chat.context.title, /token|seq_len|kontekst/i);
+  assert.match(STRINGS[lang].chat.context.oneChar, /ett token|eitt token/i);
 }
 
 console.log(`i18n-parity: OK – ${lenker.length} lenker i leselista, alle med notat på bm+nn`);

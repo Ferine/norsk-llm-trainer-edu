@@ -27,6 +27,7 @@ import Vevkart from "@/components/Vevkart";
 import Slankekur from "@/components/Slankekur";
 import Leseliste from "@/components/Leseliste";
 import Ordliste from "@/components/Ordliste";
+import ContextWindow from "@/components/ContextWindow";
 import { EKSEMPELTEKSTER, type EksId } from "@/lib/eksempeltekster";
 import Bekreft, { type Ask } from "@/components/Bekreft";
 import { useRlhf } from "@/lib/useRlhf";
@@ -574,6 +575,23 @@ export default function App() {
     }, 16);
     return () => window.clearInterval(id);
   }, [genTick, chatFull]);
+
+  // Kontekstvindauget i steg 7 følgjer skriveeffekten, men startteksten er
+  // synleg frå første stund – modellen fekk heile startteksten før han byrja å
+  // skrive. Bruk tokenizeren, ikkje rå tekst, så ruta viser akkurat dei teikna
+  // modellen faktisk kjenner og sender inn i neste gjetting.
+  const contextText = genLoading
+    ? chatPrompt
+    : chatFull
+      ? chatShown.length > chatSeed.length
+        ? chatShown
+        : chatSeed
+      : chatPrompt;
+  const contextTokenizer = engineRef.current?.tokenizer ?? null;
+  const contextTokens = contextTokenizer
+    ? contextTokenizer.encode(contextText).map((id) => contextTokenizer.itos[id])
+    : Array.from(contextText);
+  const contextCapacity = engineRef.current?.model.seqLen ?? PRESETS[preset].seqLen;
 
   // ---- tokeniserings-framsyning ----
   const [showFullCorpus, setShowFullCorpus] = useState(false);
@@ -1147,6 +1165,7 @@ export default function App() {
                 <p className="mt-2 text-[11px] leading-relaxed text-kritt/55">{s.seedLegend}</p>
               )}
             </div>
+
           </Card>
         </Section>
 
@@ -1261,6 +1280,12 @@ export default function App() {
                 <p className="mt-2 text-[11px] leading-relaxed text-kritt/55">{s.seedLegend}</p>
               )}
             </div>
+
+            <ContextWindow
+              tokens={contextTokens}
+              capacity={contextCapacity}
+              s={s.chat.context}
+            />
           </Card>
         </Section>
 
