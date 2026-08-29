@@ -17,6 +17,8 @@ assert.deepEqual(shape(SEEDS.bm), shape(SEEDS.nn), "SEEDS bm/nn key shapes must 
 assert.equal(LANGS.length, 2);
 assert.equal(LANGS[0].id, "bm", "Bokmål must be first (default)");
 assert.deepEqual(SEEDS.bm.examples.length, SEEDS.nn.examples.length, "same number of example seeds");
+assert.equal(STRINGS.bm.hero.h1Lang, "norsk");
+assert.equal(STRINGS.nn.hero.h1Lang, "norsk");
 
 // Leselista (steg 10): tsc fanger manglende oversettelser, men ikke en id som
 // bare finnes i strengene, en duplikat-id eller en lenke som ikke går ut på nett.
@@ -59,6 +61,7 @@ assert.equal(
   byId.get("qwen38config")?.url,
   "https://huggingface.co/Qwen/Qwen3.8-Flash-Next-FP8/blob/main/config.json"
 );
+assert.equal(byId.get("instructgpt")?.url, "https://arxiv.org/abs/2203.02155");
 for (const lang of ["bm", "nn"]) {
   assert.match(STRINGS[lang].readMore.items.qwen38report, /§2\.3/);
   assert.match(STRINGS[lang].readMore.items.qwen38config, /ngram_size: 3/);

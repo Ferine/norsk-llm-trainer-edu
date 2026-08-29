@@ -112,6 +112,7 @@ export type OrdId =
   | "temperatur"
   | "top-k"
   // finpussing
+  | "sft"
   | "rlhf"
   | "dpo"
   // skala
@@ -788,6 +789,19 @@ export const ORDLISTE: Record<OrdId, Oppslag> = {
   },
 
   /* ----------------------------- finpussing ---------------------------- */
+  sft: {
+    tema: "finpuss",
+    bm: {
+      vis: "instruksjonstrening (SFT)",
+      ord: ["instruksjonstrening (SFT)", "instruksjonstrening", "SFT"],
+      def: "«Supervised Fine-Tuning»: Modellen trenes videre på instruksjoner med gode fasitsvar, slik at en tekstfortsetter lærer mønsteret spørsmål inn, hjelpsomt svar ut.",
+    },
+    nn: {
+      vis: "instruksjonstrening (SFT)",
+      ord: ["instruksjonstrening (SFT)", "instruksjonstrening", "SFT"],
+      def: "«Supervised Fine-Tuning»: Modellen blir trena vidare på instruksjonar med gode fasitsvar, slik at ein tekstframhaldar lærer mønsteret spørsmål inn, hjelpsamt svar ut.",
+    },
+  },
   rlhf: {
     tema: "finpuss",
     bm: {

@@ -86,4 +86,12 @@ treff = glossify(
 ).filter((d) => typeof d !== "string");
 assert.deepEqual(treff.map((d) => d.id), ["ngram-minne", "hashfunksjon", "hashkollisjon"]);
 
+// Instruksjonstreninga skal vera tilgjengeleg både under fullt namn og forkortinga.
+for (const lang of ["bm", "nn"]) {
+  treff = glossify("Instruksjonstrening (SFT) kjem før DPO.", lang).filter(
+    (d) => typeof d !== "string"
+  );
+  assert.deepEqual(treff.map((d) => d.id), ["sft", "dpo"]);
+}
+
 console.log(`ordliste: OK – ${Object.keys(ORDLISTE).length} fagord med gloser på bm+nn`);

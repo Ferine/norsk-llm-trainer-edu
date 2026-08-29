@@ -17,6 +17,7 @@ export type LesKind = "papir" | "video" | "kode" | "leik" | "nett" | "data";
 export type LesLevel = "lett" | "middels" | "tung";
 export type LesId =
   | "attention"
+  | "instructgpt"
   | "gpt3b1b"
   | "explainer"
   | "llmviz"
@@ -46,7 +47,7 @@ export interface Strings {
   hero: {
     badge: string;
     h1Pre: string;
-    h1Lang: string; // the gradient language word ("bokmål"/"nynorsk")
+    h1Lang: string; // the gradient language word (always "norsk")
     para: string;
     ctaStart: string;
     ctaUnderstand: string;
@@ -233,6 +234,26 @@ export interface Strings {
     untrainedHint: string;
     notReady: string;
   };
+  instruct: {
+    kicker: string;
+    title: string;
+    intro: string;
+    beforeLabel: string;
+    beforeExample: string;
+    beforeHelp: string;
+    afterLabel: string;
+    promptLabel: string;
+    prompt: string;
+    answerLabel: string;
+    answer: string;
+    sameModelLead: string;
+    sameModelBody: string;
+    paperCredit: string;
+    paperLink: string;
+    scopeTitle: string;
+    scopeBody: string;
+    handoffTitle: string;
+  };
   rlhf: {
     sectionTitle: string;
     sectionIntro: string;
@@ -353,7 +374,7 @@ const bm: Strings = {
   hero: {
     badge: "Ekte trening fra null – ingen ferdig modell",
     h1Pre: "Bygg din egen språkmodell på",
-    h1Lang: "bokmål",
+    h1Lang: "norsk",
     para: "Her bygger og trener du en ekte språkmodell – samme type som ChatGPT, bare bitte liten – rett i nettleseren. Du ser den starte med rene tilfeldige tall, gjette, bomme og lære av feilene sine tusenvis av ganger, helt til det begynner å ligne bokmål. Alt skjer lokalt på din maskin, og alt forklares underveis.",
     ctaStart: "Start treningen",
     ctaUnderstand: "Forstå hvordan det fungerer",
@@ -600,10 +621,33 @@ const bm: Strings = {
       "Modellen er ikke trent ennå, så den gjetter nesten tilfeldig. Tren den i steget over og kom tilbake hit for å se forskjellen!",
     notReady: "Modellen er ikke klar ennå …",
   },
+  instruct: {
+    kicker: "Mellom grunntrening og RLHF",
+    title: "Instruksjonstrening (SFT)",
+    intro:
+      "En grunntrent modell har lært å fortsette tekst. I SFT skriver mennesker gode svar på instrukser, og modellen trener videre på disse demonstrasjonene. Slik lærer den mønsteret «oppgave inn, svar ut».",
+    beforeLabel: "Før SFT · fullfør teksten",
+    beforeExample: "Det regner fordi …",
+    beforeHelp: "Modellen prøver bare å gjette hva som kommer videre.",
+    afterLabel: "Etter SFT · følg instruksen",
+    promptLabel: "Instruksjon",
+    prompt: "Forklar hvorfor det regner, med én setning.",
+    answerLabel: "Ønsket svar",
+    answer: "Vann i skyer blir til dråper som blir tunge nok til å falle.",
+    sameModelLead: "Samme modell, nye eksempler.",
+    sameModelBody:
+      "Arkitekturen byttes ikke ut. Modellen gjetter fortsatt neste token og vrir på de samme vektene; forskjellen er at treningsdataene nå viser både instruksen og svaret et menneske ønsker.",
+    paperCredit: "Etter SFT-steget i Ouyang mfl. (2022), InstructGPT.",
+    paperLink: "Originalartikkelen i leselisten ↓",
+    scopeTitle: "I denne appen:",
+    scopeBody:
+      "Du får forklart SFT, men kjører det ikke – det lille korpuset har ingen samling med instruksjon–svar-par. Under kan du derimot prøve ekte DPO-preferansetrening.",
+    handoffTitle: "Så kommer preferansetreningen",
+  },
   rlhf: {
     sectionTitle: "Lær modellen hva du liker (RLHF)",
     sectionIntro:
-      "Etter grunntreningen kan du lære modellen smaken din. Den skriver to forslag, du velger det beste – og modellen dyttes litt mot valget ditt. Slik lærte også ChatGPT folkeskikk.",
+      "Etter grunntreningen kan du lære modellen smaken din. Den skriver to forslag, du velger det beste – og modellen dyttes litt mot valget ditt. Først en kort forklaring av instruksjonstreningen som vanligvis kommer imellom.",
     introCard:
       "Dette kalles RLHF («Reinforcement Learning from Human Feedback»): mennesker gir tilbakemelding, og modellen justeres mot svarene vi foretrekker. Oppskriften vi bruker heter DPO, og den holder modellen forankret til en frossen kopi av seg selv – så den lærer hva du liker uten å glemme det den allerede kan.",
     teacherNote: "nå er DU læreren!",
@@ -705,6 +749,8 @@ const bm: Strings = {
     items: {
       attention:
         "Åtte sider fra 2017 som hele bransjen står på. Du trenger ikke matten – se på figur 1, så kjenner du igjen tegningen fra steg 4.",
+      instructgpt:
+        "Den klassiske artikkelen bak forklaringen av instruksjonstrening i steg 8. Se figur 2 og første del av metoden; resten av artikkelen går videre til RLHF.",
       gpt3b1b:
         "Den peneste forklaringen som finnes. Bruk 27 minutter her før du bruker dem noe annet sted.",
       explainer:
@@ -793,7 +839,7 @@ const nn: Strings = {
   hero: {
     badge: "Ekte trening frå null – ingen ferdig modell",
     h1Pre: "Bygg din eigen språkmodell på",
-    h1Lang: "nynorsk",
+    h1Lang: "norsk",
     para: "Her byggjer og trenar du ein ekte språkmodell – same type som ChatGPT, berre bitte liten – rett i nettlesaren. Du ser han starte med reine tilfeldige tal, gjette, bomme og lære av feila sine tusenvis av gonger, heilt til det byrjar å likne nynorsk. Alt skjer lokalt på maskina di, og alt blir forklart undervegs.",
     ctaStart: "Start treninga",
     ctaUnderstand: "Forstå korleis det fungerer",
@@ -1040,10 +1086,33 @@ const nn: Strings = {
       "Modellen er ikkje trena enno, så han gjettar nesten tilfeldig. Tren han i steget over og kom attende hit for å sjå skilnaden!",
     notReady: "Modellen er ikkje klar enno …",
   },
+  instruct: {
+    kicker: "Mellom grunntrening og RLHF",
+    title: "Instruksjonstrening (SFT)",
+    intro:
+      "Ein grunntrent modell har lært å halda fram ein tekst. I SFT skriv menneske gode svar på instruksjonar, og modellen trenar vidare på desse demonstrasjonane. Slik lærer han mønsteret «oppgåve inn, svar ut».",
+    beforeLabel: "Før SFT · hald fram teksten",
+    beforeExample: "Det regnar fordi …",
+    beforeHelp: "Modellen prøver berre å gjetta kva som kjem vidare.",
+    afterLabel: "Etter SFT · følg instruksjonen",
+    promptLabel: "Instruksjon",
+    prompt: "Forklar kvifor det regnar, med éi setning.",
+    answerLabel: "Ønskt svar",
+    answer: "Vatn i skyer blir til dropar som blir tunge nok til å falla.",
+    sameModelLead: "Same modell, nye døme.",
+    sameModelBody:
+      "Arkitekturen blir ikkje bytt ut. Modellen gjettar framleis neste token og vrir på dei same vektene; skilnaden er at treningsdataa no viser både instruksjonen og svaret eit menneske ønskjer.",
+    paperCredit: "Etter SFT-steget i Ouyang mfl. (2022), InstructGPT.",
+    paperLink: "Originalartikkelen i leselista ↓",
+    scopeTitle: "I denne appen:",
+    scopeBody:
+      "Du får forklart SFT, men køyrer det ikkje – det vesle korpuset har inga samling med instruksjon–svar-par. Under kan du derimot prøva ekte DPO-preferansetrening.",
+    handoffTitle: "Så kjem preferansetreninga",
+  },
   rlhf: {
     sectionTitle: "Lær modellen kva du likar (RLHF)",
     sectionIntro:
-      "Etter grunntreninga kan du lære modellen smaken din. Han skriv to forslag, du vel det beste – og modellen blir dytta litt mot valet ditt. Slik lærte òg ChatGPT folkeskikk.",
+      "Etter grunntreninga kan du lære modellen smaken din. Han skriv to forslag, du vel det beste – og modellen blir dytta litt mot valet ditt. Først ei kort forklaring av instruksjonstreninga som vanlegvis kjem imellom.",
     introCard:
       "Dette blir kalla RLHF («Reinforcement Learning from Human Feedback»): menneske gir tilbakemelding, og modellen blir justert mot svara vi føretrekkjer. Oppskrifta vi bruker heiter DPO, og ho held modellen forankra til ein frosen kopi av seg sjølv – så han lærer kva du likar utan å gløyme det han alt kan.",
     teacherNote: "no er DU læraren!",
@@ -1145,6 +1214,8 @@ const nn: Strings = {
     items: {
       attention:
         "Åtte sider frå 2017 som heile bransjen står på. Du treng ikkje matten – sjå på figur 1, så kjenner du att teikninga frå steg 4.",
+      instructgpt:
+        "Den klassiske artikkelen bak forklaringa av instruksjonstrening i steg 8. Sjå figur 2 og første delen av metoden; resten av artikkelen går vidare til RLHF.",
       gpt3b1b:
         "Den finaste forklaringa som finst. Bruk 27 minutt her før du brukar dei nokon annan stad.",
       explainer:
@@ -1247,6 +1318,14 @@ export const LESELISTE: { id: LesShelf; items: LesLenke[] }[] = [
         by: "Vaswani m.fl., 2017",
         kind: "papir",
         level: "tung",
+      },
+      {
+        id: "instructgpt",
+        url: "https://arxiv.org/abs/2203.02155",
+        name: "Training language models to follow instructions with human feedback",
+        by: "Ouyang m.fl., 2022",
+        kind: "papir",
+        level: "middels",
       },
     ],
   },

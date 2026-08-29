@@ -28,6 +28,7 @@ import Slankekur from "@/components/Slankekur";
 import Leseliste from "@/components/Leseliste";
 import Ordliste from "@/components/Ordliste";
 import ContextWindow from "@/components/ContextWindow";
+import InstructTraining from "@/components/InstructTraining";
 import { EKSEMPELTEKSTER, type EksId } from "@/lib/eksempeltekster";
 import Bekreft, { type Ask } from "@/components/Bekreft";
 import { useRlhf } from "@/lib/useRlhf";
@@ -1289,14 +1290,17 @@ export default function App() {
           </Card>
         </Section>
 
-        {/* RLHF */}
+        {/* Frå grunnmodell via instruksjonstrening til preferansetrening */}
         <Section
           id="rlhf"
           step={8}
           title={s.rlhf.sectionTitle}
           intro={s.rlhf.sectionIntro}
         >
-          <Rlhf rlhf={rlhf} examples={examples} s={s} onResetTuning={onResetTuning} />
+          <div className="space-y-5">
+            <InstructTraining s={s.instruct} />
+            <Rlhf rlhf={rlhf} examples={examples} s={s} onResetTuning={onResetTuning} />
+          </div>
         </Section>
 
         {/* Ærlig note – lærerens rettepenn, etter at eleven har prøvd modellen */}
