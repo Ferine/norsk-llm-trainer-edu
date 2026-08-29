@@ -419,7 +419,7 @@ const bm: Strings = {
   bpe: {
     title: "Fra tegn til ord-biter",
     intro:
-      "Ekte språkmodeller bruker ikke enkeltbokstaver. De lærer «ord-biter» ved å slå sammen de vanligste nabopara igjen og igjen. Prøv selv på den samme teksten. (Den lille modellen vår holder seg til enkelttegn – men nå vet du hvordan de store gjør det.)",
+      "Store språkmodeller bruker ikke enkeltbokstaver. De lærer «ord-biter» ved å slå sammen de vanligste nabopara igjen og igjen. Prøv selv på den samme teksten. (Den lille modellen vår holder seg til enkelttegn – men nå vet du hvordan de store gjør det.)",
     mergeBtn: "Slå sammen neste par",
     resetBtn: "↺ Nullstill",
     mergeCount: (k, n) => `Sammenslåinger: ${k} / ${n}`,
@@ -884,7 +884,7 @@ const nn: Strings = {
   bpe: {
     title: "Frå teikn til ord-bitar",
     intro:
-      "Ekte språkmodellar bruker ikkje enkeltbokstavar. Dei lærer «ord-bitar» ved å slå saman dei vanlegaste nabopara om att og om att. Prøv sjølv på den same teksten. (Den vesle modellen vår held seg til enkeltteikn – men no veit du korleis dei store gjer det.)",
+      "Store språkmodellar bruker ikkje enkeltbokstavar. Dei lærer «ord-bitar» ved å slå saman dei vanlegaste nabopara om att og om att. Prøv sjølv på den same teksten. (Den vesle modellen vår held seg til enkeltteikn – men no veit du korleis dei store gjer det.)",
     mergeBtn: "Slå saman neste par",
     resetBtn: "↺ Nullstill",
     mergeCount: (k, n) => `Samanslåingar: ${k} / ${n}`,

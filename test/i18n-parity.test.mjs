@@ -19,6 +19,8 @@ assert.equal(LANGS[0].id, "bm", "Bokmål must be first (default)");
 assert.deepEqual(SEEDS.bm.examples.length, SEEDS.nn.examples.length, "same number of example seeds");
 assert.equal(STRINGS.bm.hero.h1Lang, "norsk");
 assert.equal(STRINGS.nn.hero.h1Lang, "norsk");
+assert.match(STRINGS.bm.bpe.intro, /^Store språkmodeller/);
+assert.match(STRINGS.nn.bpe.intro, /^Store språkmodellar/);
 
 // Leselista (steg 10): tsc fanger manglende oversettelser, men ikke en id som
 // bare finnes i strengene, en duplikat-id eller en lenke som ikke går ut på nett.
