@@ -65,6 +65,13 @@ assert.equal(treff[0].id, "gguf");
 assert.equal(glossify("sjølvmerksemd", "bm").filter((d) => typeof d !== "string").length, 0);
 assert.equal(glossify("sjølvmerksemd", "nn").filter((d) => typeof d !== "string").length, 1);
 
+for (const lang of ["bm", "nn"]) {
+  treff = glossify("En multimodal modell kan arbeide med tekst, bilde og lyd.", lang).filter(
+    (d) => typeof d !== "string"
+  );
+  assert.equal(treff[0].id, "multimodal");
+}
+
 // «multi-head merksemd» skal vera EITT treff på heile frasen (attention),
 // ikkje «multi-head» pluss rest – lengste skrivemåte vinn.
 treff = glossify("multi-head merksemd", "nn").filter((d) => typeof d !== "string");

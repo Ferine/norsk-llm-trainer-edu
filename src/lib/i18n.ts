@@ -72,6 +72,18 @@ export interface Strings {
     howPara: (sample: string) => string;
     vocabHeading: (n: number) => string;
     charTooltip: (i: number) => string;
+    media: {
+      title: string;
+      intro: string;
+      imageTitle: string;
+      imageFlow: string;
+      imageBody: string;
+      audioTitle: string;
+      audioFlow: string;
+      audioBody: string;
+      noteLead: string;
+      noteBody: string;
+    };
   };
   bpe: {
     title: string;
@@ -415,6 +427,22 @@ const bm: Strings = {
     howPara: (sample) => `Vi deler opp setningen «${sample}» tegn for tegn. Hvert tegn får sin egen ID:`,
     vocabHeading: (n) => `Hele tegnsettet (${n} token = vokabularet)`,
     charTooltip: (i) => `tegn #${i}`,
+    media: {
+      title: "Hva med bilder og lyd?",
+      intro:
+        "En modell som kan arbeide med flere typer innhold – som tekst, bilder og lyd – kalles multimodal. Samme grunnidé gjelder: Før modellen kan regne på noe, deles det i små biter, og hver bit gjøres om til tall.",
+      imageTitle: "Bilde",
+      imageFlow: "små ruter → bildetoken",
+      imageBody:
+        "Bildet deles i små ruter. Hver rute blir en tallpakke som beskriver farger og former, og plasseringen forteller hvor i bildet den hører hjemme.",
+      audioTitle: "Lyd",
+      audioFlow: "korte tidsbiter → lydtoken",
+      audioBody:
+        "Lyden deles i svært korte tidsbiter. Hver bit blir en tallpakke som beskriver lyden akkurat da, blant annet frekvenser og styrke.",
+      noteLead: "Samme idé, ulik innpakning.",
+      noteBody:
+        "Teksten her gir hvert tegn ett ID-nummer. Bilde- og lydtoken er ofte hele lister med tall, men til slutt får modellen alltid en ordnet rekke med tallrepresentasjoner å arbeide med.",
+    },
   },
   bpe: {
     title: "Fra tegn til ord-biter",
@@ -880,6 +908,22 @@ const nn: Strings = {
     howPara: (sample) => `Vi deler opp setninga «${sample}» teikn for teikn. Kvart teikn får sin eigen ID:`,
     vocabHeading: (n) => `Heile teiknsettet (${n} token = vokabularet)`,
     charTooltip: (i) => `teikn #${i}`,
+    media: {
+      title: "Kva med bilete og lyd?",
+      intro:
+        "Ein modell som kan arbeida med fleire typar innhald – som tekst, bilete og lyd – blir kalla multimodal. Den same grunnideen gjeld: Før modellen kan rekna på noko, blir det delt i små bitar, og kvar bit blir gjord om til tal.",
+      imageTitle: "Bilete",
+      imageFlow: "små ruter → bilet-token",
+      imageBody:
+        "Biletet blir delt i små ruter. Kvar rute blir ei talpakke som skildrar fargar og former, og plasseringa fortel kvar i biletet ho høyrer heime.",
+      audioTitle: "Lyd",
+      audioFlow: "korte tidsbitar → lydtoken",
+      audioBody:
+        "Lyden blir delt i svært korte tidsbitar. Kvar bit blir ei talpakke som skildrar lyden akkurat då, mellom anna frekvensar og styrke.",
+      noteLead: "Same idé, ulik innpakking.",
+      noteBody:
+        "Teksten her gir kvart teikn eitt ID-nummer. Bilet- og lydtoken er ofte heile lister med tal, men til slutt får modellen alltid ei ordna rekkje med talrepresentasjonar å arbeida med.",
+    },
   },
   bpe: {
     title: "Frå teikn til ord-bitar",

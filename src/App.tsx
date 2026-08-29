@@ -29,6 +29,7 @@ import Leseliste from "@/components/Leseliste";
 import Ordliste from "@/components/Ordliste";
 import ContextWindow from "@/components/ContextWindow";
 import InstructTraining from "@/components/InstructTraining";
+import MediaTokens from "@/components/MediaTokens";
 import { EKSEMPELTEKSTER, type EksId } from "@/lib/eksempeltekster";
 import Bekreft, { type Ask } from "@/components/Bekreft";
 import { useRlhf } from "@/lib/useRlhf";
@@ -863,6 +864,8 @@ export default function App() {
                 ))}
               </div>
             </div>
+
+            <MediaTokens s={s.data.media} />
           </Card>
         </Section>
 

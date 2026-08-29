@@ -58,6 +58,7 @@ export type OrdId =
   | "spraakmodell"
   | "nevralt-nett"
   | "transformer"
+  | "multimodal"
   | "parametere"
   | "korpus"
   // frå tekst til tal
@@ -162,6 +163,19 @@ export const ORDLISTE: Record<OrdId, Oppslag> = {
       vis: "transformer",
       ord: ["transformer", "transformeren"],
       def: "Byggjeteikninga bak moderne språkmodellar (frå 2017): lag på lag som først ser på samanhengen i teksten, så tenkjer vidare på han.",
+    },
+  },
+  multimodal: {
+    tema: "grunnlag",
+    bm: {
+      vis: "multimodal",
+      ord: ["multimodal", "multimodale"],
+      def: "En modell som kan arbeide med mer enn én type innhold, for eksempel tekst, bilder eller lyd. Hver type må først gjøres om til tallrepresentasjoner modellen forstår.",
+    },
+    nn: {
+      vis: "multimodal",
+      ord: ["multimodal", "multimodale"],
+      def: "Ein modell som kan arbeida med meir enn éin type innhald, til dømes tekst, bilete eller lyd. Kvar type må først gjerast om til talrepresentasjonar modellen forstår.",
     },
   },
   parametere: {
