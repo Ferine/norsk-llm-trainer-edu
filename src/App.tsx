@@ -865,7 +865,7 @@ export default function App() {
               </div>
             </div>
 
-            <MediaTokens s={s.data.media} />
+            <MediaTokens s={s.data.media} fold={s.fold} />
           </Card>
         </Section>
 
