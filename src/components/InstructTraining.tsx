@@ -2,7 +2,13 @@ import { Gloss } from "@/components/Gloss";
 import { Card } from "@/components/ui";
 import type { Strings } from "@/lib/i18n";
 
-export default function InstructTraining({ s }: { s: Strings["instruct"] }) {
+export default function InstructTraining({
+  s,
+  fold,
+}: {
+  s: Strings["instruct"];
+  fold: Strings["fold"];
+}) {
   return (
     <div className="space-y-5">
       <Card className="space-y-6">
@@ -51,6 +57,56 @@ export default function InstructTraining({ s }: { s: Strings["instruct"] }) {
           </a>
         </div>
       </Card>
+
+      <details className="group rounded-[3px] border border-blekk/25 bg-white p-4 sm:p-5">
+        <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <h4 className="font-semibold text-blekk">{s.toolUse.title}</h4>
+            <span className="etikett rounded-[2px] border border-blyant/40 px-1.5 py-0.5">
+              {fold.tag}
+            </span>
+            <span className="font-mono text-xs font-semibold text-blekk group-open:hidden">
+              {fold.show}
+            </span>
+            <span className="hidden font-mono text-xs font-semibold text-blekk group-open:inline">
+              {fold.hide}
+            </span>
+          </div>
+        </summary>
+
+        <div className="mt-3">
+          <p className="max-w-2xl text-sm leading-relaxed text-blyant">
+            <Gloss text={s.toolUse.intro} />
+          </p>
+          <ol className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {s.toolUse.steps.map((stage, i) => (
+              <li
+                key={stage.title}
+                className={`rounded-[2px] p-3 ${
+                  i === 1
+                    ? "border-2 border-rettepenn bg-tusj/40"
+                    : "border border-blekk/25 bg-papir/70"
+                }`}
+              >
+                <div className={`etikett text-[10px] ${i === 1 ? "text-rettepenn" : ""}`}>
+                  {i + 1} · {stage.title}
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-blyant">
+                  <Gloss text={stage.body} />
+                </p>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-3 text-xs leading-relaxed text-blyant">
+            <b className="text-blekk">{s.toolUse.runtimeLead}</b>{" "}
+            <Gloss text={s.toolUse.runtimeBody} />
+          </p>
+          <p className="mt-3 rounded-[2px] bg-papir/70 p-3 text-xs leading-relaxed text-blyant">
+            <b className="text-blekk">{s.toolUse.mcpLead}</b>{" "}
+            <Gloss text={s.toolUse.mcpBody} />
+          </p>
+        </div>
+      </details>
 
       <p className="text-xs leading-relaxed text-blyant">
         <b className="text-blekk">{s.scopeTitle}</b>{" "}

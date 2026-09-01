@@ -1301,7 +1301,7 @@ export default function App() {
           intro={s.rlhf.sectionIntro}
         >
           <div className="space-y-5">
-            <InstructTraining s={s.instruct} />
+            <InstructTraining s={s.instruct} fold={s.fold} />
             <Rlhf rlhf={rlhf} examples={examples} s={s} onResetTuning={onResetTuning} />
           </div>
         </Section>

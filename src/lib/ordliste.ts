@@ -113,6 +113,8 @@ export type OrdId =
   | "temperatur"
   | "top-k"
   // finpussing
+  | "mcp"
+  | "tool-use"
   | "sft"
   | "rlhf"
   | "dpo"
@@ -803,6 +805,32 @@ export const ORDLISTE: Record<OrdId, Oppslag> = {
   },
 
   /* ----------------------------- finpussing ---------------------------- */
+  mcp: {
+    tema: "finpuss",
+    bm: {
+      vis: "Model Context Protocol (MCP)",
+      ord: ["Model Context Protocol (MCP)", "Model Context Protocol", "MCP"],
+      def: "En åpen standard som lar AI-apper koble seg til tjenester som tilbyr verktøy og datakilder. MCP brukes når modellen er i bruk; det er ikke en treningsmetode.",
+    },
+    nn: {
+      vis: "Model Context Protocol (MCP)",
+      ord: ["Model Context Protocol (MCP)", "Model Context Protocol", "MCP"],
+      def: "Ein open standard som lèt KI-appar kopla seg til tenester som tilbyr verktøy og datakjelder. MCP blir brukt når modellen er i bruk; det er ikkje ein treningsmetode.",
+    },
+  },
+  "tool-use": {
+    tema: "finpuss",
+    bm: {
+      vis: "verktøybruk",
+      ord: ["verktøybruk", "verktøykall", "verktøykallet", "verktøykallene"],
+      def: "Modellen skriver en strukturert melding om hvilket eksternt verktøy et program skal kjøre og med hvilke argumenter. Programmet utfører kallet og gir resultatet tilbake til modellen.",
+    },
+    nn: {
+      vis: "verktøybruk",
+      ord: ["verktøybruk", "verktøykall", "verktøykallet", "verktøykalla"],
+      def: "Modellen skriv ei strukturert melding om kva eksternt verktøy eit program skal køyra og med kva argument. Programmet utfører kallet og gir resultatet attende til modellen.",
+    },
+  },
   sft: {
     tema: "finpuss",
     bm: {

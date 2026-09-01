@@ -262,6 +262,15 @@ export interface Strings {
     sameModelBody: string;
     paperCredit: string;
     paperLink: string;
+    toolUse: {
+      title: string;
+      intro: string;
+      steps: { title: string; body: string }[]; // length 3
+      runtimeLead: string;
+      runtimeBody: string;
+      mcpLead: string;
+      mcpBody: string;
+    };
     scopeTitle: string;
     scopeBody: string;
     handoffTitle: string;
@@ -667,6 +676,31 @@ const bm: Strings = {
       "Arkitekturen byttes ikke ut. Modellen gjetter fortsatt neste token og vrir på de samme vektene; forskjellen er at treningsdataene nå viser både instruksen og svaret et menneske ønsker.",
     paperCredit: "Etter SFT-steget i Ouyang mfl. (2022), InstructGPT.",
     paperLink: "Originalartikkelen i leselisten ↓",
+    toolUse: {
+      title: "Hvor lærer modellen å bruke verktøy?",
+      intro:
+        "Hovedsakelig i ettertreningen. SFT er ofte hovedsteget som lærer modellen formen på et verktøykall; senere trening kan gjøre valgene sikrere og mer nyttige.",
+      steps: [
+        {
+          title: "Grunntrening",
+          body: "kan lære mønstre fra kode og API-dokumentasjon",
+        },
+        {
+          title: "SFT",
+          body: "øver på når verktøy skal brukes, navn og argumenter",
+        },
+        {
+          title: "Preferanser / RL",
+          body: "belønner verktøykall som løser oppgaven godt",
+        },
+      ],
+      runtimeLead: "Når modellen er i bruk:",
+      runtimeBody:
+        "Den kjører ikke verktøyet selv. Modellen skriver et strukturert verktøykall, programmet rundt utfører det og sender resultatet tilbake, og modellen formulerer svaret.",
+      mcpLead: "MCP som eksempel:",
+      mcpBody:
+        "Model Context Protocol (MCP) lar en AI-app hente beskrivelser av verktøy fra tilkoblede tjenester og sende verktøykall til dem. MCP er altså en kobling ved brukstid – ikke et eget steg i treningen.",
+    },
     scopeTitle: "I denne appen:",
     scopeBody:
       "Du får forklart SFT, men kjører det ikke – det lille korpuset har ingen samling med instruksjon–svar-par. Under kan du derimot prøve ekte DPO-preferansetrening.",
@@ -1148,6 +1182,31 @@ const nn: Strings = {
       "Arkitekturen blir ikkje bytt ut. Modellen gjettar framleis neste token og vrir på dei same vektene; skilnaden er at treningsdataa no viser både instruksjonen og svaret eit menneske ønskjer.",
     paperCredit: "Etter SFT-steget i Ouyang mfl. (2022), InstructGPT.",
     paperLink: "Originalartikkelen i leselista ↓",
+    toolUse: {
+      title: "Kvar lærer modellen å bruka verktøy?",
+      intro:
+        "Hovudsakleg i ettertreninga. SFT er ofte hovudsteget som lærer modellen forma på eit verktøykall; seinare trening kan gjera vala tryggare og meir nyttige.",
+      steps: [
+        {
+          title: "Grunntrening",
+          body: "kan læra mønster frå kode og API-dokumentasjon",
+        },
+        {
+          title: "SFT",
+          body: "øver på når verktøy skal brukast, namn og argument",
+        },
+        {
+          title: "Preferansar / RL",
+          body: "løner verktøykall som løyser oppgåva godt",
+        },
+      ],
+      runtimeLead: "Når modellen er i bruk:",
+      runtimeBody:
+        "Han køyrer ikkje verktøyet sjølv. Modellen skriv eit strukturert verktøykall, programmet rundt utfører det og sender resultatet attende, og modellen formulerer svaret.",
+      mcpLead: "MCP som døme:",
+      mcpBody:
+        "Model Context Protocol (MCP) lèt ein KI-app henta skildringar av verktøy frå tilkopla tenester og senda verktøykall til dei. MCP er altså ei kopling ved brukstid – ikkje eit eige steg i treninga.",
+    },
     scopeTitle: "I denne appen:",
     scopeBody:
       "Du får forklart SFT, men køyrer det ikkje – det vesle korpuset har inga samling med instruksjon–svar-par. Under kan du derimot prøva ekte DPO-preferansetrening.",

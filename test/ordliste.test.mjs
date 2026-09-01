@@ -101,4 +101,17 @@ for (const lang of ["bm", "nn"]) {
   assert.deepEqual(treff.map((d) => d.id), ["sft", "dpo"]);
 }
 
+// Verktøykall-forklaringa skal òg vera tilgjengeleg som ordlistehjelp.
+for (const lang of ["bm", "nn"]) {
+  treff = glossify("Modellen skriver et verktøykall.", lang).filter(
+    (d) => typeof d !== "string"
+  );
+  assert.equal(treff[0].id, "tool-use");
+
+  treff = glossify("Model Context Protocol (MCP) kobler til verktøy.", lang).filter(
+    (d) => typeof d !== "string"
+  );
+  assert.equal(treff[0].id, "mcp");
+}
+
 console.log(`ordliste: OK – ${Object.keys(ORDLISTE).length} fagord med gloser på bm+nn`);
