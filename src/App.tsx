@@ -416,7 +416,7 @@ export default function App() {
 
   // ---- last ned modellen som rekneark ----
   // Ingen makroar, ingen VBA – arket gjer inferens med vanlege formlar.
-  // Sjå src/lib/excel-model.ts. Knappen ligg i botnteksten, og berre når det
+  // Sjå src/lib/excel-model.ts. Knappen ligg i steg 10, og berre når det
   // finst noko trent (ei tilfeldig modell ville berre skrive støy).
   const [eggState, setEggState] = useState<"idle" | "working" | "done">("idle");
   const onSlankRan = useCallback(() => setSlankRan(true), []);
@@ -1382,15 +1382,114 @@ export default function App() {
           </Card>
         </Section>
 
+        {/* Frå trening til bruk: pakke, slanke, køyre – og dei to filene */}
+        <Section
+          id="produksjon"
+          step={10}
+          title={s.produksjon.title}
+          intro={s.produksjon.intro}
+        >
+          <Card className="space-y-5">
+            <ol className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {s.produksjon.stages.map((stage, i) => (
+                <li key={stage.title} className="rounded-[2px] border border-blekk/25 bg-papir/70 p-3">
+                  <div className="etikett text-[10px]">
+                    {i + 1} · {stage.title}
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-blyant">
+                    <Gloss text={stage.body} />
+                  </p>
+                </li>
+              ))}
+            </ol>
+            <p className="rounded-[2px] bg-papir/70 p-3 text-sm leading-relaxed text-blyant">
+              <b className="text-blekk">{s.produksjon.whyLead}</b>{" "}
+              <Gloss text={s.produksjon.whyBody} />
+            </p>
+
+            {/* Nedlastingane dukkar opp så snart det finst noko trent, men ikkje
+                midt i treninga: eksporten blokkerer tråden ein augneblink, og
+                vektene ville flytta seg. */}
+            <div className="border-t border-blekk/20 pt-5 font-mono text-[11px] leading-relaxed text-blyant">
+              {step === 0 ? (
+                <p>{s.produksjon.trainFirst}</p>
+              ) : running ? (
+                <p>{s.produksjon.running}</p>
+              ) : (
+                <div className="space-y-5">
+                  {/* Rekneark-modellen reknar eitt breitt lag, ikkje ein rutar med
+                      ekspertar. Då tilbyr vi han ikkje, i staden for å lasta ned ei
+                      fil som reknar på ein annan modell enn den som står på skjermen. */}
+                  <div className="max-w-2xl">
+                    {moe ? (
+                      <Gloss text={s.produksjon.excelMoe} />
+                    ) : ngram ? (
+                      <Gloss text={s.produksjon.excelNgram} />
+                    ) : (
+                      <>
+                        <button
+                          onClick={onExcelClick}
+                          disabled={eggState === "working"}
+                          className="knapp knapp-blekk knapp-sm"
+                        >
+                          {s.produksjon.excel}
+                        </button>
+                        <div className="mt-2">
+                          {eggState === "idle" && s.produksjon.excelHint}
+                          {eggState === "working" && s.produksjon.excelBusy}
+                          {eggState === "done" && (
+                            <span className="handnotat text-base">✓ {s.produksjon.excelDone}</span>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="max-w-2xl">
+                    <button
+                      onClick={onGgufClick}
+                      disabled={ggufState === "working"}
+                      className="knapp knapp-blekk knapp-sm"
+                    >
+                      {s.produksjon.gguf}
+                    </button>
+                    <div className="mt-2">
+                      {ggufState === "idle" && <Gloss text={s.produksjon.ggufHint} />}
+                      {ggufState === "working" && s.produksjon.ggufBusy}
+                      {ggufState === "done" && (
+                        <span className="handnotat text-base">✓ {s.produksjon.ggufDone}</span>
+                      )}
+                    </div>
+                    {/* Eitt av to unnatak frå «berre leselista lenkjer ut»: verktøyet
+                        les fila lokalt i nettlesaren, så lovnaden om at ingenting
+                        forlèt maskina held. Verifisert mot appens eigne GGUF-filer. */}
+                    <div className="mt-2">
+                      <a
+                        href="https://sultan-papagani.github.io/gguf-visualizer/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-blekk underline decoration-dotted decoration-blekk/50 underline-offset-2 hover:decoration-blekk"
+                      >
+                        {s.produksjon.ggufViz} <span aria-hidden>↗</span>
+                        <span className="sr-only">{s.readMore.newTab}</span>
+                      </a>{" "}
+                      {s.produksjon.ggufVizNote}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        </Section>
+
         {/* Les meir: baksida av kladdeboka */}
-        <Section id="lesmer" step={10} title={s.readMore.title} intro={s.readMore.intro} fold={s.fold}>
+        <Section id="lesmer" step={11} title={s.readMore.title} intro={s.readMore.intro} fold={s.fold}>
           <Leseliste s={s.readMore} />
         </Section>
 
         {/* Ordliste: glosene aller bakarst, same kjelde som gloselappane */}
         <Section
           id="ordliste"
-          step={11}
+          step={12}
           title={s.ordliste.title}
           intro={s.ordliste.intro}
           fold={s.fold}
@@ -1406,70 +1505,6 @@ export default function App() {
           {s.footer.line2}
           <br />
           {s.footer.line3}
-          {/* Dukkar opp så snart det finst noko trent, men ikkje midt i treninga:
-              eksporten blokkerer tråden ein augneblink, og vektene ville flytta seg. */}
-          {step > 0 && !running && (
-            <>
-            {/* Rekneark-modellen reknar eitt breitt lag, ikkje ein rutar med
-                ekspertar. Då tilbyr vi han ikkje, i staden for å lasta ned ei
-                fil som reknar på ein annan modell enn den som står på skjermen. */}
-            <div className="mt-6">
-              {moe ? (
-                <div className="mx-auto max-w-md"><Gloss text={s.footer.excelMoe} /></div>
-              ) : ngram ? (
-                <div className="mx-auto max-w-md"><Gloss text={s.footer.excelNgram} /></div>
-              ) : (
-                <>
-                  <button
-                    onClick={onExcelClick}
-                    disabled={eggState === "working"}
-                    className="knapp knapp-omriss knapp-sm"
-                  >
-                    {s.footer.excel}
-                  </button>
-                  <div className="mx-auto mt-2 max-w-md">
-                    {eggState === "idle" && s.footer.excelHint}
-                    {eggState === "working" && s.footer.excelBusy}
-                    {eggState === "done" && (
-                      <span className="handnotat text-base">✓ {s.footer.excelDone}</span>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="mt-6">
-              <button
-                onClick={onGgufClick}
-                disabled={ggufState === "working"}
-                className="knapp knapp-omriss knapp-sm"
-              >
-                {s.footer.gguf}
-              </button>
-              <div className="mx-auto mt-2 max-w-md">
-                {ggufState === "idle" && <Gloss text={s.footer.ggufHint} />}
-                {ggufState === "working" && s.footer.ggufBusy}
-                {ggufState === "done" && (
-                  <span className="handnotat text-base">✓ {s.footer.ggufDone}</span>
-                )}
-              </div>
-              {/* Eitt av to unnatak frå «berre leselista lenkjer ut»: verktøyet
-                  les fila lokalt i nettlesaren, så lovnaden om at ingenting
-                  forlèt maskina held. Verifisert mot appens eigne GGUF-filer. */}
-              <div className="mx-auto mt-2 max-w-md">
-                <a
-                  href="https://sultan-papagani.github.io/gguf-visualizer/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-semibold text-blekk underline decoration-dotted decoration-blekk/50 underline-offset-2 hover:decoration-blekk"
-                >
-                  {s.footer.ggufViz} <span aria-hidden>↗</span>
-                  <span className="sr-only">{s.readMore.newTab}</span>
-                </a>{" "}
-                {s.footer.ggufVizNote}
-              </div>
-            </div>
-            </>
-          )}
         </div>
       </footer>
     </div>

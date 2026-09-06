@@ -8,7 +8,7 @@ export const LANGS: { id: Lang; label: string; htmlLang: string; locale: string 
   { id: "nn", label: "Nynorsk", htmlLang: "nn", locale: "nn-NO" },
 ];
 
-/* --- Leselista (steg 10) ------------------------------------------------
+/* --- Leselista (steg 11) ------------------------------------------------
    Adresser, namn og opphav er språknøytrale og bur i LESELISTE nedst i fila.
    Berre notatlinja er omsett, og id-ane er ein union: gløymer du eit notat på
    det eine språket, kompilerer det ikkje. */
@@ -334,6 +334,31 @@ export interface Strings {
     sampleLicense: Record<Lisens, string>;
     sampleNote: string;
   };
+  /** Steg 10 – frå ferdig trena modell til noko som køyrer hjå folk. */
+  produksjon: {
+    title: string;
+    intro: string;
+    /** Pakke → slanke → køyre. */
+    stages: { title: string; body: string }[]; // length 3
+    whyLead: string;
+    whyBody: string;
+    /** Nedlastingane dukkar først opp når det finst noko trent, og ikkje midt i treninga. */
+    trainFirst: string;
+    running: string;
+    excel: string;
+    excelHint: string;
+    excelBusy: string;
+    excelDone: string;
+    excelMoe: string;
+    excelNgram: string;
+    gguf: string;
+    ggufHint: string;
+    ggufBusy: string;
+    ggufDone: string;
+    /** Lenkje til GGUF-visualizer – eitt av to unnatak frå «berre leselista lenkjer ut». */
+    ggufViz: string;
+    ggufVizNote: string;
+  };
   readMore: {
     title: string;
     intro: string;
@@ -364,19 +389,6 @@ export interface Strings {
     line1: string;
     line2: string;
     line3: string;
-    excel: string;
-    excelHint: string;
-    excelBusy: string;
-    excelDone: string;
-    excelMoe: string;
-    excelNgram: string;
-    gguf: string;
-    ggufHint: string;
-    ggufBusy: string;
-    ggufDone: string;
-    /** Lenkje til GGUF-visualizer – eitt av to unnatak frå «berre leselista lenkjer ut». */
-    ggufViz: string;
-    ggufVizNote: string;
   };
   docTitle: string;
 }
@@ -785,6 +797,46 @@ const bm: Strings = {
     sampleNote:
       "Utdraget følger med appen – ingenting hentes fra nettet; modellen lærer nøyaktig det den leser.",
   },
+  produksjon: {
+    title: "Fra trening til bruk",
+    intro:
+      "Treningen er ferdig – hva nå? En modell som skal brukes av andre, må ut av treningsrommet og inn i en app, en chat eller en telefon. Det kalles å sette modellen i produksjon. Tre ting skjer på veien, og de gjelder like mye for modellen din som for de store.",
+    stages: [
+      {
+        title: "Pakke",
+        body: "Alle skruene og oppskriften på modellen – lag, hoder, ordforråd – samles i én fil som andre programmer kan lese. For åpne modeller er GGUF det vanligste formatet.",
+      },
+      {
+        title: "Slanke",
+        body: "Tallene rundes av til færre bits (kvantisering), så filen blir mindre og regningen raskere. Slankekuren i steg 5 er nøyaktig dette. En modell som ikke får plass i minnet, får ikke kjøre.",
+      },
+      {
+        title: "Kjøre",
+        body: "Et eget program (en inferensmotor, som llama.cpp eller Ollama) leser filen og gjør bare én ting: gjetter neste tegn, om og om igjen. Ingen læring, ingen backpropagation – bare regning fremover.",
+      },
+    ],
+    whyLead: "Derfor teller fart og størrelse mest her:",
+    whyBody:
+      "Treningen skjer én gang, på store maskiner. Kjøringen skjer millioner av ganger, på alt fra servere til mobiler. Hver bit du sparer i filen, sparer du hver eneste gang noen bruker modellen.",
+    trainFirst: "Tren modellen i steg 5 først – så dukker filene dine opp her.",
+    running: "Filene kommer når treningen er ferdig eller stoppet – vektene flytter seg fortsatt.",
+    excel: "Last ned modellen som regneark",
+    excelHint:
+      "Modellen du nettopp trente, som en Excel-fil som skriver tekst med vanlige formler – ingen makroer.",
+    excelBusy: "lager regneark …",
+    excelDone: "lastet ned",
+    excelMoe:
+      "Regnearket kan ennå ikke regne med eksperter. Vi lar heller være å tilby det enn å gi deg en fil som regner på noe annet enn modellen din. Slå av «mange små» over og tren på nytt, så er knappen tilbake – GGUF-fila under tar med ekspertene som de er.",
+    excelNgram:
+      "Regnearket kan ennå ikke gjengi trigramoppslagene. Slå av «huske de tre siste tegnene» og tren på nytt for å få regneark-knappen tilbake – GGUF-fila under tar med hele minnetabellen og oppskriften på oppslaget.",
+    gguf: "Last ned modellen som modellfil (GGUF)",
+    ggufHint:
+      "Samme filformat som de store modellene deles i. Du kan åpne den med vanlige GGUF-verktøy og se hver eneste skrue modellen har lært – men den er ikke laget for å kjøres av dem.",
+    ggufBusy: "lager modellfil …",
+    ggufDone: "lastet ned",
+    ggufViz: "Se filen i 3D med GGUF-visualizer",
+    ggufVizNote: "Verktøyet kjører i nettleseren din – filen lastes ikke opp.",
+  },
   readMore: {
     title: "Les mer",
     intro:
@@ -867,22 +919,6 @@ const bm: Strings = {
     line2: "All kode og all læring skjer lokalt i din egen nettleser. 🇳🇴",
     line3:
       "Satt sammen av z.ai GLM-5.2, finpusset og utvidet av Claude Opus 5.",
-    excel: "Last ned modellen som regneark",
-    excelHint:
-      "Modellen du nettopp trente, som en Excel-fil som skriver tekst med vanlige formler – ingen makroer.",
-    excelBusy: "lager regneark …",
-    excelDone: "lastet ned",
-    excelMoe:
-      "Regnearket kan ennå ikke regne med eksperter. Vi lar heller være å tilby det enn å gi deg en fil som regner på noe annet enn modellen din. Slå av «mange små» over og tren på nytt, så er knappen tilbake – GGUF-fila under tar med ekspertene som de er.",
-    excelNgram:
-      "Regnearket kan ennå ikke gjengi trigramoppslagene. Slå av «huske de tre siste tegnene» og tren på nytt for å få regneark-knappen tilbake – GGUF-fila under tar med hele minnetabellen og oppskriften på oppslaget.",
-    gguf: "Last ned modellen som modellfil (GGUF)",
-    ggufHint:
-      "Samme filformat som de store modellene deles i. Du kan åpne den med vanlige GGUF-verktøy og se hver eneste skrue modellen har lært – men den er ikke laget for å kjøres av dem.",
-    ggufBusy: "lager modellfil …",
-    ggufDone: "lastet ned",
-    ggufViz: "Se filen i 3D med GGUF-visualizer",
-    ggufVizNote: "Verktøyet kjører i nettleseren din – filen lastes ikke opp.",
   },
   docTitle: "Språkmodell-trener – bygg AI på bokmål",
 };
@@ -1291,6 +1327,46 @@ const nn: Strings = {
     sampleNote:
       "Utdraget følgjer med appen – ingenting blir henta frå nettet; modellen lærer nøyaktig det han les.",
   },
+  produksjon: {
+    title: "Frå trening til bruk",
+    intro:
+      "Treninga er ferdig – kva no? Ein modell som skal brukast av andre, må ut av treningsrommet og inn i ein app, ein chat eller ein telefon. Det blir kalla å setja modellen i produksjon. Tre ting skjer på vegen, og dei gjeld like mykje for modellen din som for dei store.",
+    stages: [
+      {
+        title: "Pakke",
+        body: "Alle skruane og oppskrifta på modellen – lag, hovud, ordforråd – blir samla i éi fil som andre program kan lesa. For opne modellar er GGUF det vanlegaste formatet.",
+      },
+      {
+        title: "Slanke",
+        body: "Tala blir runda av til færre bits (kvantisering), så fila blir mindre og rekninga raskare. Slankekuren i steg 5 er nøyaktig dette. Ein modell som ikkje får plass i minnet, får ikkje køyra.",
+      },
+      {
+        title: "Køyre",
+        body: "Eit eige program (ein inferensmotor, som llama.cpp eller Ollama) les fila og gjer berre éin ting: gjettar neste teikn, om att og om att. Inga læring, ingen backpropagation – berre rekning framover.",
+      },
+    ],
+    whyLead: "Difor tel fart og storleik mest her:",
+    whyBody:
+      "Treninga skjer éin gong, på store maskiner. Køyringa skjer millionar av gonger, på alt frå tenarar til mobilar. Kvar bit du sparer i fila, sparer du kvar einaste gong nokon brukar modellen.",
+    trainFirst: "Tren modellen i steg 5 først – så dukkar filene dine opp her.",
+    running: "Filene kjem når treninga er ferdig eller stoppa – vektene flyttar seg framleis.",
+    excel: "Last ned modellen som rekneark",
+    excelHint:
+      "Modellen du nettopp trena, som ei Excel-fil som skriv tekst med vanlege formlar – ingen makroar.",
+    excelBusy: "lagar rekneark …",
+    excelDone: "lasta ned",
+    excelMoe:
+      "Rekneark-modellen kan enno ikkje rekna med ekspertar. Vi lèt heller vera å tilby det enn å gje deg ei fil som reknar på noko anna enn modellen din. Slå av «mange små» over og tren på nytt, så er knappen attende – GGUF-fila under tek med ekspertane som dei er.",
+    excelNgram:
+      "Reknearket kan enno ikkje gje att trigramoppslaga. Slå av «hugse dei tre siste teikna» og tren på nytt for å få rekneark-knappen attende – GGUF-fila under tek med heile minnetabellen og oppskrifta på oppslaget.",
+    gguf: "Last ned modellen som modellfil (GGUF)",
+    ggufHint:
+      "Same filformatet som dei store modellane blir delte i. Du kan opne henne med vanlege GGUF-verktøy og sjå kvar einaste skrue modellen har lært – men ho er ikkje laga for å køyrast av dei.",
+    ggufBusy: "lagar modellfil …",
+    ggufDone: "lasta ned",
+    ggufViz: "Sjå fila i 3D med GGUF-visualizer",
+    ggufVizNote: "Verktøyet køyrer i nettlesaren din – fila blir ikkje lasta opp.",
+  },
   readMore: {
     title: "Les meir",
     intro:
@@ -1373,22 +1449,6 @@ const nn: Strings = {
     line2: "All kode og all læring skjer lokalt i din eigen nettlesar. 🇳🇴",
     line3:
       "Sett saman av z.ai GLM-5.2, finpussa og utvida av Claude Opus 5.",
-    excel: "Last ned modellen som rekneark",
-    excelHint:
-      "Modellen du nettopp trena, som ei Excel-fil som skriv tekst med vanlege formlar – ingen makroar.",
-    excelBusy: "lagar rekneark …",
-    excelDone: "lasta ned",
-    excelMoe:
-      "Rekneark-modellen kan enno ikkje rekna med ekspertar. Vi lèt heller vera å tilby det enn å gje deg ei fil som reknar på noko anna enn modellen din. Slå av «mange små» over og tren på nytt, så er knappen attende – GGUF-fila under tek med ekspertane som dei er.",
-    excelNgram:
-      "Reknearket kan enno ikkje gje att trigramoppslaga. Slå av «hugse dei tre siste teikna» og tren på nytt for å få rekneark-knappen attende – GGUF-fila under tek med heile minnetabellen og oppskrifta på oppslaget.",
-    gguf: "Last ned modellen som modellfil (GGUF)",
-    ggufHint:
-      "Same filformatet som dei store modellane blir delte i. Du kan opne henne med vanlege GGUF-verktøy og sjå kvar einaste skrue modellen har lært – men ho er ikkje laga for å køyrast av dei.",
-    ggufBusy: "lagar modellfil …",
-    ggufDone: "lasta ned",
-    ggufViz: "Sjå fila i 3D med GGUF-visualizer",
-    ggufVizNote: "Verktøyet køyrer i nettlesaren din – fila blir ikkje lasta opp.",
   },
   docTitle: "Språkmodell-trenar – bygg AI på nynorsk",
 };

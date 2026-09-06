@@ -22,7 +22,7 @@ assert.equal(STRINGS.nn.hero.h1Lang, "norsk");
 assert.match(STRINGS.bm.bpe.intro, /^Store språkmodeller/);
 assert.match(STRINGS.nn.bpe.intro, /^Store språkmodellar/);
 
-// Leselista (steg 10): tsc fanger manglende oversettelser, men ikke en id som
+// Leselista (steg 11): tsc fanger manglende oversettelser, men ikke en id som
 // bare finnes i strengene, en duplikat-id eller en lenke som ikke går ut på nett.
 const lenker = LESELISTE.flatMap((h) => h.items);
 const ids = lenker.map((l) => l.id);

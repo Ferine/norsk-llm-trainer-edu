@@ -6,7 +6,7 @@ import type { Lang } from "./i18n";
 
    – Gloss-komponenten (components/Gloss.tsx) leitar opp orda i løpande tekst
      og heng forklaringa på som ein handskriven lapp når ein peikar på ordet.
-   – Ordliste-komponenten (components/Ordliste.tsx, steg 11) viser alle orda
+   – Ordliste-komponenten (components/Ordliste.tsx, steg 12) viser alle orda
      samla, sorterte etter tema, som glosene bakarst i ei kladdebok.
 
    `ord` er skrivemåtane som skal merkjast, med bøygde former der teksten
@@ -16,7 +16,7 @@ import type { Lang } from "./i18n";
    `vis` er oppslagsforma slik ho står i ordlista. */
 
 export interface Fagord {
-  /** Oppslagsforma i ordlista (steg 11). */
+  /** Oppslagsforma i ordlista (steg 12). */
   vis: string;
   /** Skrivemåtane som skal merkjast i løpande tekst. */
   ord: string[];
@@ -122,6 +122,7 @@ export type OrdId =
   | "moe"
   | "flops"
   | "skalalov"
+  | "inferens"
   | "gguf";
 
 /* Gløymer du ei målform på eit ord, kompilerer det ikkje.
@@ -330,12 +331,12 @@ export const ORDLISTE: Record<OrdId, Oppslag> = {
     bm: {
       vis: "trigramminne",
       ord: ["trigramminne", "trigramminnet", "trigramoppslag", "trigramoppslagene"],
-      def: "Qwen3.8-Flash-Next bruker korte token-n-gram som deterministiske nøkler til enorme minnetabeller ved lag 2 (Qwen Team, 2026, §2.3; full kilde i steg 10). Her er ideen krympet til én direkte FNV-tabell med 256 rader. Tre tegn er fortsatt tre token.",
+      def: "Qwen3.8-Flash-Next bruker korte token-n-gram som deterministiske nøkler til enorme minnetabeller ved lag 2 (Qwen Team, 2026, §2.3; full kilde i steg 11). Her er ideen krympet til én direkte FNV-tabell med 256 rader. Tre tegn er fortsatt tre token.",
     },
     nn: {
       vis: "trigramminne",
       ord: ["trigramminne", "trigramminnet", "trigramoppslag", "trigramoppslaga"],
-      def: "Qwen3.8-Flash-Next brukar korte token-n-gram som deterministiske nøklar til enorme minnetabellar ved lag 2 (Qwen Team, 2026, §2.3; full kjelde i steg 10). Her er ideen krympa til éi direkte FNV-tabell med 256 rader. Tre teikn er framleis tre token.",
+      def: "Qwen3.8-Flash-Next brukar korte token-n-gram som deterministiske nøklar til enorme minnetabellar ved lag 2 (Qwen Team, 2026, §2.3; full kjelde i steg 11). Her er ideen krympa til éi direkte FNV-tabell med 256 rader. Tre teikn er framleis tre token.",
     },
   },
 
@@ -911,6 +912,19 @@ export const ORDLISTE: Record<OrdId, Oppslag> = {
       def: "Den påfallande jamne samanhengen mellom reknekraft og resultat: ti gonger meir trening gir eit fast, føreseieleg hakk lågare tap. Det er denne kurva som får folk til å byggje datasenter.",
     },
   },
+  inferens: {
+    tema: "skala",
+    bm: {
+      vis: "inferens",
+      ord: ["inferensmotoren", "inferensmotor", "inferensen", "inferens"],
+      def: "Å bruke en ferdig trent modell uten å lære mer: bare regne fremover fra tekst til neste tegn. Det er det som skjer hver gang du prøver modellen i steg 7 – og det eneste en modell i produksjon gjør. Programmet som gjør det, kalles en inferensmotor.",
+    },
+    nn: {
+      vis: "inferens",
+      ord: ["inferensmotoren", "inferensmotor", "inferensen", "inferens"],
+      def: "Å bruka ein ferdig trena modell utan å læra meir: berre rekna framover frå tekst til neste teikn. Det er det som skjer kvar gong du prøver modellen i steg 7 – og det einaste ein modell i produksjon gjer. Programmet som gjer det, blir kalla ein inferensmotor.",
+    },
+  },
   gguf: {
     tema: "skala",
     bm: {
@@ -926,7 +940,7 @@ export const ORDLISTE: Record<OrdId, Oppslag> = {
   },
 };
 
-/* --- Ordlista sortert etter tema (steg 11) ------------------------------ */
+/* --- Ordlista sortert etter tema (steg 12) ------------------------------ */
 
 export interface OrdlisteGruppe {
   tema: Tema;

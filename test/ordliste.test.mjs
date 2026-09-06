@@ -17,7 +17,7 @@ for (const [id, entry] of Object.entries(ORDLISTE)) {
   }
 }
 
-// Ordlista (steg 11) skal dekkje kvart oppslag nøyaktig éin gong, i temarekkjefølgje.
+// Ordlista (steg 12) skal dekkje kvart oppslag nøyaktig éin gong, i temarekkjefølgje.
 for (const lang of ["bm", "nn"]) {
   const grupper = ordlisteTema(lang);
   assert.deepEqual(
@@ -78,7 +78,7 @@ treff = glossify("multi-head merksemd", "nn").filter((d) => typeof d !== "string
 assert.equal(treff.length, 1);
 assert.equal(treff[0].id, "attention");
 
-// Trigramminnet in step 11 should explain both the mechanism and its source,
+// Trigramminnet in step 12 should explain both the mechanism and its source,
 // while the component terms remain independently discoverable.
 for (const lang of ["bm", "nn"]) {
   assert.match(ORDLISTE["ngram-minne"][lang].def, /Qwen3\.8-Flash-Next/);

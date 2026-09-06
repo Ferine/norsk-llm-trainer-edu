@@ -23,8 +23,8 @@
 //
 // Alt er baka inn i bygget – appen skal aldri henta noko frå nettet.
 // Adressene peikar til kjelda, men blir viste som rein tekst i appen –
-// utgåande lenkjer høyrer heime i leselista (steg 10) og ved GGUF-knappen
-// i botnteksten, ikkje her.
+// utgåande lenkjer høyrer heime i leselista (steg 11) og ved GGUF-knappen
+// i steg 10, ikkje her.
 
 export type EksId =
   | "ferdaminni"

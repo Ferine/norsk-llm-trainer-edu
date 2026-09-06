@@ -1,3 +1,15 @@
+---
+title: Språkmodell-trener
+emoji: 🧠
+colorFrom: blue
+colorTo: indigo
+sdk: static
+app_file: dist/index.html
+pinned: false
+license: mit
+short_description: Train a real tiny Norwegian LLM from scratch in your browser
+---
+
 # 🧠 Språkmodell-trener — train a real LLM, from scratch, in your browser
 
 > Watch random numbers turn into Norwegian. A complete transformer language model —
@@ -120,8 +132,9 @@ The page walks you through the full lifecycle of a language model, one section a
 | 7 | **Try the model** | Give it a prompt and generate text, tuning temperature, top-k, and length. A live sliding window shows exactly which 32–48 familiar characters the model can still see before each next-character guess, while older characters fade out of reach. Because the teaching tokenizer remains one character per token, every visible character occupies exactly one context slot. The prompt you supplied stays marked in everything the model writes, so you can always see where your text ended and the model's began. |
 | 8 | **RLHF** | A compact explainer based on the InstructGPT paper shows how supervised instruction tuning (SFT) turns text continuation into “instruction in, answer out.” An optional folded note shows where tool-use behavior enters the post-training pipeline and uses MCP as a runtime example. Then generate two continuations, choose the one you prefer, and steer the model with real DPO. |
 | 9 | **Add your own text** | Paste in any text to rebuild the vocabulary and retrain on your own data — or pick a bundled text from the dropdown (`src/lib/eksempeltekster.ts`): public-domain classics (Vinje, Hamsun, Garborg, Undset), CC BY-SA Wikipedia texts about language models and machine learning, and **“Trygg på nettet”**, a newly written Bokmål training text based on the factual guidance in [NEAS’ “Sikker surfing”](https://neas.no/internett/sikker-surfing/). The NEAS page states no free reuse license, so its prose is not copied: the app labels this entry as its own attributed summary. Everything ships inside the build; the app still makes zero network calls. |
-| 10 | **Read more** | A friendly reading list grouped by what a learner may want next: approachable videos, visual explanations, readable code, Norwegian material, and deeper sources. Every link says what kind of resource it is and how demanding it may be; the advanced references remain available after the section is opened without dominating its introduction. Together with the GGUF visualizer in the footer, these are the app's only outbound links. |
-| 11 | **Glossary** | Short, plain-language explanations of every unfamiliar term, grouped by where it appears in the learning journey. The same explanations pop up as handwritten notes when someone hovers a dotted-underlined word anywhere on the page, while source details stay with the specialist entries for readers who want them. One source (`src/lib/ordliste.ts`) feeds both views. |
+| 10 | **From training to use (production)** | What happens when a model leaves the training room, in three plain steps: pack the weights and the recipe into one file, shrink it (quantization, pointing back to the slimming measurement in step 5), and run it with an inference engine that only ever computes forward. Then take your own model with you both ways: as a working **Excel workbook** that generates text with nothing but formulas, and as a **real GGUF file** in the format open models are shared in, with a link to a client-side 3D viewer. Both downloads appear once something is trained and training is paused. |
+| 11 | **Read more** | A friendly reading list grouped by what a learner may want next: approachable videos, visual explanations, readable code, Norwegian material, and deeper sources. Every link says what kind of resource it is and how demanding it may be; the advanced references remain available after the section is opened without dominating its introduction. Together with the GGUF visualizer link in step 10, these are the app's only outbound links. |
+| 12 | **Glossary** | Short, plain-language explanations of every unfamiliar term, grouped by where it appears in the learning journey. The same explanations pop up as handwritten notes when someone hovers a dotted-underlined word anywhere on the page, while source details stay with the specialist entries for readers who want them. One source (`src/lib/ordliste.ts`) feeds both views. |
 
 Above the journey sits the **hero strip**: a real training run replayed character by character
 (`LearningStrip` in `App.tsx`, data on `Seeds.strip` in `i18n.ts`). It is not an animation of what
@@ -258,8 +271,8 @@ in.
 
 #### References and implementation scope
 
-The three primary references are also presented with bilingual reading guidance in **step 10,
-Les mer**, while **step 11, Ordliste** explains n-grams, lookup tables, hash functions, collisions,
+The three primary references are also presented with bilingual reading guidance in **step 11,
+Les mer**, while **step 12, Ordliste** explains n-grams, lookup tables, hash functions, collisions,
 ablations, held-out data and overfitting in the vocabulary used by the inspector and benchmark.
 
 1. **Qwen Team (2026), [*On the Design of Qwen3.8-Next Architecture: Evaluation, Efficiency,
@@ -372,7 +385,7 @@ forgetting*, which no runtime test would catch until a user lost their model. It
 
 ### 📗 Inside the exported workbook
 
-The download (`src/lib/excel-model.ts`) is a working language model made of nothing but formulas —
+The first download in step 10 (`src/lib/excel-model.ts`) is a working language model made of nothing but formulas —
 no macros, no VBA. The `.xlsx` itself is written here too: `xlsx.ts` builds the OOXML parts and
 `xlsx-zip.ts` is a from-scratch ZIP writer (stored + deflate, CRC-32, correct local and central
 directory records), so nothing outside React touches the file.
@@ -401,7 +414,7 @@ against `ml.ts` directly — the prompt, and the character the model predicts af
 
 ### 📦 The GGUF export
 
-The second download (`src/lib/gguf.ts`) writes the trained model as a **real GGUF v3** file — the
+The second download in step 10 (`src/lib/gguf.ts`) writes the trained model as a **real GGUF v3** file — the
 container Llama, Mistral and the rest are distributed in. Correct magic number, key/value metadata,
 tensor table, and aligned F32 data. `gguf-dump`, `gguf-py` or any other GGUF reader will open it and
 show you every screw the model learned. The writer is from scratch; no library is involved.
@@ -425,7 +438,7 @@ Everything else follows llama.cpp's tensor shapes and naming exactly, so the fil
 to a trained eye. Training metadata rides along in `sprakmodell.*` keys: step count, final loss,
 preset, language, activation and parameter count.
 
-The footer links to [GGUF visualizer](https://sultan-papagani.github.io/gguf-visualizer/), a
+Next to the download, step 10 links to [GGUF visualizer](https://sultan-papagani.github.io/gguf-visualizer/), a
 client-side 3D viewer that parses the exported file entirely in your browser — architecture,
 layer/head counts, the full tensor table and a point cloud of the weights — without uploading it
 anywhere. Verified against this app's own exports, custom `sprakmodell-situ` architecture included.
@@ -508,7 +521,7 @@ src/
     Bekreft.tsx       # the one confirmation dialog every destructive control routes through
     BpeLab.tsx        # interactive BPE merge lab
     Inspector.tsx     # attention heatmap, probability bars, expert + lookup inspectors
-    Leseliste.tsx     # the reading list — the only outbound links in the app
+    Leseliste.tsx     # the reading list — where the outbound links live (step 10 adds the GGUF viewer)
     LossChart.tsx     # training/DPO loss curve
     Rlhf.tsx          # preference-selection arena
     Skruer.tsx        # «Skruene vris» — live heatmap of real weight changes during training

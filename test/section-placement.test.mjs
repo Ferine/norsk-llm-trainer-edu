@@ -27,4 +27,21 @@ assert.ok(
   "instruction training must be explained before the preference-training exercise"
 );
 
-console.log("section placement: media tokens are in step 2, context is in step 7, and SFT starts step 8");
+// Step 10 – production: the two exports live there now, not in the footer.
+const extraStart = app.indexOf('id="eigentekst"');
+const prodStart = app.indexOf('id="produksjon"');
+const lesmerStart = app.indexOf('id="lesmer"');
+const ordlisteStart = app.indexOf('id="ordliste"');
+const footerStart = app.indexOf("<footer");
+assert.ok(extraStart < prodStart && prodStart < lesmerStart && lesmerStart < ordlisteStart, "step 10 sits between 9 and 11");
+const step10 = app.slice(prodStart, lesmerStart);
+const footer = app.slice(footerStart);
+for (const handler of ["onExcelClick", "onGgufClick"]) {
+  assert.match(step10, new RegExp(`onClick=\\{${handler}\\}`), `${handler} must be wired inside step 10`);
+  assert.doesNotMatch(footer, new RegExp(handler), `${handler} must no longer be in the footer`);
+}
+assert.match(step10, /gguf-visualizer/, "the GGUF viewer link belongs with the GGUF download");
+assert.match(app.slice(lesmerStart, ordlisteStart), /step=\{11\}/, "the reading list is step 11");
+assert.match(app.slice(ordlisteStart), /step=\{12\}/, "the glossary is step 12");
+
+console.log("section placement: media tokens are in step 2, context is in step 7, SFT starts step 8, and the exports live in step 10");
