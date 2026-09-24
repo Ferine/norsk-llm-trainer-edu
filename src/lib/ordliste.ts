@@ -543,12 +543,12 @@ export const ORDLISTE: Record<OrdId, Oppslag> = {
     bm: {
       vis: "overtilpasning (overfitting)",
       ord: ["overtilpasning", "overtilpasset", "overfitting", "memoriserer"],
-      def: "Når modellen blir svært god på teksten den trente på, men dårligere på ny tekst. Trigramminnet viser dette her: treningstapet faller kraftig samtidig som held-out-tapet stiger.",
+      def: "Når modellen blir svært god på teksten den trente på, men dårligere på ny tekst. Tapsgrafen i treningssteget viser det: øvingstapet faller, mens tapet på prøveteksten snur og stiger. Trigramminnet forsterker effekten.",
     },
     nn: {
       vis: "overtilpassing (overfitting)",
       ord: ["overtilpassing", "overtilpassa", "overfitting", "memorerer"],
-      def: "Når modellen blir svært god på teksten han trena på, men dårlegare på ny tekst. Trigramminnet viser dette her: treningstapet fell kraftig samstundes som held-out-tapet stig.",
+      def: "Når modellen blir svært god på teksten han trena på, men dårlegare på ny tekst. Tapsgrafen i treningssteget viser det: øvingstapet fell, medan tapet på prøveteksten snur og stig. Trigramminnet forsterkar effekten.",
     },
   },
   backpropagation: {

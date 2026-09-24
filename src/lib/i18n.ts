@@ -172,6 +172,8 @@ export interface Strings {
     params: string;
     lossHeading: string;
     lossHelp: string;
+    heldoutToggle: string;
+    heldoutHelp: string;
     screwsLabel: string;
     screwsHelp: string;
     screwsIdle: string;
@@ -384,6 +386,14 @@ export interface Strings {
     axisStep: string;
     axisLoss: string;
     count: (n: number) => string;
+    trainLabel: string;
+    heldoutLabel: string;
+    chanceLabel: string;
+    chanceMark: string;
+    bestMark: string;
+    choosing: (n: string) => string;
+    chanceChoosing: (vocab: number) => string;
+    overfitNote: (step: number) => string;
   };
   footer: {
     line1: string;
@@ -580,7 +590,10 @@ const bm: Strings = {
     params: "parametere",
     lossHeading: "Tap (loss) over tid",
     lossHelp:
-      "Tapet måler hvor overrasket modellen blir av neste tegn – lavere er bedre. Jo raskere kurven synker, jo fortere lærer modellen. Flater den ut nær null, kan den teksten nesten utenat.",
+      "Tapet måler hvor overrasket modellen blir av neste tegn – lavere er bedre. «Nøler mellom» er tapet oversatt til hvor mange tegn modellen i praksis velger mellom (perpleksitet). Den prikkede streken viser hvor høyt tapet er når man gjetter helt i blinde.",
+    heldoutToggle: "Test modellen på tekst den aldri har sett",
+    heldoutHelp:
+      "Tegner en stiplet strek for en kort prøvetekst modellen aldri trener på (held-out-data). Synker bare øvingen, pugger modellen; synker prøven også, har den lært noe som virker på ny tekst.",
     screwsLabel: "Se skruene bli vridd",
     screwsHelp:
       "Hver rute er én av modellens justeringsskruer (vekter) – et lite utvalg av alle sammen. Mørk rute = skruen ble vridd mye nå nettopp. Tidlig i treningen er det mange mørke ruter; etter hvert som modellen lærer, blir det stadig færre og roligere.",
@@ -912,6 +925,15 @@ const bm: Strings = {
     axisStep: "steg →",
     axisLoss: "tap",
     count: (n) => `${n} måling(er)`,
+    trainLabel: "Øving (teksten den trener på):",
+    heldoutLabel: "Prøve (ny tekst den aldri har sett):",
+    chanceLabel: "Ren gjetting:",
+    chanceMark: "ren gjetting",
+    bestMark: "best på ny tekst",
+    choosing: (n) => `nøler mellom ca. ${n} tegn`,
+    chanceChoosing: (v) => `alle ${v} tegn like sannsynlige`,
+    overfitNote: (step) =>
+      `Prøvetapet stiger igjen etter steg ${step}, mens øvingstapet fortsetter å synke. Modellen har begynt å pugge treningsteksten i stedet for å lære mønstre som virker på ny tekst (overtilpasning).`,
   },
   footer: {
     line1:
@@ -1110,7 +1132,10 @@ const nn: Strings = {
     params: "parametrar",
     lossHeading: "Tap (loss) over tid",
     lossHelp:
-      "Tapet måler kor overraska modellen blir av neste teikn – lågare er betre. Jo raskare kurva søkk, jo fortare lærer modellen. Flatar ho ut nær null, kan han teksten nesten utanåt.",
+      "Tapet måler kor overraska modellen blir av neste teikn – lågare er betre. «Nøler mellom» er tapet omsett til kor mange teikn modellen i praksis vel mellom (perpleksitet). Den prikka streken viser kor høgt tapet er når ein gjettar heilt i blinde.",
+    heldoutToggle: "Test modellen på tekst han aldri har sett",
+    heldoutHelp:
+      "Teiknar ein stipla strek for ein kort prøvetekst modellen aldri trenar på (held-out-data). Søkk berre øvinga, puggar modellen; søkk prøva òg, har han lært noko som verkar på ny tekst.",
     screwsLabel: "Sjå skruane bli vridde",
     screwsHelp:
       "Kvar rute er éin av justeringsskruane til modellen (vektene) – eit lite utval av alle saman. Mørk rute = skruen vart vriden mykje no nettopp. Tidleg i treninga er det mange mørke ruter; etter kvart som modellen lærer, blir det stadig færre og rolegare.",
@@ -1442,6 +1467,15 @@ const nn: Strings = {
     axisStep: "steg →",
     axisLoss: "tap",
     count: (n) => `${n} måling(ar)`,
+    trainLabel: "Øving (teksten han trenar på):",
+    heldoutLabel: "Prøve (ny tekst han aldri har sett):",
+    chanceLabel: "Rein gjetting:",
+    chanceMark: "rein gjetting",
+    bestMark: "best på ny tekst",
+    choosing: (n) => `nøler mellom ca. ${n} teikn`,
+    chanceChoosing: (v) => `alle ${v} teikna like sannsynlege`,
+    overfitNote: (step) =>
+      `Prøvetapet stig att etter steg ${step}, medan øvingstapet held fram med å søkke. Modellen har byrja å pugge treningsteksten i staden for å lære mønster som verkar på ny tekst (overtilpassing).`,
   },
   footer: {
     line1:

@@ -7,16 +7,17 @@ import {
   Muon,
   Transformer,
   cosineLr,
+  evalLoss,
   generate,
   mulberry32,
   trainStep,
   type Activation,
   type Optimizer,
 } from "@/lib/ml";
-import { buildTokenizer, corpora } from "@/lib/corpus";
+import { buildTokenizer, corpora, proveTekster } from "@/lib/corpus";
 import { STRINGS, SEEDS, LANGS, type Lang, type Seeds, type Strings } from "@/lib/i18n";
 import { Gloss, GlossLang } from "@/components/Gloss";
-import LossChart from "@/components/LossChart";
+import LossChart, { type HeldoutPoint } from "@/components/LossChart";
 import Architecture from "@/components/Architecture";
 import { Section, Card, Advanced, Utskrift } from "@/components/ui";
 import Rlhf from "@/components/Rlhf";
@@ -39,6 +40,11 @@ import { downloadWorkbook } from "@/lib/xlsx-zip";
 
 const MAX_STEPS = 3500;
 const CHUNK = 6;
+// Kor ofte prøveteksten blir målt, og over kor mange faste utdrag. Same frø
+// kvar gong, så kurva viser modellen som endrar seg, ikkje nye utdrag.
+const EVAL_EVERY = 50;
+const EVAL_BATCHES = 16;
+const EVAL_SEED = 99;
 
 type PresetKey = "liten" | "mellom" | "stor";
 
@@ -56,8 +62,15 @@ type OptimKey = "adam" | "muon";
 interface Engine {
   tokenizer: ReturnType<typeof buildTokenizer>;
   data: number[];
+  // Prøvetekst modellen aldri trenar på – berre til måling (held-out).
+  heldout: number[];
   model: Transformer;
   opt: Optimizer;
+}
+
+// Snitt-tap på prøveteksten, utan å røra vektene.
+function measureHeldout(model: Transformer, heldout: number[]): number {
+  return evalLoss(model, heldout, model.seqLen, EVAL_BATCHES, mulberry32(EVAL_SEED));
 }
 
 function charLabel(c: string): string {
@@ -235,6 +248,10 @@ export default function App() {
   const [running, setRunning] = useState(false);
   const [step, setStep] = useState(0);
   const [losses, setLosses] = useState<number[]>([]);
+  const heldoutRef = useRef<HeldoutPoint[]>([]);
+  const [heldout, setHeldout] = useState<HeldoutPoint[]>([]);
+  // Prøvelinja er valfri: ho blir alltid målt, men berre vist når eleven vil.
+  const [showHeldout, setShowHeldout] = useState(false);
   const [currentSample, setCurrentSample] = useState("");
   const [paramCount, setParamCount] = useState(0);
   const [ask, setAsk] = useState<Ask | null>(null);
@@ -257,6 +274,7 @@ export default function App() {
     const fullText = activeCorpus + "\n" + customText;
     const tokenizer = buildTokenizer(fullText);
     const data = tokenizer.encode(fullText);
+    const heldout = tokenizer.encode(proveTekster[lang]);
     const arch = PRESETS[preset];
     const model = new Transformer(
       {
@@ -276,20 +294,23 @@ export default function App() {
       optim === "muon"
         ? new Muon(model.optimGroups(), lrRef.current)
         : new Adam(model.params, lrRef.current);
-    engineRef.current = { tokenizer, data, model, opt };
+    engineRef.current = { tokenizer, data, heldout, model, opt };
     stepRef.current = 0;
     lossesRef.current = [];
+    // Steg 0: ein utrent modell gjettar omtrent på måfå, og kurva startar der.
+    heldoutRef.current = [{ step: 0, loss: measureHeldout(model, heldout) }];
     rngRef.current = mulberry32(42);
     sampleRngRef.current = mulberry32(7);
     setStep(0);
     setLosses([]);
+    setHeldout(heldoutRef.current.slice());
     setCurrentSample("");
     setParamCount(model.paramCount());
     setEngineGen((g) => g + 1);
     rlhf.reset();
     // arkitektur (preset, aktivering, ekspertar, trigramminne) og val av optimerar tvingar
     // fram ein ny modell – ikkje lr/batch, som kan endrast midt i ei økt
-  }, [preset, act, moe, ngram, optim, rlhf.reset, activeCorpus]);
+  }, [preset, act, moe, ngram, optim, rlhf.reset, activeCorpus, lang]);
 
   useEffect(() => {
     if (!runningRef.current) buildEngine();
@@ -318,6 +339,11 @@ export default function App() {
       const l = trainStep(eng.model, eng.opt, eng.data, seqLen, cfg.batch, rngRef.current);
       lossesRef.current.push(l);
       stepRef.current++;
+      if (stepRef.current % EVAL_EVERY === 0 || stepRef.current === MAX_STEPS)
+        heldoutRef.current.push({
+          step: stepRef.current,
+          loss: measureHeldout(eng.model, eng.heldout),
+        });
     }
     if (lossesRef.current.length > MAX_STEPS)
       lossesRef.current = lossesRef.current.slice(-MAX_STEPS);
@@ -330,6 +356,7 @@ export default function App() {
     lastTickRef.current = { t: now, step: stepRef.current };
     setStep(stepRef.current);
     setLosses(lossesRef.current.slice());
+    setHeldout(heldoutRef.current.slice());
     if (stepRef.current % 60 < stepsThisChunk) {
       const s = generate(
         eng.model,
@@ -1110,10 +1137,29 @@ export default function App() {
             {/* tap-graf */}
             <div>
               <h3 className="mb-2 font-semibold text-blekk">{s.train.lossHeading}</h3>
-              <LossChart data={losses} loss={s.loss} />
+              <LossChart
+                data={losses}
+                heldout={showHeldout ? heldout : undefined}
+                vocab={engineRef.current?.tokenizer.vocab ?? displayTok.vocab}
+                loss={s.loss}
+              />
               <p className="mt-2 text-xs leading-relaxed text-blyant">
                 <Gloss text={s.train.lossHelp} />
               </p>
+              <label className="mt-3 flex items-start gap-2 text-sm text-blekk">
+                <input
+                  type="checkbox"
+                  checked={showHeldout}
+                  onChange={(e) => setShowHeldout(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  {s.train.heldoutToggle}
+                  <span className="mt-1 block text-xs leading-relaxed text-blyant">
+                    <Gloss text={s.train.heldoutHelp} />
+                  </span>
+                </span>
+              </label>
             </div>
 
             {/* fordypning: sjå vektene («skruane») bli vridde i sanntid */}

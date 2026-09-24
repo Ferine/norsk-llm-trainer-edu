@@ -12,8 +12,8 @@ const i18n = readFileSync(new URL("../src/lib/i18n.ts", import.meta.url), "utf8"
 
 // ---- 1. state setters that force a rebuild are always guarded --------------
 // buildEngine's dependency list decides what discards the model. Keep this list
-// in step with it: preset, act, moe, ngram and optim rebuild directly, lang rebuilds
-// through activeCorpus.
+// in step with it: preset, act, moe, ngram and optim rebuild directly; lang rebuilds
+// through activeCorpus and is also a direct dep because it picks the held-out text.
 const DESTRUCTIVE = ["setPreset", "setOptim", "setAct", "setMoe", "setNgram", "setLang"];
 for (const setter of DESTRUCTIVE) {
   const calls = [...app.matchAll(new RegExp(`\\b${setter}\\(`, "g"))];
@@ -30,7 +30,7 @@ for (const setter of DESTRUCTIVE) {
 // ---- 2. buildEngine's deps have not grown a new rebuild trigger ------------
 // If this fails, something new discards the model and needs a guard + a key in
 // DESTRUCTIVE above.
-const deps = app.match(/\}, \[preset, act, moe, ngram, optim, rlhf\.reset, activeCorpus\]\);/);
+const deps = app.match(/\}, \[preset, act, moe, ngram, optim, rlhf\.reset, activeCorpus, lang\]\);/);
 assert.ok(
   deps,
   "buildEngine's dependency list changed — check whether the new dependency discards training, and guard it"

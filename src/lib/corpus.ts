@@ -41,6 +41,16 @@ Kva heiter du? Eg heiter Kari og eg bur ved havet. Kvar kjem du frå? Eg kjem fr
 
 export const corpora: Record<CorpusLang, string> = { bm: bokmaal, nn: nynorsk };
 
+// Prøvetekst (held-out): same slag tekst som korpuset, men setningar modellen
+// aldri trenar på. Tapet her viser om modellen har lært mønster som verkar på
+// ny tekst, eller berre pugga øvingsteksten. Berre teikn som alt finst i
+// korpuset, så ingenting fell bort i tokeniseringa (sjå corpus-lang-testen).
+const proveBokmaal = `Om høsten blir dagene kortere, og løvet på bjørkene skifter farge. Bonden henter sauene ned fra fjellet før snøen kommer. I byen tenner folk lys i vinduene tidlig på ettermiddagen. Det var en gang en gammel mann som bodde alene i en liten stue ved skogen. En dag banket en rev på døra og spurte om den kunne få sitte ved ovnen. Mannen delte maten sin med reven, og siden den dagen var han aldri ensom igjen. Hva spiser du til frokost? Jeg spiser grøt med bær og drikker et glass saft. Hvor bor bestemor? Hun bor i et gult hus nede ved sjøen.`;
+
+const proveNynorsk = `Om hausten blir dagane kortare, og lauvet på bjørkene skiftar farge. Bonden hentar sauene ned frå fjellet før snøen kjem. I byen tenner folk lys i vindauga tidleg på ettermiddagen. Det var ein gong ein gammal mann som budde åleine i ei lita stove ved skogen. Ein dag banka ein rev på døra og spurde om den kunne få sitje ved omnen. Mannen delte maten sin med reven, og sidan den dagen var han aldri einsam att. Kva et du til frukost? Eg et graut med bær og drikk eit glas saft. Kvar bur bestemor? Bestemor bur i eit gult hus nede ved sjøen.`;
+
+export const proveTekster: Record<CorpusLang, string> = { bm: proveBokmaal, nn: proveNynorsk };
+
 // Bakoverkompatibel standard-eksport (bokmål). Brukt av testane.
 export const corpus = corpora.bm;
 
