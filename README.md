@@ -127,7 +127,7 @@ The page walks you through the full lifecycle of a language model, one section a
 | 2 | **Raw text & tokenization** | See the Norwegian corpus, watch a sentence split into characters, and inspect the full character-level vocabulary. An optional multimodal visual also shows how image patches and short audio frames become ordered sequences of numeric representations. |
 | 3 | **From characters to word-pieces (BPE)** | Learn byte-pair encoding hands-on: merge the most frequent pair step by step and watch the sample sentence re-tokenize into subwords. |
 | 4 | **The architecture** | A live diagram of the transformer that updates with your chosen layer/head/dimension settings — and shows the expert split or the trigram lookup exactly where either enters the network. |
-| 5 | **Training** | Pick a model size, batch size, and learning rate, then hit **Start** and watch the loss fall and sample text improve in real time. The loss chart shows a pencil line for pure guessing (ln of the vocabulary size), and every loss is also given as “choosing between about N characters” (perplexity). An opt-in checkbox under the chart adds a dashed test line, measured on a short held-out passage the model never trains on (`proveTekster` in `src/lib/corpus.ts`). At the shipped defaults that line bottoms out around step 600–750 and climbs back toward chance while practice keeps falling; the chart then marks the low point and says in plain words that the model has started memorising (overfitting). **Flere innstillinger** holds the frontier switches (optimizer, LR schedule, activation, experts, trigram memory) and the 4-bit slimming measurement. Two live weight views fold out below: the change-heat grid (*skruene*) and the **vevkart** — every single parameter as one pixel, grouped by the model's anatomy (embeddings → optional memory → per-block attention/FFN → output head), redrawn as training runs with a decaying highlighter glow on the weights that just moved. |
+| 5 | **Training** | Pick a model size, batch size, and learning rate, then hit **Start** and watch the loss fall and sample text improve in real time. The loss chart shows a pencil line for pure guessing (ln of the vocabulary size), and every loss is also given as “choosing between about N characters” (perplexity). An opt-in checkbox under the chart adds a dashed test line, measured on a short held-out passage the model never trains on (`proveTekster` in `src/lib/corpus.ts`). At the shipped defaults that line bottoms out around step 600–750 and climbs back toward chance while practice keeps falling; the chart marks the low point and flags possible memorisation (overfitting) when average practice loss has also fallen. **Flere innstillinger** holds the frontier switches (optimizer, LR schedule, activation, experts, trigram memory) and the 4-bit slimming measurement. Two live weight views fold out below: the change-heat grid (*skruene*) and the **vevkart** — every single parameter as one pixel, grouped by the model's anatomy (embeddings → optional memory → per-block attention/FFN → output head), redrawn as training runs with a decaying highlighter glow on the weights that just moved. |
 | 6 | **Look inside the model** | Pick any position in a sentence and inspect every head's attention pattern plus the next-character probability distribution — with the true next character as fasit. With experts switched on, an extra strip shows which expert each character woke. With trigram memory switched on, every position exposes its three-ID key, bucket, active row, learned RMS strength and other corpus trigrams colliding in that bucket. |
 | 7 | **Try the model** | Give it a prompt and generate text, tuning temperature, top-k, and length. A live sliding window shows exactly which 32–48 familiar characters the model can still see before each next-character guess, while older characters fade out of reach. Because the teaching tokenizer remains one character per token, every visible character occupies exactly one context slot. The prompt you supplied stays marked in everything the model writes, so you can always see where your text ended and the model's began. |
 | 8 | **RLHF** | A compact explainer based on the InstructGPT paper shows how supervised instruction tuning (SFT) turns text continuation into “instruction in, answer out.” An optional folded note shows where tool-use behavior enters the post-training pipeline and uses MCP as a runtime example. Then generate two continuations, choose the one you prefer, and steer the model with real DPO. |
@@ -453,10 +453,13 @@ scratch on 2D canvas over the live weights (`src/components/Vevkart.tsx`), no Th
 - **`dpoLoss`** implements `−log σ(β·((logπ_w − logπ_ref,w) − (logπ_l − logπ_ref,l)))` with a
   numerically stable softplus and its exact gradient.
 - **`dpoStep`** runs a preference-pair minibatch and reports loss, **margin**, and **win-rate**, all
-  driven by your in-browser choices (`src/lib/useRlhf.ts`).
+  driven by your in-browser choices (`src/lib/useRlhf.ts`). Every answer character is scored with
+  the same sliding context as generation, including the full available prompt. Each window is
+  backpropagated immediately so long answers do not retain all their computation graphs.
 
-To stay responsive, both training and DPO run in small chunks scheduled via `setTimeout`, yielding
-to the browser between bursts so the UI never freezes.
+Training runs in small chunks scheduled via `setTimeout`. DPO uses the yielding `dpoStepChunks`
+entry point to let the browser update between context windows, and commits weights only when a
+complete minibatch finishes. The Inspector refreshes after each update and after undoing tuning.
 
 ---
 
@@ -484,6 +487,8 @@ the math and data, independent of React:
 | `i18n-parity` | Bokmål and Nynorsk string bundles have matching shapes, and every reading-list link carries a note in both languages |
 | `generate-parity` | Deterministic, seed-stable generation |
 | `dpo-smoke` | End-to-end: preference tuning actually moves the margin (0 → ~70, 100% win-rate) |
+| `dpo-context` | Full 48-character answers learn even when only their endings differ; sliding-context scores match generation; gradients match finite differences; cancellation leaves weights intact |
+| `ui-state` | Overfitting warnings require improving training loss; the Inspector follows live tuning, further training and rollback without stale results |
 | `inspect` | `rowProbs` matches a manual softmax; `inspect()` logits equal `forward()`; attention is causal and each row sums to 1 |
 | `bpe` | BPE learning is deterministic with correct counts/ranks/tie-breaks; encoding is monotonic in the number of merges |
 | `muon` | Newton–Schulz pulls every singular value into a band around 1 (checked against an independent Jacobi eigen-decomposition), is scale-invariant, splits Q/K/V per head exactly as hand-computed, covers every parameter once, and trains |

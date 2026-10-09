@@ -24,26 +24,20 @@ for (let k = 0; k < 12; k++) {
   pairs.push({ promptIds, chosenIds, rejectedIds });
 }
 
-// eval helper mirrors dpoStep capping
-function capSeq(promptIds, contIds, seqLen) {
-  let prompt = promptIds.length ? promptIds : [0];
-  let cont = contIds.slice();
-  if (cont.length < 1) cont = [prompt[prompt.length - 1]];
-  if (cont.length >= seqLen) cont = cont.slice(0, seqLen - 1);
-  let P = prompt.length;
-  if (P + cont.length > seqLen) { P = seqLen - cont.length; prompt = prompt.slice(prompt.length - P); }
-  return { seq: prompt.concat(cont), P };
+// These short fixtures fit in one context. Long answers and sliding-window
+// scoring are exercised independently in dpo-context.test.mjs.
+function score(model, prompt, continuation) {
+  const seq = prompt.concat(continuation).slice(0, -1);
+  assert.ok(seq.length <= model.seqLen);
+  return seqLogProbValue(model.forward(seq), prompt.length - 1, continuation);
 }
 function evalMargin(policy, reference, pairs) {
   let total = 0, wins = 0;
   for (const p of pairs) {
-    const w = capSeq(p.promptIds, p.chosenIds, policy.seqLen);
-    const l = capSeq(p.promptIds, p.rejectedIds, policy.seqLen);
-    const tw = w.seq.slice(w.P), tl = l.seq.slice(l.P);
-    const lpW = seqLogProbValue(policy.forward(w.seq), w.P - 1, tw);
-    const lpL = seqLogProbValue(policy.forward(l.seq), l.P - 1, tl);
-    const rW = seqLogProbValue(reference.forward(w.seq), w.P - 1, tw);
-    const rL = seqLogProbValue(reference.forward(l.seq), l.P - 1, tl);
+    const lpW = score(policy, p.promptIds, p.chosenIds);
+    const lpL = score(policy, p.promptIds, p.rejectedIds);
+    const rW = score(reference, p.promptIds, p.chosenIds);
+    const rL = score(reference, p.promptIds, p.rejectedIds);
     const m = (lpW - rW) - (lpL - rL);
     total += m; if (m > 0) wins++;
   }

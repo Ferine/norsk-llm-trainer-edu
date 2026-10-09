@@ -1232,6 +1232,7 @@ export default function App() {
               tokenizer={engineRef.current?.tokenizer ?? null}
               corpusIds={engineRef.current?.data ?? null}
               step={step}
+              modelRevision={rlhf.modelRevision}
               defaultText={seed.sampleSentence}
               s={s.inspect}
             />

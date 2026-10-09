@@ -933,7 +933,7 @@ const bm: Strings = {
     choosing: (n) => `nøler mellom ca. ${n} tegn`,
     chanceChoosing: (v) => `alle ${v} tegn like sannsynlige`,
     overfitNote: (step) =>
-      `Prøvetapet stiger igjen etter steg ${step}, mens øvingstapet fortsetter å synke. Modellen har begynt å pugge treningsteksten i stedet for å lære mønstre som virker på ny tekst (overtilpasning).`,
+      `Prøvetapet er høyere enn ved steg ${step}, mens gjennomsnittlig øvingstap er lavere. Det kan være et tegn på at modellen pugger treningsteksten i stedet for å lære mønstre som virker på ny tekst (overtilpasning).`,
   },
   footer: {
     line1:
@@ -1475,7 +1475,7 @@ const nn: Strings = {
     choosing: (n) => `nøler mellom ca. ${n} teikn`,
     chanceChoosing: (v) => `alle ${v} teikna like sannsynlege`,
     overfitNote: (step) =>
-      `Prøvetapet stig att etter steg ${step}, medan øvingstapet held fram med å søkke. Modellen har byrja å pugge treningsteksten i staden for å lære mønster som verkar på ny tekst (overtilpassing).`,
+      `Prøvetapet er høgare enn ved steg ${step}, medan gjennomsnittleg øvingstap er lågare. Det kan vere eit teikn på at modellen puggar treningsteksten i staden for å lære mønster som verkar på ny tekst (overtilpassing).`,
   },
   footer: {
     line1:

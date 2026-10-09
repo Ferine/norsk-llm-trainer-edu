@@ -25,6 +25,11 @@ const nf = new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 1 });
 // Tap → «vel mellom ca. N teikn» (perpleksitet = e^tap).
 const choices = (l: number) => nf.format(Math.exp(l));
 
+function trainingAverage(data: number[], step: number): number {
+  const tail = data.slice(Math.max(0, step - SMOOTH), step);
+  return tail.reduce((a, b) => a + b, 0) / tail.length;
+}
+
 // Enkel, sjølv-teikna SVG-graf over tapet (loss) under trening.
 export default function LossChart({ data, loss, heldout = [], vocab }: Props) {
   const W = 640;
@@ -67,11 +72,13 @@ export default function LossChart({ data, loss, heldout = [], vocab }: Props) {
   let best: HeldoutPoint | null = null;
   for (const p of heldout) if (!best || p.loss < best.loss) best = p;
   const lastHeld = heldout.length ? heldout[heldout.length - 1] : null;
+  const trainNow = trainingAverage(data, data.length);
+  // A rising test loss alone can also mean unstable training. Only describe
+  // overfitting when the smoothed training loss improved since the test minimum.
   const overfit =
-    best && lastHeld && best.step > 0 && lastHeld.loss - best.loss >= OVERFIT_RISE ? best : null;
+    best && lastHeld && best.step > 0 && lastHeld.loss - best.loss >= OVERFIT_RISE &&
+    trainNow < trainingAverage(data, best.step) ? best : null;
 
-  const tail = data.slice(-SMOOTH);
-  const trainNow = tail.reduce((a, b) => a + b, 0) / tail.length;
   const last = data[data.length - 1];
 
   return (

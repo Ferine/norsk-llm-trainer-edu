@@ -521,16 +521,21 @@ export function seqLogProbValue(logits: Tensor, r0: number, targets: number[]): 
 // DPO loss for one preference pair.
 // z = beta * ((lpW − refW) − (lpL − refL));  loss = softplus(−z) = −log sigmoid(z).
 // d loss/dz = −sigmoid(−z);  chain: dz/dlpW = +beta, dz/dlpL = −beta.
+function dpoTerms(margin: number, beta: number): { loss: number; grad: number } {
+  const z = beta * margin;
+  const loss = z > 0 ? Math.log1p(Math.exp(-z)) : -z + Math.log1p(Math.exp(z));
+  const sigNegZ = z > 0 ? Math.exp(-z) / (1 + Math.exp(-z)) : 1 / (1 + Math.exp(z));
+  return { loss, grad: -beta * sigNegZ };
+}
+
 export function dpoLoss(lpW: Tensor, lpL: Tensor, refW: number, refL: number, beta: number): Tensor {
   const out = tensor(1, 1, [lpW, lpL]);
-  const z = beta * ((lpW.d[0] - refW) - (lpL.d[0] - refL));
-  out.d[0] = z > 0 ? Math.log1p(Math.exp(-z)) : -z + Math.log1p(Math.exp(z));
-  const sigNegZ = z > 0 ? Math.exp(-z) / (1 + Math.exp(-z)) : 1 / (1 + Math.exp(z)); // sigmoid(−z)
+  const { loss, grad } = dpoTerms((lpW.d[0] - refW) - (lpL.d[0] - refL), beta);
+  out.d[0] = loss;
   out._back = () => {
     const g = out.grad[0];
-    const dz = -sigNegZ; // d loss/dz
-    lpW.grad[0] += g * dz * beta;
-    lpL.grad[0] += g * dz * -beta;
+    lpW.grad[0] += g * grad;
+    lpL.grad[0] -= g * grad;
   };
   return out;
 }
@@ -1632,23 +1637,88 @@ export interface PrefPair {
   rejectedIds: number[];
 }
 
-// Build a full sequence (prompt + continuation) capped to seqLen, truncating the
-// prompt from the left first so the continuation is preserved. Returns the sequence
-// and P = prompt length within the cap (>= 1). Continuation = seq.slice(P) (>= 1 token).
-function capSeq(promptIds: number[], contIds: number[], seqLen: number): { seq: number[]; P: number } {
-  let prompt = promptIds.length ? promptIds : [0];
-  let cont = contIds.slice();
-  if (cont.length < 1) cont = [prompt[prompt.length - 1]];
-  if (cont.length >= seqLen) cont = cont.slice(0, seqLen - 1);
-  let P = prompt.length;
-  if (P + cont.length > seqLen) {
-    P = seqLen - cont.length;
-    prompt = prompt.slice(prompt.length - P);
+// Score every continuation token in the context sampleTokens would use. Before
+// the window fills, causal rows share one forward pass; after that it slides by
+// one token, including the same positional-embedding reset as generation.
+// Backpropagate each window immediately, so only one window's graph stays alive.
+// The resulting signed log-probability gradients are scaled by DPO afterwards.
+function* scorePreferenceContinuation(
+  policy: Transformer,
+  reference: Transformer,
+  promptIds: number[],
+  contIds: number[],
+  sign: number
+): Generator<void, { policy: number; reference: number }> {
+  const prompt = promptIds.length ? promptIds : [0];
+  const seq = prompt.concat(contIds);
+  let policyScore = 0;
+  let referenceScore = 0;
+  for (let i = 0; i < contIds.length;) {
+    const end = prompt.length + i;
+    const start = Math.max(0, end - policy.seqLen);
+    const contextLength = end - start;
+    const count = Math.min(contIds.length - i, policy.seqLen - contextLength + 1);
+    const window = seq.slice(start, end + count - 1);
+    const targets = contIds.slice(i, i + count);
+    const lp = seqLogProb(policy.forward(window), contextLength - 1, targets);
+    policyScore += lp.d[0];
+    backward(scale(lp, sign));
+    referenceScore += seqLogProbValue(reference.forward(window), contextLength - 1, targets);
+    i += count;
+    yield;
   }
-  return { seq: prompt.concat(cont), P };
+  return { policy: policyScore, reference: referenceScore };
 }
 
-// One DPO update over a sampled minibatch of preference pairs.
+export interface DpoMetrics {
+  loss: number;
+  margin: number;
+  winRate: number;
+}
+
+// The browser can yield between context windows. Weights only change at the
+// end of the minibatch, so cancelling an unfinished iterator discards its work.
+export function* dpoStepChunks(
+  policy: Transformer,
+  reference: Transformer,
+  opt: Optimizer,
+  pairs: PrefPair[],
+  batch: number,
+  beta: number,
+  rng: () => number
+): Generator<void, DpoMetrics> {
+  if (pairs.length === 0) return { loss: 0, margin: 0, winRate: 0 };
+  if (!Number.isInteger(batch) || batch < 1)
+    throw new RangeError("DPO batch must be a positive integer");
+  // Merk: her blir ikkje skeivfordelings-leddet dytta. Under finpussinga er
+  // referansemodellen frosen, og då skal rutinga liggja i ro òg – elles ville
+  // dei to modellane sakte drifta frå kvarandre i kven dei spør om råd.
+  const n = Math.min(batch, pairs.length);
+  const batchGrads = policy.params.map((p) => new Float32Array(p.grad.length));
+  let totalLoss = 0;
+  let totalMargin = 0;
+  let wins = 0;
+  for (let b = 0; b < n; b++) {
+    const pair = pairs[Math.min(pairs.length - 1, Math.floor(rng() * pairs.length))];
+    opt.zeroGrad();
+    const w = yield* scorePreferenceContinuation(policy, reference, pair.promptIds, pair.chosenIds, 1);
+    const l = yield* scorePreferenceContinuation(policy, reference, pair.promptIds, pair.rejectedIds, -1);
+    const margin = (w.policy - w.reference) - (l.policy - l.reference);
+    const { loss, grad } = dpoTerms(margin, beta);
+    for (let p = 0; p < policy.params.length; p++)
+      for (let j = 0; j < batchGrads[p].length; j++)
+        batchGrads[p][j] += (grad * policy.params[p].grad[j]) / n;
+    totalLoss += loss;
+    totalMargin += margin;
+    if (margin > 0) wins++;
+  }
+  for (let p = 0; p < policy.params.length; p++) policy.params[p].grad.set(batchGrads[p]);
+  opt.clipGradNorm(1.0);
+  opt.step();
+  return { loss: totalLoss / n, margin: totalMargin / n, winRate: wins / n };
+}
+
+// Synchronous entry point for callers that do not need to yield to the UI.
 export function dpoStep(
   policy: Transformer,
   reference: Transformer,
@@ -1657,42 +1727,11 @@ export function dpoStep(
   batch: number,
   beta: number,
   rng: () => number
-): { loss: number; margin: number; winRate: number } {
-  if (pairs.length === 0) return { loss: 0, margin: 0, winRate: 0 };
-  // Merk: her blir ikkje skeivfordelings-leddet dytta. Under finpussinga er
-  // referansemodellen frosen, og då skal rutinga liggja i ro òg – elles ville
-  // dei to modellane sakte drifta frå kvarandre i kven dei spør om råd.
-  opt.zeroGrad();
-  const seqLen = policy.seqLen;
-  const n = Math.min(batch, pairs.length);
-  let totalLoss = 0;
-  let totalMargin = 0;
-  let wins = 0;
-  for (let b = 0; b < n; b++) {
-    const pair = pairs[Math.min(pairs.length - 1, Math.floor(rng() * pairs.length))];
-    const w = capSeq(pair.promptIds, pair.chosenIds, seqLen);
-    const l = capSeq(pair.promptIds, pair.rejectedIds, seqLen);
-    const tgtW = w.seq.slice(w.P);
-    const tgtL = l.seq.slice(l.P);
-
-    const lpW = seqLogProb(policy.forward(w.seq), w.P - 1, tgtW);
-    const lpL = seqLogProb(policy.forward(l.seq), l.P - 1, tgtL);
-    const refW = seqLogProbValue(reference.forward(w.seq), w.P - 1, tgtW);
-    const refL = seqLogProbValue(reference.forward(l.seq), l.P - 1, tgtL);
-
-    const loss = dpoLoss(lpW, lpL, refW, refL, beta);
-    backward(loss);
-    totalLoss += loss.d[0];
-    const margin = (lpW.d[0] - refW) - (lpL.d[0] - refL);
-    totalMargin += margin;
-    if (margin > 0) wins++;
-  }
-  if (n > 1)
-    for (const p of policy.params)
-      for (let i = 0; i < p.grad.length; i++) p.grad[i] /= n;
-  opt.clipGradNorm(1.0);
-  opt.step();
-  return { loss: totalLoss / n, margin: totalMargin / n, winRate: wins / n };
+): DpoMetrics {
+  const work = dpoStepChunks(policy, reference, opt, pairs, batch, beta, rng);
+  let next = work.next();
+  while (!next.done) next = work.next();
+  return next.value;
 }
 
 export interface SampleOpts {

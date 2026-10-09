@@ -15,6 +15,7 @@ interface Props {
   tokenizer: Tokenizer | null;
   corpusIds: number[] | null;
   step: number;
+  modelRevision: number;
   defaultText: string;
   s: Strings["inspect"];
 }
@@ -36,15 +37,15 @@ function ngramKeyId(key: ArrayLike<number>): string {
   return Array.from(key).join(",");
 }
 
-export default function Inspector({ model, tokenizer, corpusIds, step, defaultText, s }: Props) {
+export default function Inspector({ model, tokenizer, corpusIds, step, modelRevision, defaultText, s }: Props) {
   const [text, setText] = useState(defaultText);
   const [layer, setLayer] = useState(0);
   const [head, setHead] = useState(0);
   const [pos, setPos] = useState<number | null>(null);
 
   // One forward pass. Recomputes only when the text, the model instance, or the
-  // training step changes (step is an intentional dependency so the panels refresh
-  // after a training run). Changing layer/head/pos is a pure re-render off this memo.
+  // training step or tuning revision changes. Both training and tuning mutate
+  // weights in place. Changing layer/head/pos reuses the same forward pass.
   const result = useMemo(() => {
     if (!model || !tokenizer) return null;
     let ids = tokenizer.encode(text);
@@ -52,7 +53,7 @@ export default function Inspector({ model, tokenizer, corpusIds, step, defaultTe
     if (ids.length > model.seqLen) ids = ids.slice(ids.length - model.seqLen);
     const { logits, attn, routes, ngram } = model.inspect(ids);
     return { ids, logits, attn, routes, ngram };
-  }, [text, model, step, tokenizer]);
+  }, [text, model, step, modelRevision, tokenizer]);
 
   // Eit corpuskart gjer hashkollisjonar synlege. Kvar unik trigramnøkkel blir
   // lagra éin gong per skuff; dette er berre inspeksjon, ikkje treningstilstand.

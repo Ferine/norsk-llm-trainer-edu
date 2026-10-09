@@ -3,7 +3,7 @@ import {
   Adam,
   Transformer,
   cloneTransformer,
-  dpoStep,
+  dpoStepChunks,
   mulberry32,
   sampleTokens,
   type PrefPair,
@@ -16,7 +16,7 @@ const PAIR_LEN = 48;
 const LIVE_BURST = 5;
 const LIVE_MINIBATCH = 4;
 const TRAIN_MORE_STEPS = 60;
-const TRAIN_CHUNK = 6;
+const TRAIN_SLICE_MS = 16;
 const TRAIN_MINIBATCH = 4;
 const PAIR_RETRY = 4;
 
@@ -47,8 +47,6 @@ export function useRlhf({ getModel, getTokenizer, isTrained, baseRunning }: Args
   const pairRngRef = useRef<() => number>(mulberry32(2027));
   const timerRef = useRef<number | null>(null);
   const genTimerRef = useRef<number | null>(null);
-  const dpoStepCountRef = useRef(0);
-  const trainStartRef = useRef(0);
   const runningRef = useRef(false);
 
   const [started, setStarted] = useState(false);
@@ -61,6 +59,9 @@ export function useRlhf({ getModel, getTokenizer, isTrained, baseRunning }: Args
   const [generating, setGenerating] = useState(false);
   const [losses, setLosses] = useState<number[]>([]);
   const [metrics, setMetrics] = useState<RlhfMetrics>({ loss: 0, margin: 0, winRate: 0, count: 0 });
+  // Weight updates happen in place, without advancing the pretraining step.
+  // Keep this monotonic across tuning resets so model views also refresh on undo.
+  const [modelRevision, setModelRevision] = useState(0);
 
   const samplePair = useCallback((): { a: RlhfPair; b: RlhfPair } | null => {
     const model = getModel();
@@ -99,7 +100,6 @@ export function useRlhf({ getModel, getTokenizer, isTrained, baseRunning }: Args
     dpoOptRef.current = new Adam(model.params, DPO_LR);
     bufferRef.current = [];
     lossesRef.current = [];
-    dpoStepCountRef.current = 0;
     pairRngRef.current = mulberry32(2027);
     setUntrainedHint(!isTrained());
     setLosses([]);
@@ -109,19 +109,40 @@ export function useRlhf({ getModel, getTokenizer, isTrained, baseRunning }: Args
   }, [getModel, isTrained, generatePair]);
 
   const runBurst = useCallback(
-    (steps: number, minibatch: number) => {
+    (steps: number, minibatch: number, onDone?: () => void) => {
       const model = getModel();
       const ref = referenceRef.current;
       const opt = dpoOptRef.current;
-      if (!model || !ref || !opt || bufferRef.current.length === 0) return;
-      let last = { loss: 0, margin: 0, winRate: 0 };
-      for (let i = 0; i < steps; i++) {
-        last = dpoStep(model, ref, opt, bufferRef.current, minibatch, BETA, pairRngRef.current);
-        lossesRef.current.push(last.loss);
-        dpoStepCountRef.current++;
-      }
-      setLosses(lossesRef.current.slice());
-      setMetrics({ loss: last.loss, margin: last.margin, winRate: last.winRate, count: bufferRef.current.length });
+      if (!model || !ref || !opt || bufferRef.current.length === 0 || runningRef.current) return;
+      runningRef.current = true;
+      setDpoRunning(true);
+      let completed = 0;
+      let work = dpoStepChunks(model, ref, opt, bufferRef.current, minibatch, BETA, pairRngRef.current);
+      const loop = () => {
+        timerRef.current = null;
+        if (!runningRef.current) return;
+        const deadline = performance.now() + TRAIN_SLICE_MS;
+        do {
+          const next = work.next();
+          if (next.done) {
+            const last = next.value;
+            lossesRef.current.push(last.loss);
+            setLosses(lossesRef.current.slice());
+            setMetrics({ ...last, count: bufferRef.current.length });
+            setModelRevision((r) => r + 1);
+            if (++completed >= steps) {
+              runningRef.current = false;
+              setDpoRunning(false);
+              onDone?.();
+              return;
+            }
+            work = dpoStepChunks(model, ref, opt, bufferRef.current, minibatch, BETA, pairRngRef.current);
+          }
+        } while (performance.now() < deadline);
+        timerRef.current = window.setTimeout(loop, 0);
+      };
+      // Paint the busy state before starting full-context preference scoring.
+      timerRef.current = window.setTimeout(loop, 0);
     },
     [getModel]
   );
@@ -138,50 +159,16 @@ export function useRlhf({ getModel, getTokenizer, isTrained, baseRunning }: Args
         chosenIds: chosen.contIds,
         rejectedIds: rejected.contIds,
       });
-      runBurst(LIVE_BURST, LIVE_MINIBATCH);
-      generatePair();
+      runBurst(LIVE_BURST, LIVE_MINIBATCH, generatePair);
     },
     [pairA, pairB, runBurst, generatePair]
   );
 
   const skip = useCallback(() => generatePair(), [generatePair]);
 
-  const trainLoop = useCallback(() => {
-    timerRef.current = null;
-    if (!runningRef.current) return;
-    const model = getModel();
-    const ref = referenceRef.current;
-    const opt = dpoOptRef.current;
-    if (!model || !ref || !opt || bufferRef.current.length === 0) {
-      runningRef.current = false;
-      setDpoRunning(false);
-      return;
-    }
-    const done = dpoStepCountRef.current - trainStartRef.current;
-    const chunk = Math.min(TRAIN_CHUNK, TRAIN_MORE_STEPS - done);
-    let last = { loss: 0, margin: 0, winRate: 0 };
-    for (let i = 0; i < chunk; i++) {
-      last = dpoStep(model, ref, opt, bufferRef.current, TRAIN_MINIBATCH, BETA, pairRngRef.current);
-      lossesRef.current.push(last.loss);
-      dpoStepCountRef.current++;
-    }
-    setLosses(lossesRef.current.slice());
-    setMetrics({ loss: last.loss, margin: last.margin, winRate: last.winRate, count: bufferRef.current.length });
-    if (dpoStepCountRef.current - trainStartRef.current >= TRAIN_MORE_STEPS) {
-      runningRef.current = false;
-      setDpoRunning(false);
-      return;
-    }
-    timerRef.current = window.setTimeout(trainLoop, 0);
-  }, [getModel]);
-
   const trainMore = useCallback(() => {
-    if (bufferRef.current.length === 0 || runningRef.current) return;
-    trainStartRef.current = dpoStepCountRef.current;
-    runningRef.current = true;
-    setDpoRunning(true);
-    trainLoop();
-  }, [trainLoop]);
+    runBurst(TRAIN_MORE_STEPS, TRAIN_MINIBATCH);
+  }, [runBurst]);
 
   const stopTrainMore = useCallback(() => {
     runningRef.current = false;
@@ -196,11 +183,13 @@ export function useRlhf({ getModel, getTokenizer, isTrained, baseRunning }: Args
     stopTrainMore();
     const model = getModel();
     const ref = referenceRef.current;
-    if (model && ref) for (let i = 0; i < model.params.length; i++) model.params[i].d.set(ref.params[i].d);
+    if (model && ref) {
+      for (let i = 0; i < model.params.length; i++) model.params[i].d.set(ref.params[i].d);
+      setModelRevision((r) => r + 1);
+    }
     if (model) dpoOptRef.current = new Adam(model.params, DPO_LR);
     bufferRef.current = [];
     lossesRef.current = [];
-    dpoStepCountRef.current = 0;
     setLosses([]);
     setMetrics({ loss: 0, margin: 0, winRate: 0, count: 0 });
     generatePair();
@@ -220,7 +209,6 @@ export function useRlhf({ getModel, getTokenizer, isTrained, baseRunning }: Args
     dpoOptRef.current = null;
     bufferRef.current = [];
     lossesRef.current = [];
-    dpoStepCountRef.current = 0;
     setStarted(false);
     setDpoRunning(false);
     setUntrainedHint(false);
@@ -254,6 +242,7 @@ export function useRlhf({ getModel, getTokenizer, isTrained, baseRunning }: Args
     generating,
     losses,
     metrics,
+    modelRevision,
     start,
     generatePair,
     choose,
